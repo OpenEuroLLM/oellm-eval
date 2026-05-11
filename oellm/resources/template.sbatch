@@ -149,7 +149,7 @@ do
             echo
             echo "----------------------------------------------------"
             echo "lm_eval Execution"
-            run_python -m oellm.lm_eval_compat --model hf \
+            run_python -m lm_eval --model hf \
                 --model_args pretrained="$model_path",trust_remote_code=True \
                 --tasks "$task_path" \
                 --num_fewshot "$n_shot" \
