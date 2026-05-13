@@ -93,7 +93,7 @@ def test_schedule_evals_generated_script_defaults_to_offline_hub(tmp_path):
     sbatch_content = sbatch_files[0].read_text()
     assert "set -euo pipefail" in sbatch_content
     assert "export HF_HUB_OFFLINE=1" in sbatch_content
-    assert "python -m oellm.lm_eval_compat" in sbatch_content
+    assert "run_python -m lm_eval" in sbatch_content
     assert 'OELLM_REPO_ROOT="' in sbatch_content
     assert sbatch_content.index("#SBATCH --job-name=") < sbatch_content.index(
         "set -euo pipefail"

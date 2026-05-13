@@ -32,6 +32,12 @@ from oellm.utils import (
 )
 
 
+_SLURM_FAILURE_RE = re.compile(
+    r"Traceback|Exception|Error|FAILED|Killed|OOM|out of memory|No such file|No module|command not found",
+    re.IGNORECASE,
+)
+
+
 def _resolve_hf_hub_offline(local: bool) -> int:
     """Value embedded in the generated eval script as HF_HUB_OFFLINE.
 
@@ -585,7 +591,7 @@ def collect_results(
         for k, v in result_dict.items():
             if k.startswith("maj@") and isinstance(v, (int, float)):
                 return float(v), k
-            
+
         return None, None
 
     def _split_task_and_nshot(name: str) -> tuple[str, int | None]:
@@ -651,6 +657,42 @@ def collect_results(
         else:
             jobs_df = pd.read_csv(jobs_csv_path)
             logging.info(f"Found {len(jobs_df)} scheduled jobs in jobs.csv")
+
+            submit_script = results_path / "submit_evals.sbatch"
+            slurm_logs_dir = results_path / "slurm_logs"
+            num_array_jobs = len(jobs_df)
+            total_evals = len(jobs_df)
+            if submit_script.exists():
+                submit_text = submit_script.read_text(errors="replace")
+                num_jobs_match = re.search(r"^NUM_JOBS=(\d+)$", submit_text, re.M)
+                total_evals_match = re.search(r"^TOTAL_EVALS=(\d+)$", submit_text, re.M)
+                if num_jobs_match:
+                    num_array_jobs = int(num_jobs_match.group(1))
+                if total_evals_match:
+                    total_evals = int(total_evals_match.group(1))
+            evals_per_array_job = max(
+                1, int(math.ceil(total_evals / max(1, num_array_jobs)))
+            )
+
+            def _slurm_status_for_job(row_index: int) -> str | None:
+                if not slurm_logs_dir.exists():
+                    return None
+
+                array_index = row_index // evals_per_array_job
+                matching_logs = list(slurm_logs_dir.glob(f"*-{array_index}.out")) + list(
+                    slurm_logs_dir.glob(f"*-{array_index}.err")
+                )
+                if not matching_logs:
+                    return "not_started"
+
+                combined = "\n".join(
+                    p.read_text(errors="replace") for p in matching_logs if p.exists()
+                )
+                if _SLURM_FAILURE_RE.search(combined):
+                    return "failed"
+                if f"Job {array_index} finished." in combined:
+                    return "finished_without_result"
+                return "started_without_result"
 
     # Collect results
     rows = []
@@ -860,8 +902,9 @@ def collect_results(
 
         # Find missing jobs
         missing_jobs = []
+        pending_jobs = []
 
-        for _, job in jobs_df.iterrows():
+        for row_index, job in jobs_df.iterrows():
             job_tuple = (job["model_path"], job["task_path"], job["n_shot"])
 
             # Check if this job corresponds to one of our completed results
@@ -887,13 +930,30 @@ def collect_results(
                         break
 
             if not is_completed:
-                missing_jobs.append(job)
+                slurm_status = _slurm_status_for_job(row_index)
+                if slurm_status == "not_started":
+                    pending_job = job.copy()
+                    pending_job["status"] = slurm_status
+                    pending_jobs.append(pending_job)
+                else:
+                    missing_job = job.copy()
+                    if slurm_status:
+                        missing_job["status"] = slurm_status
+                    missing_jobs.append(missing_job)
 
-        completed_count = len(jobs_df) - len(missing_jobs)
+        completed_count = len(jobs_df) - len(missing_jobs) - len(pending_jobs)
 
         logging.info(f"Total scheduled jobs: {len(jobs_df)}")
         logging.info(f"Completed jobs: {completed_count}")
+        if pending_jobs:
+            logging.info(f"Not-started jobs: {len(pending_jobs)}")
         logging.info(f"Missing jobs: {len(missing_jobs)}")
+
+        if len(pending_jobs) > 0:
+            pending_df = pd.DataFrame(pending_jobs)
+            pending_csv = output_csv.replace(".csv", "_pending.csv")
+            pending_df.to_csv(pending_csv, index=False)
+            logging.info(f"Not-started jobs saved to: {pending_csv}")
 
         if len(missing_jobs) > 0:
             missing_df = pd.DataFrame(missing_jobs)
