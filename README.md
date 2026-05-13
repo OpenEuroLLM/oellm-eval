@@ -8,7 +8,7 @@ A lightweight CLI for scheduling LLM evaluations across multiple HPC clusters us
 - **Collect results** and check for missing evaluations: `oellm collect-results`
 - **Task groups** for pre-defined evaluation suites with automatic dataset pre-downloading
 - **Multi-cluster support** with auto-detection (Leonardo, LUMI, JURECA, Snellius)
-- **Automatic building and deployment of containers** 
+- **Automatic building and deployment of containers**
 
 ## Quick Start
 
@@ -42,16 +42,24 @@ In case you do not want to rely on the containers provided on a given cluster or
 
 ## Task Groups
 
-Task groups are pre-defined evaluation suites in [`task-groups.yaml`](oellm/resources/task-groups.yaml). Each group specifies tasks, their n-shot settings, and HuggingFace dataset mappings.
+Task groups are pre-defined evaluation suites in [`task-groups.yaml`](oellm/resources/task-groups.yaml). Each group specifies tasks, their n-shot settings, and HuggingFace dataset mappings. See [docs/TASKS.md](docs/TASKS.md) for the task-group schema and multilingual smoke-test notes.
 
 Available task groups:
 - `open-sci-0.01` - Standard benchmarks (COPA, MMLU, HellaSwag, ARC, etc.)
 - `belebele-eu-5-shot` - Belebele European language tasks
-- `flores-200-eu-to-eng` / `flores-200-eng-to-eu` - Translation tasks
+- `belebele-eu-cf` - Belebele European cloze-formulation tasks for lighteval
+- `flores-200-eu-to-eng` - Flores 200 European languages to English translation
+- `flores-200-eng-to-eu` - Flores 200 English to European languages translation
 - `global-mmlu-eu` - Global MMLU in EU languages
 - `mgsm-eu` - Multilingual GSM benchmarks
+- `xcsqa` - XCSQA commonsense reasoning set
+- `global-mgsm` - Global-MGSM multilingual math benchmarks
+- `polymath` - PolyMath multilingual math set
+- `global-piqa` - Global PIQA commonsense reasoning set
 - `generic-multilingual` - XWinograd, XCOPA, XStoryCloze
 - `include` - INCLUDE benchmarks
+- `dclm-core-22` - DCLM core 22 evaluation tasks
+- `reasoning` - GSM8k, IFEval, MBPP, GPQA-Diamond, MATH500, LiveCodeBench
 
 Super groups combine multiple task groups:
 - `oellm-multilingual` - All multilingual benchmarks combined
@@ -72,8 +80,9 @@ oellm schedule-eval --models "model-name" --task_groups "oellm-multilingual"
 The `--local` flag lets you run evaluations directly on your machine without a cluster or Singularity container. It generates the same eval script and executes it with bash, injecting fake SLURM environment variables so all tasks run sequentially in a single process. This is useful for testing that tasks and models are correctly configured before submitting to a cluster.
 
 ```bash
-# 1. Add eval dependencies to the project venv
-uv pip install lm-eval torch transformers accelerate "datasets<4.0.0"
+# 1. Create a venv and add lm-eval dependencies
+uv venv --python 3.12 .venv
+uv pip install --python .venv/bin/python -r requirements-venv.txt
 
 # 2. Run evaluations locally — useful for smoke-testing with a small sample
 oellm schedule-eval \
@@ -86,6 +95,10 @@ oellm schedule-eval \
 ```
 
 Results are written to `./oellm-output/<timestamp>/results/`.
+
+For lighteval tasks, install lighteval as an isolated uv tool so its
+`datasets>=4.0.0` dependency does not conflict with lm-eval's `datasets<4.0.0`;
+see [docs/VENV.md](docs/VENV.md).
 
 **Air-gapped cluster nodes (no internet):** batch jobs set `HF_HUB_OFFLINE=1` and get `HF_HOME` from your cluster env. With `--local`, the CLI defaults `HF_HOME` to `~/.cache/huggingface` if unset and would otherwise allow Hub access—so on a compute node without network, export your real cache and offline flag before running, for example:
 

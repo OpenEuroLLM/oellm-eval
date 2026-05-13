@@ -1,6 +1,6 @@
 # Dependencies for evalchemy evaluation
 
-# lm-eval fork used by evalchemy 
+# lm-eval fork used by evalchemy
 lm-eval @ git+https://github.com/EtashGuha/lm-evaluation-harness@etashg/tokenize_fix
 
 scipy==1.17.0

@@ -16,3 +16,7 @@
 **/task_map_cache.json
 *.sif
 results/
+.hf-cache/
+.uv-cache/
+.uv-python/
+.pre-commit-cache/

@@ -1,3 +1,7 @@
+import sys
+from types import SimpleNamespace
+
+from oellm.task_groups import DatasetSpec
 from oellm.utils import _expand_local_model_paths, _num_jobs_in_queue
 
 
@@ -54,3 +58,26 @@ class TestNumJobsInQueue:
 
         monkeypatch.setattr("oellm.utils.subprocess.run", lambda *a, **kw: Result())
         assert _num_jobs_in_queue() == 0
+
+
+class TestPreDownloadDatasets:
+    def test_omits_trust_remote_code_for_datasets_v4(self, monkeypatch):
+        calls = []
+
+        def load_dataset(repo_id, **kwargs):
+            calls.append((repo_id, kwargs))
+
+        fake_datasets = SimpleNamespace(
+            __version__="4.8.5",
+            load_dataset=load_dataset,
+            get_dataset_config_names=lambda *args, **kwargs: [],
+        )
+        monkeypatch.setitem(sys.modules, "datasets", fake_datasets)
+
+        from oellm.utils import _pre_download_datasets_from_specs
+
+        _pre_download_datasets_from_specs(
+            [DatasetSpec(repo_id="example/data", subset="en")]
+        )
+
+        assert calls == [("example/data", {"name": "en"})]

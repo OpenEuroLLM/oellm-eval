@@ -31,13 +31,19 @@ from oellm.utils import (
     capture_third_party_output_from_kwarg,
 )
 
+_SLURM_FAILURE_RE = re.compile(
+    r"Traceback|Exception|Error|FAILED|Killed|OOM|out of memory|No such file|No module|command not found",
+    re.IGNORECASE,
+)
+
 
 def _resolve_hf_hub_offline(local: bool) -> int:
     """Value embedded in the generated eval script as HF_HUB_OFFLINE.
 
     If ``HF_HUB_OFFLINE`` is set in the environment when ``oellm`` runs, that
-    value wins. Otherwise defaults to online Hub access for ``--local``
-    (typical laptop dev) and offline for SLURM jobs (air-gapped workers).
+    value wins. Otherwise generated eval scripts default to offline Hub access
+    because model and dataset checks/downloads have already happened before the
+    script runs.
     """
     raw = os.environ.get("HF_HUB_OFFLINE")
     if raw is not None and str(raw).strip() != "":
@@ -45,7 +51,7 @@ def _resolve_hf_hub_offline(local: bool) -> int:
             return int(str(raw).strip())
         except ValueError:
             logging.warning("Invalid HF_HUB_OFFLINE=%r; using default", raw)
-    return 0 if local else 1
+    return 1
 
 
 def _resolve_slurm_mem() -> str:
@@ -437,6 +443,7 @@ def schedule_evals(
         hf_hub_offline=_resolve_hf_hub_offline(local),
         additional_model_args=_resolve_additional_model_args(local),  # Batch size
         evalchemy_dir=os.environ.get("EVALCHEMY_DIR", "/opt/evalchemy"),
+        oellm_repo_root=str(Path(__file__).resolve().parents[1]),
     )
 
     # substitute any $ENV_VAR occurrences
@@ -482,6 +489,7 @@ def schedule_evals(
             logging.info("Local evaluation completed.")
         except subprocess.CalledProcessError as e:
             logging.error(f"Evaluation failed with exit code {e.returncode}")
+            raise
         return
 
     try:
@@ -577,6 +585,12 @@ def collect_results(
             val, key = _first_matching_prefix(result_dict, metric.split(",")[0])
             if val is not None:
                 return val, key
+
+        # Add a check for majority voting patterns (e.g., maj@4, maj@8)
+        for k, v in result_dict.items():
+            if k.startswith("maj@") and isinstance(v, (int, float)):
+                return float(v), k
+
         return None, None
 
     def _split_task_and_nshot(name: str) -> tuple[str, int | None]:
@@ -588,6 +602,31 @@ def collect_results(
             if after.isdigit():
                 return base, int(after)
         return name, None
+
+    def _aggregate_group_from_subtasks(
+        group_name: str,
+        group_subtasks: list[str],
+        all_results: dict,
+    ) -> tuple[float | None, str | None]:
+        """Fallback for lm-eval groups whose aggregate row has no metric payload."""
+        metric_values: list[float] = []
+        metric_name: str | None = None
+
+        for subtask_name in group_subtasks:
+            subtask_results = all_results.get(subtask_name)
+            if not isinstance(subtask_results, dict):
+                continue
+            value, resolved_metric = _resolve_metric(group_name, subtask_results)
+            if value is None:
+                continue
+            metric_values.append(value)
+            if metric_name is None:
+                metric_name = resolved_metric
+
+        if not metric_values:
+            return None, None
+
+        return float(sum(metric_values) / len(metric_values)), metric_name
 
     results_path = Path(results_dir)
     if not results_path.exists():
@@ -618,6 +657,42 @@ def collect_results(
             jobs_df = pd.read_csv(jobs_csv_path)
             logging.info(f"Found {len(jobs_df)} scheduled jobs in jobs.csv")
 
+            submit_script = results_path / "submit_evals.sbatch"
+            slurm_logs_dir = results_path / "slurm_logs"
+            num_array_jobs = len(jobs_df)
+            total_evals = len(jobs_df)
+            if submit_script.exists():
+                submit_text = submit_script.read_text(errors="replace")
+                num_jobs_match = re.search(r"^NUM_JOBS=(\d+)$", submit_text, re.M)
+                total_evals_match = re.search(r"^TOTAL_EVALS=(\d+)$", submit_text, re.M)
+                if num_jobs_match:
+                    num_array_jobs = int(num_jobs_match.group(1))
+                if total_evals_match:
+                    total_evals = int(total_evals_match.group(1))
+            evals_per_array_job = max(
+                1, int(math.ceil(total_evals / max(1, num_array_jobs)))
+            )
+
+            def _slurm_status_for_job(row_index: int) -> str | None:
+                if not slurm_logs_dir.exists():
+                    return None
+
+                array_index = row_index // evals_per_array_job
+                matching_logs = list(slurm_logs_dir.glob(f"*-{array_index}.out")) + list(
+                    slurm_logs_dir.glob(f"*-{array_index}.err")
+                )
+                if not matching_logs:
+                    return "not_started"
+
+                combined = "\n".join(
+                    p.read_text(errors="replace") for p in matching_logs if p.exists()
+                )
+                if _SLURM_FAILURE_RE.search(combined):
+                    return "failed"
+                if f"Job {array_index} finished." in combined:
+                    return "finished_without_result"
+                return "started_without_result"
+
     # Collect results
     rows = []
     completed_jobs = set()  # Track (model, task, n_shot) tuples
@@ -633,6 +708,7 @@ def collect_results(
             or data.get("config_general", {}).get("model_name")
             or data.get("config_general", {}).get("model")
             or data.get("config_general", {}).get("model_path")
+            or data.get("config_general", {}).get("model_config", {}).get("model_name")
             or data.get("summary_general", {}).get("model")
             or data.get("model")
             or "unknown"
@@ -666,26 +742,35 @@ def collect_results(
             for _s in _subs:
                 group_subtask_names.add(_s)
 
-        # Prefer only the first aggregate metric from groups (simplified)
+        group_rows_added = 0
         if groups_map:
-            group_name, group_results = next(iter(groups_map.items()))
-            # Prefer original extraction from n_shot_data and subtasks, then
-            # global_n_shot; only fall back to parsing the group name.
-            orig_group_name = group_name
-            n_shot = n_shot_data.get(orig_group_name, "unknown")
-            if n_shot == "unknown":
-                for subtask_name in group_subtasks_map.get(orig_group_name, []):
-                    if subtask_name in n_shot_data:
-                        n_shot = n_shot_data[subtask_name]
-                        break
-            if n_shot == "unknown" and global_n_shot is not None:
-                n_shot = global_n_shot
-            # Fallback: parse possible '|N' suffix from group name
-            group_name, parsed_n = _split_task_and_nshot(orig_group_name)
-            if n_shot == "unknown" and parsed_n is not None:
-                n_shot = parsed_n
-            performance, metric_name = _resolve_metric(group_name, group_results)
-            if performance is not None:
+            for orig_group_name, group_results in groups_map.items():
+                # Prefer original extraction from n_shot_data and subtasks, then
+                # global_n_shot; only fall back to parsing the group name.
+                n_shot = n_shot_data.get(orig_group_name, "unknown")
+                if n_shot == "unknown":
+                    for subtask_name in group_subtasks_map.get(orig_group_name, []):
+                        if subtask_name in n_shot_data:
+                            n_shot = n_shot_data[subtask_name]
+                            break
+                if n_shot == "unknown" and global_n_shot is not None:
+                    n_shot = global_n_shot
+
+                group_name, parsed_n = _split_task_and_nshot(orig_group_name)
+                if n_shot == "unknown" and parsed_n is not None:
+                    n_shot = parsed_n
+
+                performance, metric_name = _resolve_metric(group_name, group_results)
+                if performance is None:
+                    performance, metric_name = _aggregate_group_from_subtasks(
+                        group_name,
+                        group_subtasks_map.get(orig_group_name, []),
+                        results,
+                    )
+
+                if performance is None:
+                    continue
+
                 if check:
                     completed_jobs.add((model_name, group_name, n_shot))
                 rows.append(
@@ -697,7 +782,10 @@ def collect_results(
                         "metric_name": metric_name if metric_name is not None else "",
                     }
                 )
-                # Skip per-task iteration when groups are present
+                group_rows_added += 1
+
+            if group_rows_added:
+                # Skip per-task iteration when group aggregates were extracted
                 continue
 
         for task_name, task_results in results.items():
@@ -712,6 +800,11 @@ def collect_results(
             if task_name.startswith("mmlu_") and task_name != "mmlu":
                 continue
 
+            # lighteval writes a synthetic aggregate named "all" next to the
+            # concrete task; keep the concrete task rows for oellm job checks.
+            if task_name == "all":
+                continue
+
             # Skip Global MMLU subtasks - keep only aggregates like global_mmlu_full_pt
             if task_name.startswith("global_mmlu_") and task_name.count("_") >= 4:
                 continue
@@ -720,9 +813,15 @@ def collect_results(
             # Prefer original extraction from `n_shot_data` and `global_n_shot`,
             # and fall back to parsing a '|N' suffix in the task name.
             task_name_clean, parsed_n = _split_task_and_nshot(task_name)
-            n_shot = (
-                n_shot_data.get(task_name_clean) or global_n_shot or parsed_n or "unknown"
-            )
+            n_shot = n_shot_data.get(task_name_clean)
+            if n_shot is None:
+                n_shot = n_shot_data.get(task_name)
+            if n_shot is None:
+                n_shot = global_n_shot
+            if n_shot is None:
+                n_shot = parsed_n
+            if n_shot is None:
+                n_shot = "unknown"
 
             # If this is a group aggregate and n_shot is missing, derive from any subtask
             if task_name_clean in group_aggregate_names and n_shot == "unknown":
@@ -802,8 +901,9 @@ def collect_results(
 
         # Find missing jobs
         missing_jobs = []
+        pending_jobs = []
 
-        for _, job in jobs_df.iterrows():
+        for row_index, job in jobs_df.iterrows():
             job_tuple = (job["model_path"], job["task_path"], job["n_shot"])
 
             # Check if this job corresponds to one of our completed results
@@ -829,13 +929,30 @@ def collect_results(
                         break
 
             if not is_completed:
-                missing_jobs.append(job)
+                slurm_status = _slurm_status_for_job(row_index)
+                if slurm_status == "not_started":
+                    pending_job = job.copy()
+                    pending_job["status"] = slurm_status
+                    pending_jobs.append(pending_job)
+                else:
+                    missing_job = job.copy()
+                    if slurm_status:
+                        missing_job["status"] = slurm_status
+                    missing_jobs.append(missing_job)
 
-        completed_count = len(jobs_df) - len(missing_jobs)
+        completed_count = len(jobs_df) - len(missing_jobs) - len(pending_jobs)
 
         logging.info(f"Total scheduled jobs: {len(jobs_df)}")
         logging.info(f"Completed jobs: {completed_count}")
+        if pending_jobs:
+            logging.info(f"Not-started jobs: {len(pending_jobs)}")
         logging.info(f"Missing jobs: {len(missing_jobs)}")
+
+        if len(pending_jobs) > 0:
+            pending_df = pd.DataFrame(pending_jobs)
+            pending_csv = output_csv.replace(".csv", "_pending.csv")
+            pending_df.to_csv(pending_csv, index=False)
+            logging.info(f"Not-started jobs saved to: {pending_csv}")
 
         if len(missing_jobs) > 0:
             missing_df = pd.DataFrame(missing_jobs)

@@ -1,0 +1,3 @@
+include: global_mgsm_en.yaml
+task: global_mgsm_cy
+dataset_name: cy

@@ -1,0 +1,3 @@
+include: global_mgsm_en.yaml
+task: global_mgsm_yo
+dataset_name: yo

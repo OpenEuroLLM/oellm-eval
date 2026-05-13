@@ -1,0 +1,3 @@
+include: global_mgsm_en.yaml
+task: global_mgsm_ky
+dataset_name: ky

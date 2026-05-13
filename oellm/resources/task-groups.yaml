@@ -32,10 +32,24 @@ task_metrics:
   winogrande: acc
   arc_challenge: acc_norm
   arc_easy: acc_norm
+  arc_mt: acc_norm
   boolq: acc
   commonsense_qa: acc
   hellaswag: acc_norm
   piqa: acc_norm
+  global_piqa_prompted: acc
+  sib: acc
+  multiblimp: acc
+  opensubtitles_multi40_pair: acc
+  xcsqa_eng_mcf: acc_norm
+  # math:algebra: maj@4
+  # math:counting_and_probability: maj@4
+  # math:geometry: maj@4
+  # math:intermediate_algebra: maj@4
+  # math:number_theory: maj@4
+  # math:prealgebra: maj@4
+  # math:precalculus: maj@4
+  math: maj@4
   social_iqa: acc
   agieval_lsat_ar: acc
   wsc273: acc
@@ -47,6 +61,55 @@ task_metrics:
   bigbench_operators_generate_until: exact_match
   bigbench_repeat_copy_logic_generate_until: exact_match
   bigbench_cs_algorithms_generate_until: exact_match
+  global_mgsm_am: exact_match
+  global_mgsm_ar: exact_match
+  global_mgsm_bn: exact_match
+  global_mgsm_ca: exact_match
+  global_mgsm_cs: exact_match
+  global_mgsm_cy: exact_match
+  global_mgsm_de: exact_match
+  global_mgsm_el: exact_match
+  global_mgsm_en: exact_match
+  global_mgsm_es: exact_match
+  global_mgsm_eu: exact_match
+  global_mgsm_fr: exact_match
+  global_mgsm_gl: exact_match
+  global_mgsm_gu: exact_match
+  global_mgsm_ha: exact_match
+  global_mgsm_hu: exact_match
+  global_mgsm_ja: exact_match
+  global_mgsm_km: exact_match
+  global_mgsm_kn: exact_match
+  global_mgsm_ko: exact_match
+  global_mgsm_ky: exact_match
+  global_mgsm_lg: exact_match
+  global_mgsm_my: exact_match
+  global_mgsm_ne: exact_match
+  global_mgsm_ru: exact_match
+  global_mgsm_si: exact_match
+  global_mgsm_sn: exact_match
+  global_mgsm_sr: exact_match
+  global_mgsm_st: exact_match
+  global_mgsm_sw: exact_match
+  global_mgsm_ta: exact_match
+  global_mgsm_te: exact_match
+  global_mgsm_th: exact_match
+  global_mgsm_ur: exact_match
+  global_mgsm_uz: exact_match
+  global_mgsm_vi: exact_match
+  global_mgsm_wo: exact_match
+  global_mgsm_xh: exact_match
+  global_mgsm_yo: exact_match
+  global_mgsm_zh: exact_match
+  global_mgsm_zu: exact_match
+  polymath_en_low: exact_match
+  polymath_de_low: exact_match
+  polymath_es_low: exact_match
+  polymath_fr_low: exact_match
+  global_piqa_completions_eng_latn: acc_norm
+  global_piqa_completions_deu_latn: acc_norm
+  global_piqa_completions_spa_latn_spai: acc_norm
+  global_piqa_completions_fra_latn_fran: acc_norm
 
 task_groups:
   open-sci-0.01:
@@ -84,6 +147,9 @@ task_groups:
         n_shots: [10]
         dataset: allenai/ai2_arc
         subset: ARC-Challenge
+      - task: arc_mt
+        n_shots: [10]
+        dataset: LumiOpen/arc_challenge_mt
       - task: commonsense_qa
         n_shots: [10]
         dataset: tau/commonsense_qa
@@ -206,7 +272,7 @@ task_groups:
         subset: eus_Latn
       - task: belebele_cat_Latn_cf
         subset: cat_Latn
-      
+
   flores-200-eu-to-eng:
     description: "Flores 200 EU to English translation"
     suite: lighteval
@@ -311,16 +377,239 @@ task_groups:
     description: "EU Language GSM benchmarks in Aya Expanse"
     suite: lm-eval-harness
     n_shots: [5]
-    dataset: jbross-ibm-research/mgsm
     tasks:
+      # Keep Greek omitted due to non-commercial license constraints.
+      - task: mgsm_native_cot_bn
+        dataset: juletxara/mgsm
+        subset: bn
       - task: mgsm_native_cot_en
+        dataset: juletxara/mgsm
         subset: en
       - task: mgsm_native_cot_de
+        dataset: juletxara/mgsm
         subset: de
       - task: mgsm_native_cot_es
+        dataset: juletxara/mgsm
         subset: es
       - task: mgsm_native_cot_fr
+        dataset: juletxara/mgsm
         subset: fr
+      - task: mgsm_native_cot_ja
+        dataset: juletxara/mgsm
+        subset: ja
+      - task: mgsm_native_cot_ru
+        dataset: juletxara/mgsm
+        subset: ru
+      - task: mgsm_native_cot_sw
+        dataset: juletxara/mgsm
+        subset: sw
+      - task: mgsm_native_cot_te
+        dataset: juletxara/mgsm
+        subset: te
+      - task: mgsm_native_cot_th
+        dataset: juletxara/mgsm
+        subset: th
+      - task: mgsm_native_cot_zh
+        dataset: juletxara/mgsm
+        subset: zh
+
+  sib-200:
+    description: "SIB-200 sentence topic classification"
+    suite: lm-eval-harness
+    n_shots: [0]
+    tasks:
+      - task: sib
+
+  multiblimp:
+    description: "MultiBLiMP pairwise sentence ranking"
+    suite: lm-eval-harness
+    n_shots: [0]
+    tasks:
+      - task: multiblimp
+
+  xcsqa:
+    description: "Cross-lingual CSQA in LightEval (MCF formulation)"
+    suite: lighteval
+    n_shots: [0]
+    tasks:
+      # Explicit dataset metadata lets `--download_only` warm the same cached
+      # configs that lighteval will request at runtime.
+      - task: xcsqa_eng_mcf
+        dataset: INK-USC/xcsr
+        subset: X-CSQA-en
+      - task: xcsqa_deu_mcf
+        dataset: INK-USC/xcsr
+        subset: X-CSQA-de
+      - task: xcsqa_spa_mcf
+        dataset: INK-USC/xcsr
+        subset: X-CSQA-es
+      - task: xcsqa_fra_mcf
+        dataset: INK-USC/xcsr
+        subset: X-CSQA-fr
+      - task: xcsqa_ita_mcf
+        dataset: INK-USC/xcsr
+        subset: X-CSQA-it
+      - task: xcsqa_pol_mcf
+        dataset: INK-USC/xcsr
+        subset: X-CSQA-pl
+      - task: xcsqa_por_mcf
+        dataset: INK-USC/xcsr
+        subset: X-CSQA-pt
+
+  open-subtitles-x-to-eng:
+    description: "OpenSubtitles translation (x to English), directional reporting group"
+    suite: lm-eval-harness
+    n_shots: [0]
+    tasks:
+      # Use lm-eval OpenSubtitles dynamic pair task format (PR #3706).
+      # Keep mirrored groups to preserve directional report slots.
+      - task: opensubtitles_multi40_pair
+
+  open-subtitles-eng-to-x:
+    description: "OpenSubtitles translation (English to x), directional reporting group"
+    suite: lm-eval-harness
+    n_shots: [0]
+    tasks:
+      - task: opensubtitles_multi40_pair
+
+  doclevel-mt-x-to-eng:
+    description: "Document-level MT proxy (x to English), directional reporting group"
+    suite: lm-eval-harness
+    n_shots: [0]
+    tasks:
+      # TODO: Replace with dedicated doc-level MT tasks when available in lm-eval.
+      - task: wmt14-fr-en
+      - task: wmt16-de-en
+      - task: wmt16-ro-en
+
+  doclevel-mt-eng-to-x:
+    description: "Document-level MT proxy (English to x), directional reporting group"
+    suite: lm-eval-harness
+    n_shots: [0]
+    tasks:
+      # TODO: Replace with dedicated doc-level MT tasks when available in lm-eval.
+      - task: wmt14-en-fr
+      - task: wmt16-en-de
+      - task: wmt16-en-ro
+
+  global-mgsm:
+    description: "Global-MGSM multilingual math benchmarks"
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: CohereLabs/global-mgsm
+    tasks:
+      - task: global_mgsm_bn
+        subset: bn
+      - task: global_mgsm_de
+        subset: de
+      - task: global_mgsm_en
+        subset: en
+      - task: global_mgsm_es
+        subset: es
+      - task: global_mgsm_fr
+        subset: fr
+      - task: global_mgsm_ja
+        subset: ja
+      - task: global_mgsm_ru
+        subset: ru
+      - task: global_mgsm_sw
+        subset: sw
+      - task: global_mgsm_te
+        subset: te
+      - task: global_mgsm_th
+        subset: th
+      - task: global_mgsm_zh
+        subset: zh
+      - task: global_mgsm_ar
+        subset: ar
+      - task: global_mgsm_ca
+        subset: ca
+      - task: global_mgsm_cs
+        subset: cs
+      - task: global_mgsm_cy
+        subset: cy
+      - task: global_mgsm_el
+        subset: el
+      - task: global_mgsm_eu
+        subset: eu
+      - task: global_mgsm_gl
+        subset: gl
+      - task: global_mgsm_hu
+        subset: hu
+      - task: global_mgsm_ko
+        subset: ko
+      - task: global_mgsm_sr
+        subset: sr
+      - task: global_mgsm_vi
+        subset: vi
+      - task: global_mgsm_am
+        subset: am
+      - task: global_mgsm_ha
+        subset: ha
+      - task: global_mgsm_lg
+        subset: lg
+      - task: global_mgsm_sn
+        subset: sn
+      - task: global_mgsm_st
+        subset: st
+      - task: global_mgsm_wo
+        subset: wo
+      - task: global_mgsm_xh
+        subset: xh
+      - task: global_mgsm_yo
+        subset: yo
+      - task: global_mgsm_zu
+        subset: zu
+      - task: global_mgsm_ur
+        subset: ur
+      - task: global_mgsm_gu
+        subset: gu
+      - task: global_mgsm_km
+        subset: km
+      - task: global_mgsm_kn
+        subset: kn
+      - task: global_mgsm_ky
+        subset: ky
+      - task: global_mgsm_my
+        subset: my
+      - task: global_mgsm_ne
+        subset: ne
+      - task: global_mgsm_si
+        subset: si
+      - task: global_mgsm_ta
+        subset: ta
+      - task: global_mgsm_uz
+        subset: uz
+
+  polymath:
+    description: "PolyMath multilingual math set (low difficulty)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: Qwen/PolyMath
+    tasks:
+      - task: polymath_en_low
+        subset: en
+      - task: polymath_de_low
+        subset: de
+      - task: polymath_es_low
+        subset: es
+      - task: polymath_fr_low
+        subset: fr
+
+  global-piqa:
+    description: "Global PIQA commonsense reasoning set"
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: mrlbenchmarks/global-piqa-nonparallel
+    tasks:
+      - task: global_piqa_completions_eng_latn
+        subset: eng_latn
+      - task: global_piqa_completions_deu_latn
+        subset: deu_latn
+      - task: global_piqa_completions_spa_latn_spai
+        subset: spa_latn_spai
+      - task: global_piqa_completions_fra_latn_fran
+        subset: fra_latn_fran
 
   generic-multilingual:
     description: "Generic multilingual benchmarks in Aya Expanse"
@@ -391,6 +680,9 @@ task_groups:
       - task: include_base_44_ukrainian
         subset: Ukrainian
 
+  # NOTE: HellaSwag has translation variants with NC license constraints upstream.
+  # Keep using the canonical `hellaswag` task for unrestricted baseline reporting.
+
   dclm-core-22:
     description: "DCLM core 22 evaluation tasks (lm-eval-harness, matching LLM Foundry task types)"
     suite: lm-eval-harness
@@ -406,6 +698,9 @@ task_groups:
         n_shots: [10]
         dataset: allenai/ai2_arc
         subset: ARC-Challenge
+      - task: arc_mt
+        n_shots: [10]
+        dataset: LumiOpen/arc_challenge_mt
       - task: boolq
         n_shots: [10]
         dataset: aps/super_glue
@@ -499,12 +794,22 @@ task_groups:
 
 super_groups:
   oellm-multilingual:
-    description: "Combined Belebele EU set plus multilingual benchmarks"
+    description: "Combined multilingual benchmark suite"
     task_groups:
       - task: flores-200-eu-to-eng
       - task: flores-200-eng-to-eu
       - task: belebele-eu-5-shot
+      - task: belebele-eu-cf
       - task: global-mmlu-eu
       - task: mgsm-eu
+      - task: global-piqa
+      - task: sib-200
+      - task: multiblimp
+      - task: xcsqa
+      - task: polymath
+      - task: open-subtitles-x-to-eng
+      - task: open-subtitles-eng-to-x
+      - task: doclevel-mt-x-to-eng
+      - task: doclevel-mt-eng-to-x
       - task: generic-multilingual
       - task: include

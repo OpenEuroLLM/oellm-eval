@@ -9,6 +9,9 @@
 #SBATCH --error={log_dir}/%x-%A-%a.err
 #SBATCH --array=0-{array_limit}%{max_array_len}
 
+# SBATCH directives are ignored when this script is run directly with bash.
+set -euo pipefail
+
 
 CSV_PATH="{csv_path}"
 NUM_JOBS={num_jobs}
@@ -16,6 +19,7 @@ TOTAL_EVALS={total_evals}
 LIMIT="{limit}"
 VENV_PATH="{venv_path}"
 LM_EVAL_INCLUDE_PATH="{lm_eval_include_path}"
+OELLM_REPO_ROOT="{oellm_repo_root}"
 
 # avoiding crashes due to compute nodes not having access to the internet
 export HF_HOME=$HF_HOME
@@ -24,6 +28,14 @@ export HF_HUB_OFFLINE={hf_hub_offline}
 
 # Path to the shared Singularity image that contains all runtime deps (container mode)
 export EVAL_SIF_PATH="$EVAL_BASE_DIR/$EVAL_CONTAINER_IMAGE"
+
+if [ -n "$OELLM_REPO_ROOT" ] && [ -d "$OELLM_REPO_ROOT" ]; then
+    if [ -n "${{PYTHONPATH:-}}" ]; then
+        export PYTHONPATH="$OELLM_REPO_ROOT:$PYTHONPATH"
+    else
+        export PYTHONPATH="$OELLM_REPO_ROOT"
+    fi
+fi
 
 echo "Running eval on $CSV_PATH with $NUM_JOBS array jobs distributing $TOTAL_EVALS evaluations"
 echo "SLURM_JOB_ID: $SLURM_JOB_ID"
@@ -80,6 +92,10 @@ do
     # Build bind paths: always mount the shared eval directory, and additionally
     # bind the directory that contains the model checkpoint when the path exists
     BIND_PATHS="$EVAL_BASE_DIR:$EVAL_BASE_DIR,$HF_HOME:$HF_HOME,$HF_DATASETS_CACHE:$HF_DATASETS_CACHE"
+
+    if [ -d "$OELLM_REPO_ROOT" ] && [[ $OELLM_REPO_ROOT != $EVAL_BASE_DIR* ]]; then
+        BIND_PATHS="$BIND_PATHS,$OELLM_REPO_ROOT:$OELLM_REPO_ROOT"
+    fi
 
     if [ -e "$model_path" ]; then
         # If the model_path is a file, bind its parent directory; otherwise bind the dir itself

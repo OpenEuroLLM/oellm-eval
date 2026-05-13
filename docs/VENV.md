@@ -76,7 +76,7 @@ We use [Ali's fork](https://github.com/Ali-Elganzory/evalchemy) which includes a
 
 3. Run with `EVALCHEMY_DIR` pointing to the cloned repo:
    ```bash
-   export HF_ALLOW_CODE_EVAL=1  # required by MBPP 
+   export HF_ALLOW_CODE_EVAL=1  # required by MBPP
    EVALCHEMY_DIR=$(pwd)/evalchemy oellm schedule-eval \
        --models HuggingFaceTB/SmolLM2-135M \
        --task_groups reasoning \

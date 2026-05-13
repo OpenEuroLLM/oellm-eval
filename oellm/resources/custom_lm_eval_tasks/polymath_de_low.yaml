@@ -1,0 +1,3 @@
+include: polymath_en_low.yaml
+task: polymath_de_low
+dataset_name: de

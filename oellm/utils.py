@@ -302,6 +302,7 @@ def _process_model_paths(models: Iterable[str]):
 def _pre_download_datasets_from_specs(
     specs: Iterable, trust_remote_code: bool = True
 ) -> None:
+    import datasets
     from datasets import get_dataset_config_names, load_dataset
 
     specs_list = list(specs)
@@ -309,6 +310,31 @@ def _pre_download_datasets_from_specs(
         return
 
     console = get_console()
+    datasets_major_version = int(datasets.__version__.split(".", 1)[0])
+    supports_trust_remote_code = datasets_major_version < 4
+
+    def _load_dataset_compat(repo_id: str, name: str | None = None):
+        kwargs = {"name": name}
+        if trust_remote_code and supports_trust_remote_code:
+            kwargs["trust_remote_code"] = trust_remote_code
+        try:
+            return load_dataset(repo_id, **kwargs)
+        except ValueError as e:
+            if "trust_remote_code" not in str(e):
+                raise
+            kwargs.pop("trust_remote_code", None)
+            return load_dataset(repo_id, **kwargs)
+
+    def _get_dataset_config_names_compat(repo_id: str):
+        kwargs = {}
+        if trust_remote_code and supports_trust_remote_code:
+            kwargs["trust_remote_code"] = trust_remote_code
+        try:
+            return get_dataset_config_names(repo_id, **kwargs)
+        except ValueError as e:
+            if "trust_remote_code" not in str(e):
+                raise
+            return get_dataset_config_names(repo_id)
 
     with console.status(
         f"Downloading datasets… {len(specs_list)} datasets",
@@ -319,16 +345,10 @@ def _pre_download_datasets_from_specs(
             status.update(f"Downloading '{label}' ({idx}/{len(specs_list)})")
 
             try:
-                load_dataset(
-                    spec.repo_id,
-                    name=spec.subset,
-                    trust_remote_code=trust_remote_code,
-                )
+                _load_dataset_compat(spec.repo_id, name=spec.subset)
             except ValueError as e:
                 if "Config name is missing" in str(e) and spec.subset is None:
-                    configs = get_dataset_config_names(
-                        spec.repo_id, trust_remote_code=trust_remote_code
-                    )
+                    configs = _get_dataset_config_names_compat(spec.repo_id)
                     logging.info(
                         f"Dataset '{spec.repo_id}' requires config. "
                         f"Downloading all {len(configs)} configs."
@@ -337,11 +357,7 @@ def _pre_download_datasets_from_specs(
                         status.update(
                             f"Downloading '{spec.repo_id}/{cfg}' ({idx}/{len(specs_list)})"
                         )
-                        load_dataset(
-                            spec.repo_id,
-                            name=cfg,
-                            trust_remote_code=trust_remote_code,
-                        )
+                        _load_dataset_compat(spec.repo_id, name=cfg)
                     continue
                 if "Feature type" in str(e) and "not found" in str(e):
                     hf_datasets_cache = os.environ.get(

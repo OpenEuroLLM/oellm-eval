@@ -62,3 +62,15 @@ oellm schedule-eval --models "model-name" --task_groups "my-benchmark"
 2. **CI testing** - The test suite validates that all datasets in `task-groups.yaml` are accessible
 
 Tasks without a `dataset` field will not have their data pre-downloaded and are not covered by CI validation.
+
+## How to add custom lm-eval YAMLs
+
+There are two related pieces of configuration to be aware of:
+
+- `oellm/resources/task-groups.yaml` — oellm's scheduler registry. It lists the task names to run, the evaluation suite (`lm-eval-harness`, `lighteval`, or `evalchemy`), few-shot counts, and which dataset should be pre-downloaded.
+- The evaluation-suite task registry (lm-eval or lighteval) — defines how a task is executed: which dataset split to load, how prompts are formatted, how answers are extracted, and which metric to compute.
+
+If you add a task name to `task-groups.yaml`, the evaluation suite also needs a task definition for that name. If not, place custom task YAMLs in `oellm/resources/custom_lm_eval_tasks`. Then `main.py` ... <TOADD>
+If you add a task name to `task-groups.yaml`, the evaluation suite also needs a task definition for that name. If not, place custom task YAMLs in `oellm/resources/custom_lm_eval_tasks`.
+
+Then `main.py` will include that directory when generating the evaluation script: the `schedule_evals` command sets `lm_eval_include_path` (defaulting to the bundled `oellm/resources/custom_lm_eval_tasks`), and the generated SLURM script passes it to lm_eval as `--include_path`. This makes lm_eval aware of custom task YAMLs such as `polymath_en_low`. See `oellm/main.py` and `oellm/resources/template.sbatch` for the wiring.

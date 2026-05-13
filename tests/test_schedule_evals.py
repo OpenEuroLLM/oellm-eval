@@ -64,6 +64,42 @@ def test_schedule_evals_slurm_template_var_overrides(tmp_path):
     assert "#SBATCH --gres=gpu:2" in sbatch_content
 
 
+def test_schedule_evals_generated_script_defaults_to_offline_hub(tmp_path):
+    with (
+        patch("oellm.main._load_cluster_env"),
+        patch("oellm.main._num_jobs_in_queue", return_value=0),
+        patch.dict(
+            os.environ,
+            {
+                "EVAL_OUTPUT_DIR": str(tmp_path),
+                "PARTITION": "default_partition",
+                "ACCOUNT": "test_account",
+            },
+            clear=False,
+        ),
+    ):
+        os.environ.pop("HF_HUB_OFFLINE", None)
+        schedule_evals(
+            models="EleutherAI/pythia-70m",
+            tasks="hellaswag",
+            n_shot=0,
+            skip_checks=True,
+            venv_path=str(Path(sys.prefix)),
+            dry_run=True,
+        )
+
+    sbatch_files = list(tmp_path.glob("**/submit_evals.sbatch"))
+    assert len(sbatch_files) == 1
+    sbatch_content = sbatch_files[0].read_text()
+    assert "set -euo pipefail" in sbatch_content
+    assert "export HF_HUB_OFFLINE=1" in sbatch_content
+    assert "run_python -m lm_eval" in sbatch_content
+    assert 'OELLM_REPO_ROOT="' in sbatch_content
+    assert sbatch_content.index("#SBATCH --job-name=") < sbatch_content.index(
+        "set -euo pipefail"
+    )
+
+
 def test_schedule_evals_slurm_template_var_invalid_json(tmp_path):
     """Verify invalid slurm_template_var raises ValueError."""
     with (
