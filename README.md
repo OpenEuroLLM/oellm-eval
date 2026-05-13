@@ -80,9 +80,9 @@ oellm schedule-eval --models "model-name" --task_groups "oellm-multilingual"
 The `--local` flag lets you run evaluations directly on your machine without a cluster or Singularity container. It generates the same eval script and executes it with bash, injecting fake SLURM environment variables so all tasks run sequentially in a single process. This is useful for testing that tasks and models are correctly configured before submitting to a cluster.
 
 ```bash
-# 1. Add eval dependencies to the project venv
-uv pip install "lm-eval[hf]" torch transformers accelerate "datasets<4.0.0" \
-  "lighteval[multilingual]" language_data
+# 1. Create a venv and add lm-eval dependencies
+uv venv --python 3.12 .venv
+uv pip install --python .venv/bin/python -r requirements-venv.txt
 
 # 2. Run evaluations locally — useful for smoke-testing with a small sample
 oellm schedule-eval \
@@ -96,8 +96,9 @@ oellm schedule-eval \
 
 Results are written to `./oellm-output/<timestamp>/results/`.
 
-See [docs/TASKS.md](docs/TASKS.md) for XCSQA, Global-MGSM, PolyMath, and
-Global PIQA smoke-test commands and debugging notes.
+For lighteval tasks, install lighteval as an isolated uv tool so its
+`datasets>=4.0.0` dependency does not conflict with lm-eval's `datasets<4.0.0`;
+see [docs/VENV.md](docs/VENV.md).
 
 **Air-gapped cluster nodes (no internet):** batch jobs set `HF_HUB_OFFLINE=1` and get `HF_HOME` from your cluster env. With `--local`, the CLI defaults `HF_HOME` to `~/.cache/huggingface` if unset and would otherwise allow Hub access—so on a compute node without network, export your real cache and offline flag before running, for example:
 
