@@ -413,18 +413,6 @@ task_groups:
         dataset: juletxara/mgsm
         subset: zh
 
-  global-piqa:
-    description: "Global PIQA multiple-choice benchmark"
-    suite: lm-eval-harness
-    n_shots: [0]
-    tasks:
-      # Disabled for short-context models in the current eval setup.
-      # In the 2026-04-28-14-58-23 run this task failed with:
-      # "requested max tokens to generate (2048) must be less than model's
-      # maximum sequence length (2048)".
-      # []
-      - task: global_piqa_prompted
-
   sib-200:
     description: "SIB-200 sentence topic classification"
     suite: lm-eval-harness
@@ -503,35 +491,6 @@ task_groups:
       - task: wmt14-en-fr
       - task: wmt16-en-de
       - task: wmt16-en-ro
-
-  polymath:
-    description: "MATH dataset subtasks"
-    suite: lighteval
-    n_shots: [0]
-    dataset: DigitalLearningGmbH/MATH-lighteval
-    tasks:
-      - task: math
-      # Disabled for short-context models in the current eval setup.
-      # `math` requests 2048 generation tokens, which fails on
-      # `EleutherAI/pythia-14m` with:
-      # "requested max tokens to generate (2048) must be less than model's
-      # maximum sequence length (2048)".
-      # []
-
-  xcsqa:
-    description: "XCSQA commonsense reasoning set"
-    suite: lighteval
-    n_shots: [0]
-    dataset: INK-USC/xcsr
-    tasks:
-      - task: xcsqa_eng_mcf
-        subset: X-CSQA-en
-      - task: xcsqa_deu_mcf
-        subset: X-CSQA-de
-      - task: xcsqa_spa_mcf
-        subset: X-CSQA-es
-      - task: xcsqa_fra_mcf
-        subset: X-CSQA-fr
 
   global-mgsm:
     description: "Global-MGSM multilingual math benchmarks"
