@@ -31,7 +31,6 @@ from oellm.utils import (
     capture_third_party_output_from_kwarg,
 )
 
-
 _SLURM_FAILURE_RE = re.compile(
     r"Traceback|Exception|Error|FAILED|Killed|OOM|out of memory|No such file|No module|command not found",
     re.IGNORECASE,
