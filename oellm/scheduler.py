@@ -117,6 +117,7 @@ def schedule_evals(
     lm_eval_include_path: str | None = None,
     local: bool = False,
     slurm_template_var: str | None = None,
+    allow_missing_judge: bool = False,
 ) -> None:
     """
     Schedule evaluation jobs for a given set of models, tasks, and number of shots.
@@ -266,6 +267,16 @@ def schedule_evals(
                     for result in expanded
                 ]
             )
+
+    # Refuse judge-required tasks without OPENAI_API_KEY (unless explicitly
+    # opted out). Runs before any model download / SLURM work so the user
+    # sees the failure immediately, not after a long pre-flight.
+    from oellm.utils import check_judge_llm_pre_flight
+
+    check_judge_llm_pre_flight(
+        {job.task_path for job in eval_jobs},
+        allow_missing=allow_missing_judge,
+    )
 
     expanded_eval_jobs = []
     for job in eval_jobs:

@@ -18,7 +18,11 @@ Images are compressed with zstd (level 3) via mksquashfs for a good balance of s
 Image benchmarks (`suite: lmms_eval`) require `lmms-eval` to be available in the execution environment. There are two ways to provide it:
 
 **Option 1 — Custom venv (recommended for development):**
-Install `lmms-eval` via `requirements-venv.txt` and pass `--venv-path` to the CLI. See [VENV.md](VENV.md) for setup instructions.
+Install `lmms-eval` via the `[image]` (or `[audio]`/`[video]`) pyproject extra and pass `--venv-path` to the CLI:
+```bash
+uv pip install --python /path/to/.venv/bin/python -e '.[text,image,audio]'
+```
+See [VENV.md](VENV.md) for full setup instructions.
 
 **Option 2 — Container with lmms-eval:**
 Build a container `.def` file that includes `lmms-eval` alongside `lm-eval`:

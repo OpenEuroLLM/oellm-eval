@@ -47,6 +47,7 @@ def schedule_evals(
     lm_eval_include_path: str | None = None,
     local: bool = False,
     slurm_template_var: str | None = None,
+    allow_missing_judge: bool = False,
 ) -> None:
     """Schedule evaluation jobs for a given set of models, tasks, and number of shots.
 
@@ -88,6 +89,10 @@ def schedule_evals(
         slurm_template_var: JSON object of template variable overrides. Use exact env var names
             (PARTITION, ACCOUNT, GPUS_PER_NODE, SLURM_MEM). "TIME" overrides the time limit.
             Example: '{"PARTITION":"dev-g","ACCOUNT":"FOO","TIME":"02:00:00","GPUS_PER_NODE":2,"SLURM_MEM":"96G"}'
+        allow_missing_judge: If True, allow scheduling tasks that need an LLM judge
+            (e.g. activitynetqa, AudioBench chat-style tasks) when ``OPENAI_API_KEY``
+            is not set. Those tasks will emit null performance values. Default False —
+            strict pre-flight refuses to schedule without the key.
     """
     from oellm.scheduler import schedule_evals as _sched
 
@@ -141,6 +146,7 @@ def schedule_evals(
         lm_eval_include_path=cfg.lm_eval_include_path,
         local=cfg.local,
         slurm_template_var=cfg.slurm_template_var_json,
+        allow_missing_judge=allow_missing_judge,
     )
 
 
@@ -287,6 +293,7 @@ def eval_command(
     lm_eval_include_path: str | None = None,
     local: bool = False,
     slurm_template_var: str | None = None,
+    allow_missing_judge: bool = False,
 ) -> None:
     """Run evaluations from a YAML config file.
 
@@ -329,6 +336,7 @@ def eval_command(
         lm_eval_include_path=lm_eval_include_path,
         local=local,
         slurm_template_var=slurm_template_var,
+        allow_missing_judge=allow_missing_judge,
     )
 
 

@@ -379,9 +379,44 @@ def _pre_download_hf_dataset_files(dataset_files: list[dict]) -> None:
                 logging.warning(f"Failed to download dataset files from '{repo_id}': {e}")
 
 
+def _materialize_external_urls(ds, *, max_workers: int = 16) -> None:
+    """Iterate every row to force HF ``dl_manager`` to fetch external URLs.
+
+    Datasets like ``facebook/textvqa`` store image URLs (not bytes) in
+    parquet rows; only per-row access triggers the HTTP fetch into the
+    cache. Strict: exceptions propagate so ``_pre_download_datasets_…``
+    aborts the schedule before SLURM submission.
+    """
+    if ds is None:
+        return
+
+    from concurrent.futures import ThreadPoolExecutor
+
+    def _materialize_split(split) -> None:
+        n = len(split)
+        if n == 0:
+            return
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            for _ in pool.map(lambda i: split[i], range(n)):
+                pass
+
+    if hasattr(ds, "keys"):
+        for split_name in list(ds.keys()):
+            _materialize_split(ds[split_name])
+    elif hasattr(ds, "__len__") and hasattr(ds, "__getitem__"):
+        # Skip anything that isn't a recognizable dataset shape (e.g. test stubs).
+        _materialize_split(ds)
+
+
 def _pre_download_datasets_from_specs(
     specs: Iterable, trust_remote_code: bool = True
 ) -> None:
+    """Pre-fetch every dataset spec into the local HF cache.
+
+    Strict: any failure raises ``RuntimeError`` and aborts the schedule
+    before SLURM submission — compute nodes run ``HF_HUB_OFFLINE=1`` and
+    can't recover from a cache miss. Override with ``--skip-checks``.
+    """
     from datasets import get_dataset_config_names, load_dataset
     from huggingface_hub import snapshot_download
 
@@ -390,6 +425,7 @@ def _pre_download_datasets_from_specs(
         return
 
     console = get_console()
+    failures: list[tuple[str, Exception]] = []
 
     with console.status(
         f"Downloading datasets… {len(specs_list)} datasets",
@@ -399,44 +435,60 @@ def _pre_download_datasets_from_specs(
             label = f"{spec.repo_id}" + (f"/{spec.subset}" if spec.subset else "")
             status.update(f"Downloading '{label}' ({idx}/{len(specs_list)})")
 
+            snapshot_failed = False
+            revisions = getattr(spec, "revisions", None) or ["main"]
             if spec.needs_snapshot_download:
-                try:
-                    # max_workers=2 keeps concurrent HEAD requests below HF's
-                    # per-IP rate limit for many-file audio/video repos (e.g.
-                    # lmms-lab/WenetSpeech). Higher values trigger HTTP 429
-                    # and long exponential backoffs even with auth.
-                    snapshot_download(
-                        repo_id=spec.repo_id,
-                        repo_type="dataset",
-                        max_workers=2,
-                    )
-                except Exception as e:
-                    logging.warning(f"Failed to snapshot_download '{spec.repo_id}': {e}")
+                # Iterate every requested revision (e.g. OpenGVLab/MVBench
+                # splits content across `main` and `video` branches).
+                for rev in revisions:
+                    rev_label = f"{label}@{rev}" if rev != "main" else label
+                    status.update(f"Downloading '{rev_label}' ({idx}/{len(specs_list)})")
+                    try:
+                        # max_workers=2 keeps HEAD requests under HF's per-IP
+                        # rate limit; higher triggers HTTP 429.
+                        snapshot_download(
+                            repo_id=spec.repo_id,
+                            repo_type="dataset",
+                            revision=rev,
+                            max_workers=2,
+                        )
+                    except Exception as e:
+                        snapshot_failed = True
+                        logging.warning(
+                            f"snapshot_download failed for '{rev_label}': {e}; "
+                            f"falling back to load_dataset."
+                        )
 
             try:
-                load_dataset(
+                ds = load_dataset(
                     spec.repo_id,
                     name=spec.subset,
                     trust_remote_code=trust_remote_code,
                 )
+                _materialize_external_urls(ds)
             except ValueError as e:
                 if "Config name is missing" in str(e) and spec.subset is None:
-                    configs = get_dataset_config_names(
-                        spec.repo_id, trust_remote_code=trust_remote_code
-                    )
-                    logging.info(
-                        f"Dataset '{spec.repo_id}' requires config. "
-                        f"Downloading all {len(configs)} configs."
-                    )
-                    for cfg in configs:
-                        status.update(
-                            f"Downloading '{spec.repo_id}/{cfg}' ({idx}/{len(specs_list)})"
+                    try:
+                        configs = get_dataset_config_names(
+                            spec.repo_id, trust_remote_code=trust_remote_code
                         )
-                        load_dataset(
-                            spec.repo_id,
-                            name=cfg,
-                            trust_remote_code=trust_remote_code,
+                        logging.info(
+                            f"Dataset '{spec.repo_id}' requires config. "
+                            f"Downloading all {len(configs)} configs."
                         )
+                        for cfg in configs:
+                            status.update(
+                                f"Downloading '{spec.repo_id}/{cfg}' "
+                                f"({idx}/{len(specs_list)})"
+                            )
+                            ds_cfg = load_dataset(
+                                spec.repo_id,
+                                name=cfg,
+                                trust_remote_code=trust_remote_code,
+                            )
+                            _materialize_external_urls(ds_cfg)
+                    except Exception as inner:
+                        failures.append((label, inner))
                     continue
                 if "Feature type" in str(e) and "not found" in str(e):
                     hf_datasets_cache = os.environ.get(
@@ -450,77 +502,115 @@ def _pre_download_datasets_from_specs(
                         f"datasets version ('{e}'). Delete the stale cache and re-run:\n\n"
                         f"    rm -rf {cache_dir}\n"
                     ) from None
-                raise
+                failures.append((label, e))
+            except Exception as e:
+                # Network / hub / OS errors — catch and aggregate, don't swallow.
+                failures.append((label, e))
+            else:
+                logging.debug(f"Finished downloading dataset '{label}'.")
+                continue
 
-            logging.debug(f"Finished downloading dataset '{label}'.")
+            if snapshot_failed:
+                logging.debug(
+                    f"Both snapshot_download and load_dataset failed for '{label}'."
+                )
+
+    if failures:
+        details = "\n".join(
+            f"  - {label}: {type(e).__name__}: {e}" for label, e in failures
+        )
+        raise RuntimeError(
+            f"Pre-download failed for {len(failures)}/{len(specs_list)} dataset(s); "
+            f"aborting before SLURM submission (compute nodes run offline).\n\n"
+            f"Failures:\n{details}\n\n"
+            f"Common fixes: set HF_TOKEN / accept dataset license on HF / retry "
+            f"after rate-limit cools off. Bypass with `--skip-checks` if the cache "
+            f"is already populated out-of-band.\n"
+        )
+
+
+_PACKAGE_ROOT = Path(__file__).resolve().parent
+# Saved originals when capture is active. Module-level (not a closure) so
+# the filtered_* functions are importable as `oellm.utils.filtered_*` —
+# required for HF datasets' multiprocessing workers to resolve them when
+# the patched print/logger gets pickled across processes.
+_capture_originals: dict = {"active": False}
+
+
+def _is_internal_stack(skip: int = 2, max_depth: int = 20) -> bool:
+    f = sys._getframe(skip)
+    depth = 0
+    while f and depth < max_depth:
+        code = f.f_code
+        filename = code.co_filename if code else ""
+        if filename:
+            p = Path(filename).resolve()
+            name = code.co_name if code else ""
+            # Skip logging internals and our filtering wrappers to find the real caller.
+            if "/logging/__init__.py" in filename or name.startswith("filtered_"):
+                f = f.f_back
+                depth += 1
+                continue
+            return p.is_relative_to(_PACKAGE_ROOT)
+        f = f.f_back
+        depth += 1
+    return False
+
+
+def filtered_print(*args, **kwargs):
+    orig = _capture_originals.get("print")
+    if orig is None or _is_internal_stack():
+        return (orig or builtins.print)(*args, **kwargs)
+    return None
+
+
+def filtered_logger_info(self, msg, *args, **kwargs):
+    orig = _capture_originals.get("logger_info")
+    if orig is None or _is_internal_stack():
+        return (orig or logging.Logger.info)(self, msg, *args, **kwargs)
+    return None
+
+
+def filtered_logger_debug(self, msg, *args, **kwargs):
+    orig = _capture_originals.get("logger_debug")
+    if orig is None or _is_internal_stack():
+        return (orig or logging.Logger.debug)(self, msg, *args, **kwargs)
+    return None
+
+
+def filtered_module_info(msg, *args, **kwargs):
+    orig = _capture_originals.get("module_info")
+    if orig is None or _is_internal_stack():
+        return (orig or logging.info)(msg, *args, **kwargs)
+    return None
+
+
+def filtered_module_debug(msg, *args, **kwargs):
+    orig = _capture_originals.get("module_debug")
+    if orig is None or _is_internal_stack():
+        return (orig or logging.debug)(msg, *args, **kwargs)
+    return None
 
 
 @contextmanager
 def capture_third_party_output(verbose: bool = False):
-    """
-    Suppresses print/logging.info/logging.debug originating from non-project modules
-    unless verbose=True.
-
-    A call is considered "third-party" if its immediate caller's file path is not
-    under the repository root (parent of the `oellm` package directory).
-    """
+    """Suppress print/logging.info/logging.debug from non-project modules
+    unless verbose=True. A call is "third-party" if its caller's file path
+    is not under the `oellm` package directory."""
     if verbose:
         yield
         return
 
-    package_root = Path(__file__).resolve().parent
-
-    def is_internal_stack(skip: int = 2, max_depth: int = 20) -> bool:
-        f = sys._getframe(skip)
-        depth = 0
-        while f and depth < max_depth:
-            code = f.f_code
-            filename = code.co_filename if code else ""
-            if filename:
-                p = Path(filename).resolve()
-                name = code.co_name if code else ""
-                # Skip logging internals and our filtering wrappers to find the real caller
-                if "/logging/__init__.py" in filename or name.startswith("filtered_"):
-                    f = f.f_back
-                    depth += 1
-                    continue
-                return p.is_relative_to(package_root)
-            f = f.f_back
-            depth += 1
-        return False
-
-    orig_print = builtins.print
-    orig_logger_info = logging.Logger.info
-    orig_logger_debug = logging.Logger.debug
-    orig_module_info = logging.info
-    orig_module_debug = logging.debug
-
-    def filtered_print(*args, **kwargs):
-        if is_internal_stack():
-            return orig_print(*args, **kwargs)
-        # third-party: drop
-        return None
-
-    def filtered_logger_info(self, msg, *args, **kwargs):
-        if is_internal_stack():
-            return orig_logger_info(self, msg, *args, **kwargs)
-        return None
-
-    def filtered_logger_debug(self, msg, *args, **kwargs):
-        if is_internal_stack():
-            return orig_logger_debug(self, msg, *args, **kwargs)
-        return None
-
-    def filtered_module_info(msg, *args, **kwargs):
-        if is_internal_stack():
-            return orig_module_info(msg, *args, **kwargs)
-        return None
-
-    def filtered_module_debug(msg, *args, **kwargs):
-        if is_internal_stack():
-            return orig_module_debug(msg, *args, **kwargs)
-        return None
-
+    _capture_originals.update(
+        {
+            "active": True,
+            "print": builtins.print,
+            "logger_info": logging.Logger.info,
+            "logger_debug": logging.Logger.debug,
+            "module_info": logging.info,
+            "module_debug": logging.debug,
+        }
+    )
     builtins.print = filtered_print  # type: ignore
     logging.Logger.info = filtered_logger_info  # type: ignore[assignment]
     logging.Logger.debug = filtered_logger_debug  # type: ignore[assignment]
@@ -530,11 +620,12 @@ def capture_third_party_output(verbose: bool = False):
     try:
         yield
     finally:
-        builtins.print = orig_print
-        logging.Logger.info = orig_logger_info  # type: ignore[assignment]
-        logging.Logger.debug = orig_logger_debug  # type: ignore[assignment]
-        logging.info = orig_module_info  # type: ignore[assignment]
-        logging.debug = orig_module_debug  # type: ignore[assignment]
+        builtins.print = _capture_originals["print"]
+        logging.Logger.info = _capture_originals["logger_info"]  # type: ignore[assignment]
+        logging.Logger.debug = _capture_originals["logger_debug"]  # type: ignore[assignment]
+        logging.info = _capture_originals["module_info"]  # type: ignore[assignment]
+        logging.debug = _capture_originals["module_debug"]  # type: ignore[assignment]
+        _capture_originals["active"] = False
 
 
 def capture_third_party_output_from_kwarg(
@@ -565,3 +656,42 @@ def _filter_warnings():
 
     warnings.filterwarnings("ignore", module="lm_eval")
     warnings.filterwarnings("ignore", module="lighteval")
+
+
+def check_judge_llm_pre_flight(
+    tasks: Iterable[str], *, allow_missing: bool = False
+) -> None:
+    """Refuse to schedule judge-graded tasks without ``OPENAI_API_KEY``.
+
+    Runs before SLURM submission. Inspects ``tasks`` against
+    ``JUDGE_REQUIRED_TASKS`` and raises ``SystemExit`` if any are present
+    and ``OPENAI_API_KEY`` is unset, unless ``allow_missing=True`` (the
+    user explicitly opted in to letting those tasks emit null scores).
+    """
+    import os
+
+    from oellm.constants import JUDGE_REQUIRED_TASKS
+
+    needed = sorted({t for t in tasks if t in JUDGE_REQUIRED_TASKS})
+    if not needed:
+        return
+    if os.environ.get("OPENAI_API_KEY"):
+        return
+    if allow_missing:
+        logging.warning(
+            "Scheduling %d judge-required task(s) without OPENAI_API_KEY: %s. "
+            "These will emit null performance values in collect-results.",
+            len(needed),
+            ", ".join(needed),
+        )
+        return
+    raise SystemExit(
+        "Refusing to schedule judge-required task(s) without OPENAI_API_KEY:\n"
+        f"  {', '.join(needed)}\n\n"
+        "These tasks need an LLM judge / extractor to produce a valid metric. "
+        "Either:\n"
+        "  - export OPENAI_API_KEY=... before re-running, or\n"
+        "  - pass --allow-missing-judge to acknowledge that these tasks will "
+        "emit null scores, or\n"
+        "  - remove them from the task list."
+    )

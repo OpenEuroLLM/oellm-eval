@@ -20,10 +20,17 @@ export LIMIT="{limit}"
 VENV_PATH="{venv_path}"
 LM_EVAL_INCLUDE_PATH="{lm_eval_include_path}"
 
-# avoiding crashes due to compute nodes not having access to the internet
+# Compute nodes are air-gapped — every dataset must be cache-resolved.
 export HF_HOME=$HF_HOME
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export HF_HUB_OFFLINE={hf_hub_offline}
+# HF_DATASETS_OFFLINE covers `dl_manager.download(arbitrary_url)` (external
+# image/video hosts) which HF_HUB_OFFLINE does not.
+export HF_DATASETS_OFFLINE={hf_hub_offline}
+# lmms-eval auto-redirects "remote" (GPFS/Lustre) caches to a node-local
+# /tmp by default; set this to force it to use the shared cache instead.
+# See lmms_eval/api/task.py::_resolve_hf_datasets_cache_dir.
+export LMMS_EVAL_DATASETS_CACHE="$HF_HOME/datasets"
 
 # Path to the shared Singularity image that contains all runtime deps (container mode)
 export EVAL_SIF_PATH="$EVAL_BASE_DIR/$EVAL_CONTAINER_IMAGE"
@@ -61,11 +68,12 @@ fi
 tail -n +$((START_INDEX + 1)) "$CSV_PATH" | head -n $((END_INDEX - START_INDEX + 1)) | \
 while IFS=, read -r model_path task_path n_shot eval_suite
 do
-    # Remove trailing carriage returns if script is edited on Windows
-    model_path=$(echo "$model_path" | tr -d '\r')
-    task_path=$(echo "$task_path" | tr -d '\r')
-    n_shot=$(echo "$n_shot" | tr -d '\r')
-    eval_suite=$(echo "${{eval_suite:-lm_eval}}" | tr -d '\r')
+    # Strip CR (Windows line endings) from every field.
+    model_path=${{model_path%$'\r'}}
+    task_path=${{task_path%$'\r'}}
+    n_shot=${{n_shot%$'\r'}}
+    eval_suite=${{eval_suite:-lm_eval}}
+    eval_suite=${{eval_suite%$'\r'}}
 
     # Skip empty lines
     if [ -z "$model_path" ]; then
@@ -103,7 +111,7 @@ do
         JOB_HOME="$EVAL_BASE_DIR/$USER/container_home/$SLURM_JOB_ID"
         mkdir -p "$JOB_HOME"
         SINGULARITY_HOME_ARG="--home $JOB_HOME"
-        SINGULARITY_ENV_ARGS="--env HF_HOME=$HF_HOME --env HF_DATASETS_CACHE=$HF_DATASETS_CACHE --env HF_HUB_OFFLINE=$HF_HUB_OFFLINE --env TRANSFORMERS_OFFLINE=$TRANSFORMERS_OFFLINE --env NLTK_DATA=$NLTK_DATA"
+        SINGULARITY_ENV_ARGS="--env HF_HOME=$HF_HOME --env HF_DATASETS_CACHE=$HF_DATASETS_CACHE --env HF_HUB_OFFLINE=$HF_HUB_OFFLINE --env HF_DATASETS_OFFLINE=$HF_DATASETS_OFFLINE --env TRANSFORMERS_OFFLINE=$TRANSFORMERS_OFFLINE --env NLTK_DATA=$NLTK_DATA --env LMMS_EVAL_DATASETS_CACHE=$LMMS_EVAL_DATASETS_CACHE"
     fi
 
     GPU_DEVICES=$(seq -s, 0 $(($GPUS_PER_NODE - 1)))
@@ -203,27 +211,21 @@ do
                 _lmms_extra_args=",model_name=$(basename "$model_path")"
             fi
 
-            if [ -n "$VENV_PATH" ]; then
-                source "$VENV_PATH/bin/activate"
-                python -m lmms_eval \
-                    --model "$_lmms_adapter" \
-                    --model_args "pretrained=$model_path,device_map=auto$_lmms_extra_args" \
-                    --tasks "$task_path" \
-                    --num_fewshot "$n_shot" \
-                    --output_path "$OUTPUT_JSON" \
-                    ${{LIMIT:+--limit $LIMIT}}
-            else
-                singularity exec $SINGULARITY_ARGS \
-                    --bind $BIND_PATHS \
-                    $EVAL_SIF_PATH \
-                    python -m lmms_eval \
-                        --model "$_lmms_adapter" \
-                        --model_args "pretrained=$model_path,device_map=auto$_lmms_extra_args" \
-                        --tasks "$task_path" \
-                        --num_fewshot "$n_shot" \
-                        --output_path "$OUTPUT_JSON" \
-                        ${{LIMIT:+--limit $LIMIT}}
+            # Qwen2-VL / Qwen2.5-VL: cap frames-per-video to fit on a 64GB
+            # A100. lmms-eval defaults to 32 which OOMs on long-form video
+            # (EgoSchema, VideoMME). Image tasks ignore this flag.
+            # Override via MAX_NUM_FRAMES env var on larger GPUs.
+            if [[ "$_lmms_adapter" == "qwen2_vl" || "$_lmms_adapter" == "qwen2_5_vl" ]]; then
+                _lmms_extra_args+=",max_num_frames=${{MAX_NUM_FRAMES:-8}}"
             fi
+
+            run_python -m lmms_eval \
+                --model "$_lmms_adapter" \
+                --model_args "pretrained=$model_path,device_map=auto$_lmms_extra_args" \
+                --tasks "$task_path" \
+                --num_fewshot "$n_shot" \
+                --output_path "$OUTPUT_JSON" \
+                ${{LIMIT:+--limit $LIMIT}}
             ;;
         evalchemy)
             EVALCHEMY_WORK_DIR="{evalchemy_dir}"
@@ -246,30 +248,13 @@ do
             ;;
         *)
             # Contrib suite: dispatch to the Python plugin registry.
-            # This single case handles ALL registered contrib benchmarks — no
-            # further template.sbatch changes are needed when adding new ones.
-            # The suite module's run() writes a lmms-eval-compatible JSON file.
             _CONTRIB_OUTPUT="{evals_dir}/$(openssl rand -hex 5).json"
-
-            if [ -n "$VENV_PATH" ]; then
-                source "$VENV_PATH/bin/activate"
-                python -m oellm.contrib.dispatch \
-                    --suite      "$eval_suite" \
-                    --model_path "$model_path" \
-                    --task       "$task_path" \
-                    --n_shot     "$n_shot" \
-                    --output_path "$_CONTRIB_OUTPUT"
-            else
-                singularity exec $SINGULARITY_ARGS \
-                    --bind $BIND_PATHS \
-                    $EVAL_SIF_PATH \
-                    python -m oellm.contrib.dispatch \
-                        --suite      "$eval_suite" \
-                        --model_path "$model_path" \
-                        --task       "$task_path" \
-                        --n_shot     "$n_shot" \
-                        --output_path "$_CONTRIB_OUTPUT"
-            fi
+            run_python -m oellm.contrib.dispatch \
+                --suite      "$eval_suite" \
+                --model_path "$model_path" \
+                --task       "$task_path" \
+                --n_shot     "$n_shot" \
+                --output_path "$_CONTRIB_OUTPUT"
             ;;
     esac
 

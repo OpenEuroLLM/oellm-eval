@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib.resources import files
 
 import yaml
@@ -10,6 +10,9 @@ class DatasetSpec:
     repo_id: str
     subset: str | None = None
     needs_snapshot_download: bool = False
+    # HF dataset revisions to pre-fetch. Most datasets only need `main`;
+    # OpenGVLab/MVBench keeps videos on a separate `video` branch.
+    revisions: list[str] = field(default_factory=lambda: ["main"])
 
 
 @dataclass
@@ -21,6 +24,7 @@ class _Task:
     hf_models: list[str] | None = None
     hf_dataset_files: list[dict] | None = None
     suite: str | None = None
+    revisions: list[str] | None = None
 
 
 @dataclass
@@ -53,6 +57,7 @@ class TaskGroup:
             task_subset = task_data.get("subset")
             task_hf_models = task_data.get("hf_models")
             task_hf_dataset_files = task_data.get("hf_dataset_files")
+            task_revisions = task_data.get("revisions")
             tasks.append(
                 _Task(
                     name=task_name,
@@ -62,6 +67,7 @@ class TaskGroup:
                     hf_models=task_hf_models,
                     hf_dataset_files=task_hf_dataset_files,
                     suite=task_data.get("suite"),
+                    revisions=task_revisions,
                 )
             )
 
@@ -198,37 +204,51 @@ def _extract_flores_subsets(task_name: str) -> list[str]:
 def _collect_dataset_specs(group_names: Iterable[str]) -> list[DatasetSpec]:
     parsed = _parse_task_groups([str(n).strip() for n in group_names if str(n).strip()])
 
-    specs: list[DatasetSpec] = []
-    seen: set[tuple[str, str | None, str | None]] = set()
+    # Merge specs sharing (repo_id, subset): union their revisions lists.
+    by_key: dict[tuple[str, str | None], DatasetSpec] = {}
+    order: list[tuple[str, str | None]] = []
 
     def add_spec(
         dataset: str | None,
         subset: str | None,
         needs_snapshot_download: bool = False,
+        revisions: list[str] | None = None,
     ):
         if dataset is None:
             return
+        revs = list(revisions) if revisions else ["main"]
         key = (dataset, subset)
-        if key not in seen:
-            seen.add(key)
-            specs.append(
-                DatasetSpec(
-                    repo_id=dataset,
-                    subset=subset,
-                    needs_snapshot_download=needs_snapshot_download,
-                )
+        existing = by_key.get(key)
+        if existing is None:
+            by_key[key] = DatasetSpec(
+                repo_id=dataset,
+                subset=subset,
+                needs_snapshot_download=needs_snapshot_download,
+                revisions=revs,
             )
+            order.append(key)
+        else:
+            for r in revs:
+                if r not in existing.revisions:
+                    existing.revisions.append(r)
+            if needs_snapshot_download and not existing.needs_snapshot_download:
+                existing.needs_snapshot_download = True
 
     for t, _, group_name in _iter_all_tasks(parsed):
         needs_snapshot = group_name.startswith(("audio-", "video-"))
 
         if t.dataset == "facebook/flores" and not t.subset:
             for lang in _extract_flores_subsets(t.name):
-                add_spec(t.dataset, lang)
+                add_spec(t.dataset, lang, revisions=t.revisions)
         else:
-            add_spec(t.dataset, t.subset, needs_snapshot_download=needs_snapshot)
+            add_spec(
+                t.dataset,
+                t.subset,
+                needs_snapshot_download=needs_snapshot,
+                revisions=t.revisions,
+            )
 
-    return specs
+    return [by_key[k] for k in order]
 
 
 def _collect_hf_model_repos(group_names: Iterable[str]) -> list[str]:
@@ -291,13 +311,16 @@ def _build_task_dataset_map() -> dict[str, list[DatasetSpec]]:
 
     for t, _, _gname in _iter_all_tasks(parsed):
         if t.dataset and t.name not in task_map:
+            revs = list(t.revisions) if t.revisions else ["main"]
             if t.dataset == "facebook/flores" and not t.subset:
                 task_map[t.name] = [
-                    DatasetSpec(repo_id=t.dataset, subset=lang)
+                    DatasetSpec(repo_id=t.dataset, subset=lang, revisions=list(revs))
                     for lang in _extract_flores_subsets(t.name)
                 ]
             else:
-                task_map[t.name] = [DatasetSpec(repo_id=t.dataset, subset=t.subset)]
+                task_map[t.name] = [
+                    DatasetSpec(repo_id=t.dataset, subset=t.subset, revisions=revs)
+                ]
 
     return task_map
 

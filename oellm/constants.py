@@ -53,6 +53,32 @@ METRIC_FALLBACK_KEYS: list[str] = [
     "exact_match",
 ]
 
+# Tasks whose primary metric is computed by an LLM judge / extractor and
+# requires ``OPENAI_API_KEY`` (or compatible) at evaluation time. Pre-flight
+# check refuses to schedule these without the key unless
+# ``--allow-missing-judge`` is passed.
+#
+# NOT included: mmbench_en_dev (regex extraction primary; GPT fallback) and
+# mathvista_testmini_* (quick_extract regex primary; GPT fallback) — these
+# emit valid numbers without a key, so blocking them would cause friction.
+# Add tasks here when the metric is genuinely undefined without a judge call.
+JUDGE_REQUIRED_TASKS: frozenset[str] = frozenset(
+    {
+        # Video
+        "activitynetqa",
+        # Audio — AudioBench / VoiceBench judge-graded tasks (`gpt_eval` or
+        # `llm_as_judge_eval` is the only metric path; no regex fallback).
+        "alpaca_audio",
+        "openhermes",
+        "wavcaps",
+        "air_bench_chat_sound",
+        "air_bench_chat_music",
+        "air_bench_chat_speech",
+        "air_bench_chat_mixed",
+        "voicebench_commoneval",
+    }
+)
+
 
 def detect_lmms_model_type(model_path: str) -> str:
     """Detect the lmms-eval adapter class name from a model path or HF repo name.

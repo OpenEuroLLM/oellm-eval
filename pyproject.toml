@@ -20,15 +20,33 @@ dev = [
     "pytest-timeout>=2.3.1",
     "pre-commit",
 ]
+# Text-evaluation engine base (lm-eval-harness + dependencies).  Pair with
+# ``image`` / ``audio`` for a "general" venv that runs text + multimodal
+# tasks side-by-side.  ``lighteval`` cannot share a venv with lm-eval
+# (datasets <4 vs >=4 conflict) and is installed separately via
+# ``uv tool install`` — see docs/VENV.md.
+text = [
+    "lm-eval",
+    "torch",
+    "transformers",
+    "accelerate",
+]
+# NOTE: lmms-eval is NOT a pip dep — its wheel drops `_default_template_yaml`
+# files. Install it editable (`uv pip install -e "git+…"`); see docs/VENV.md.
 image = [
-    "lmms-eval @ git+https://github.com/EvolvingLMMs-Lab/lmms-eval.git",
+    # transformers 4.50+ fast llava_onevision processor crashes on images=[].
+    "transformers>=4.45,<4.50",
+    # Phi-4-multimodal trust_remote_code modeling imports backoff.
+    "backoff",
 ]
 video = [
-    "lmms-eval @ git+https://github.com/EvolvingLMMs-Lab/lmms-eval.git",
+    "transformers>=4.45,<4.50",
+    "backoff",
+    # PyAV 14 renamed AVError to OSError; torchvision still uses the old name.
+    "av<14",
 ]
 # HPC Singularity image must also include ffmpeg for non-WAV decode.
 audio = [
-    "lmms-eval @ git+https://github.com/EvolvingLMMs-Lab/lmms-eval.git",
     "soundfile",
     "librosa",
     "jiwer",
@@ -46,6 +64,34 @@ audiobench = [
     "soundfile",
     "librosa",
 ]
+# Evalchemy reasoning suite — uses a forked lm-eval that cannot coexist
+# with mainline lm-eval (different fork at the same import path).  Install
+# in its own venv: ``uv pip install '.[evalchemy]'``.  Pinned versions are
+# what evalchemy upstream requires; see docs/VENV.md.
+evalchemy = [
+    "lm-eval @ git+https://github.com/EtashGuha/lm-evaluation-harness@etashg/tokenize_fix",
+    "scipy==1.17.0",
+    "datasets==3.6.0",
+    "transformers==4.57.6",
+    "accelerate==1.12.0",
+    "bespokelabs-curator==0.1.26",
+    "sqlalchemy",
+    "torch",
+    "langdetect",
+    "immutabledict",
+]
+# DCLM-core-22 — pins ``lm-eval==0.4.9.2`` because v0.4.10+ breaks
+# ``agieval_lsat_ar`` few-shot.  Install in its own venv:
+# ``uv pip install '.[dclm]'``.
+dclm = [
+    "lm-eval==0.4.9.2",
+    "torch",
+    "transformers>=4.43.2,<5.0.0",
+    "accelerate",
+    "wandb",
+    "sentencepiece",
+    "tiktoken",
+]
 
 [project.scripts]
 oellm = "oellm.main:main"
@@ -58,6 +104,26 @@ build-backend = "uv_build"
 module-name = "oellm"
 module-root = ""
 include = ["oellm/resources/*", "oellm/resources/**/*"]
+
+# Conflict groups: extras with incompatible pins (must live in separate
+# venvs). text/image/video can coexist; evalchemy/dclm cannot share with
+# anything pinning a different lm-eval or transformers version. See docs/VENV.md.
+[tool.uv]
+conflicts = [
+    [
+        { extra = "text" },
+        { extra = "evalchemy" },
+        { extra = "dclm" },
+    ],
+    [
+        { extra = "image" },
+        { extra = "evalchemy" },
+    ],
+    [
+        { extra = "video" },
+        { extra = "evalchemy" },
+    ],
+]
 
 [tool.ruff]
 line-length = 90

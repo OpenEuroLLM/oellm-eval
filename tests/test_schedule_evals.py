@@ -22,6 +22,9 @@ def test_schedule_evals(tmp_path, n_shot, task_groups):
         patch("oellm.runner.detect_lmms_model_type", return_value="llava"),
         patch.dict(os.environ, {"EVAL_OUTPUT_DIR": str(tmp_path)}),
     ):
+        # ``allow_missing_judge`` so this parametrized smoke test can exercise
+        # judge-required task groups (audio-alpaca-audio, video-activitynet-qa,
+        # …) without setting ``OPENAI_API_KEY`` in CI.
         schedule_evals(
             models="EleutherAI/pythia-70m",
             task_groups=task_groups,
@@ -29,6 +32,7 @@ def test_schedule_evals(tmp_path, n_shot, task_groups):
             skip_checks=True,
             venv_path=str(Path(sys.prefix)),
             dry_run=True,
+            allow_missing_judge=True,
         )
 
 

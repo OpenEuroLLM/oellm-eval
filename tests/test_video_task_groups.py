@@ -18,7 +18,8 @@ EXPECTED_TASKS = {
     "video_mmmu_perception",
     "video_mmmu_comprehension",
     "video_mmmu_adaptation",
-    "egoschema",
+    "mvbench",
+    "egoschema_subset",
     "videomme",
     "activitynetqa",
     "longvideobench_val_v",
@@ -26,6 +27,7 @@ EXPECTED_TASKS = {
 
 EXPECTED_DATASETS = {
     "lmms-lab/VideoMMMU",
+    "OpenGVLab/MVBench",
     "lmms-lab/egoschema",
     "lmms-lab/Video-MME",
     "lmms-lab/ActivityNetQA",
@@ -43,16 +45,18 @@ class TestVideoTaskGroupInRegistry:
         suite = data["task_groups"][VIDEO_TASK_GROUP]["suite"]
         assert suite == "lmms_eval"
 
-    def test_video_understanding_has_seven_tasks(self):
+    def test_video_understanding_has_eight_tasks(self):
         data = yaml.safe_load((files("oellm.resources") / "task-groups.yaml").read_text())
         tasks = data["task_groups"][VIDEO_TASK_GROUP]["tasks"]
-        # 3 video_mmmu_* leaves + egoschema + videomme + activitynetqa + longvideobench
-        assert len(tasks) == 7
+        # 3 video_mmmu_* leaves + mvbench + egoschema_subset + videomme
+        # + activitynetqa + longvideobench
+        assert len(tasks) == 8
 
     def test_individual_video_groups_present(self):
         all_groups = get_all_task_group_names()
         for name in [
             "video-videommmu",
+            "video-mvbench",
             "video-egoschema",
             "video-videomme",
             "video-activitynet-qa",
@@ -119,6 +123,32 @@ class TestVideoTaskGroupDatasetSpecs:
                 f"DatasetSpec for {s.repo_id} missing needs_snapshot_download=True flag"
             )
 
+    def test_mvbench_has_main_and_video_revisions(self):
+        """OpenGVLab/MVBench splits content across two branches: `main`
+        (parquet metadata) and `video` (.mp4 files). Both must be
+        pre-downloaded for offline compute-node evaluation. This is the
+        regression guard for the `revisions: [main, video]` YAML field."""
+        specs = _collect_dataset_specs([VIDEO_TASK_GROUP])
+        mvbench = next((s for s in specs if s.repo_id == "OpenGVLab/MVBench"), None)
+        assert mvbench is not None, "MVBench spec missing from video-understanding"
+        assert mvbench.revisions == ["main", "video"], (
+            f"MVBench DatasetSpec.revisions is {mvbench.revisions!r}, "
+            f"expected ['main', 'video']. Check that the `revisions:` field is "
+            f"set on the mvbench task entry in task-groups.yaml."
+        )
+
+    def test_default_revisions_is_main_for_other_video_specs(self):
+        """Other video datasets that don't set `revisions:` in YAML must
+        still pre-download `main` by default."""
+        specs = _collect_dataset_specs([VIDEO_TASK_GROUP])
+        for s in specs:
+            if s.repo_id == "OpenGVLab/MVBench":
+                continue
+            assert s.revisions == ["main"], (
+                f"DatasetSpec for {s.repo_id} has unexpected revisions "
+                f"{s.revisions!r}; default should be ['main']."
+            )
+
 
 class TestVideoTaskGroupScheduleEvals:
     """Verify video-understanding integrates with the schedule_evals dry-run path."""
@@ -141,6 +171,7 @@ class TestVideoTaskGroupScheduleEvals:
                 skip_checks=True,
                 venv_path=str(Path(sys.prefix)),
                 dry_run=True,
+                allow_missing_judge=True,
             )
 
         sbatch_files = list(tmp_path.glob("**/submit_evals.sbatch"))
@@ -168,6 +199,7 @@ class TestVideoTaskGroupScheduleEvals:
                 skip_checks=True,
                 venv_path=str(Path(sys.prefix)),
                 dry_run=True,
+                allow_missing_judge=True,
             )
 
         csv_files = list(tmp_path.glob("**/jobs.csv"))

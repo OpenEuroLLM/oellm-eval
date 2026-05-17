@@ -28,25 +28,30 @@ Use `oellm list-tasks` to see which suite a given task group routes to.
 
 ## Setup (general venv)
 
-1. Create a venv with Python 3.12:
-   ```bash
-   uv venv --python 3.12 /path/to/.venv
-   ```
+```bash
+# 1. Create venv
+uv venv --python 3.12 /path/to/.venv
 
-2. Install lm-eval and lmms-eval dependencies:
-   ```bash
-   uv pip install --python /path/to/.venv/bin/python -r requirements-venv.txt
-   ```
+# 2. Install lmms-eval editable from main
+#    (Editable is required — wheel build drops `_default_template_yaml` files.)
+uv pip install --python /path/to/.venv/bin/python \
+    -e "git+https://github.com/EvolvingLMMs-Lab/lmms-eval.git#egg=lmms-eval"
 
-   This installs `lm-eval`, `torch`, `transformers`, `accelerate`, `datasets<4.0.0`, and `lmms-eval`.
+# 3. Install oellm-cli with engine extras
+uv pip install --python /path/to/.venv/bin/python -e '.[text,image,audio]'
 
-3. Install lighteval as isolated tool (avoids datasets version conflict):
-   ```bash
-   UV_TOOL_DIR=/path/to/.uv-tools UV_TOOL_BIN_DIR=/path/to/.venv/bin \
-     uv tool install --python 3.12 \
-       --with "langcodes[data]" --with "pillow" \
-       "lighteval[multilingual] @ git+https://github.com/huggingface/lighteval.git"
-   ```
+# 4. Install lighteval as an isolated uv tool (datasets version conflict)
+UV_TOOL_DIR=/path/to/.uv-tools UV_TOOL_BIN_DIR=/path/to/.venv/bin \
+  uv tool install --python 3.12 \
+    --with "langcodes[data]" --with "pillow" \
+    "lighteval[multilingual] @ git+https://github.com/huggingface/lighteval.git"
+```
+
+Verify with:
+```bash
+/path/to/.venv/bin/python -c \
+  'from lmms_eval.tasks import TaskManager; TaskManager("INFO"); print("OK")'
+```
 
 ## Usage
 
@@ -71,20 +76,21 @@ lm-eval requires `datasets<4.0.0` while lighteval requires `datasets>=4.0.0`. In
 
 ## Dependency Summary
 
-| Package | Install method | Reason |
+| Component | Install | Reason |
 |---|---|---|
-| `lm-eval`, `torch`, `transformers`, `accelerate`, `datasets<4.0.0`, `lmms-eval` | `uv pip install -r requirements-venv.txt` | lm-eval + image eval, compatible dataset pin |
-| `lighteval[multilingual]` | `uv tool install` (isolated) | Requires `datasets>=4.0.0` — must be isolated |
-
-lm-eval requires `datasets<4.0.0` while lighteval requires `datasets>=4.0.0`. Installing lighteval as an isolated uv tool (like the containers do) avoids this conflict.
+| `lmms-eval` | `uv pip install -e "git+https://…@<commit>#egg=lmms-eval"` | Editable: wheel drops template files |
+| `text`, `image`, `audio` extras | `uv pip install '.[text,image,audio]'` | lm-eval + transformers pin + audio helpers |
+| `lighteval` | `uv tool install …` (isolated) | Needs `datasets>=4.0.0`; conflicts with lm-eval |
+| `evalchemy` | `uv pip install '.[evalchemy]'` (own venv) | Forked lm-eval |
+| `dclm` | `uv pip install '.[dclm]'` (own venv) | Pinned `lm-eval==0.4.9.2` |
 
 ## DCLM-core-22
 
-`dclm-core-22` needs `lm-eval==0.4.9.2` (v0.4.10+ breaks `agieval_lsat_ar` in few-shot). Use `requirements-venv-dclm.txt` instead of the default requirements:
+`dclm-core-22` needs `lm-eval==0.4.9.2` (v0.4.10+ breaks `agieval_lsat_ar` in few-shot). Install in its own venv using the `[dclm]` extra:
 
 ```bash
 uv venv --python 3.12 dclm-core-venv
-uv pip install --python dclm-core-venv/bin/python -r requirements-venv-dclm.txt
+uv pip install --python dclm-core-venv/bin/python -e '.[dclm]'
 ```
 
 ```bash
@@ -109,10 +115,10 @@ We use [Ali's fork](https://github.com/Ali-Elganzory/evalchemy) which includes a
    cd evalchemy && git checkout 54ac97648230c4c3a22c3a2b93068b5a4e573f8d && cd ..
    ```
 
-2. Create a venv and install dependencies:
+2. Create a venv and install dependencies using the `[evalchemy]` extra:
    ```bash
    uv venv --python 3.12 evalchemy-venv
-   uv pip install --python evalchemy-venv/bin/python -r requirements-venv-evalchemy.txt
+   uv pip install --python evalchemy-venv/bin/python -e '.[evalchemy]'
    ```
 
 3. Run with `EVALCHEMY_DIR` pointing to the cloned repo:

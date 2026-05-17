@@ -47,7 +47,9 @@ task_metrics:
   bigbench_operators_generate_until: exact_match
   bigbench_repeat_copy_logic_generate_until: exact_match
   bigbench_cs_algorithms_generate_until: exact_match
-  # lmms-eval image benchmark metrics
+  # lmms-eval image benchmark metrics.
+  # NOTE: `exact_match` for vqav2/textvqa is a lmms-eval misnomer — it's
+  # the soft VQA accuracy `min(matching/3, 1)`, not strict equality.
   vqav2_val: exact_match
   mme: mme_cognition_score
   mmbench_en_dev: gpt_eval_score
@@ -56,18 +58,21 @@ task_metrics:
   docvqa_val: anls
   textvqa_val: exact_match
   ocrbench: ocrbench_accuracy
-  # MathVista uses LLM-as-judge; null without judge LLM configured. The
-  # top-level `mathvista_testmini` is a GROUP that expands to the three
-  # leaves below — schedule the leaves, not the group.
+  # MathVista: schedule the 3 leaves (cot / format / solution), not the group.
   mathvista_testmini_cot: llm_as_judge_eval
   mathvista_testmini_format: llm_as_judge_eval
   mathvista_testmini_solution: llm_as_judge_eval
-  # lmms-eval video benchmark metrics. `video_mmmu` upstream is a GROUP
-  # that expands to perception / comprehension / adaptation leaves.
+  # lmms-eval video benchmark metrics. `video_mmmu` is a group of 3 leaves.
   video_mmmu_perception: mmmu_acc
   video_mmmu_comprehension: mmmu_acc
   video_mmmu_adaptation: mmmu_acc
-  egoschema: submission
+  # EgoSchema: use `egoschema_subset` (val split with ground truth).
+  # The bare `egoschema` task is Kaggle-submission-only.
+  egoschema_subset: score
+  # MVBench: `mvbench` is a group of 20 subtasks; collect_results
+  # aggregates per-subtask `mvbench_accuracy` into a synthetic row.
+  mvbench: mvbench_accuracy
+  # `videomme_perception_score` IS the overall accuracy despite the name.
   videomme: videomme_perception_score
   # ActivityNet-QA requires GPT API access for evaluation (LLM-as-judge)
   activitynetqa: gpt_eval_accuracy
@@ -567,7 +572,7 @@ task_groups:
 
   # ── Video Modality (lmms-eval) ────────────────────────────────────────────
   video-understanding:
-    description: "Video understanding benchmarks via lmms-eval (VideoMMMU, EgoSchema, VideoMME, ActivityNet-QA, LongVideoBench)"
+    description: "Video understanding benchmarks via lmms-eval (VideoMMMU, MVBench, EgoSchema-subset, VideoMME, ActivityNet-QA, LongVideoBench)"
     suite: lmms_eval
     n_shots: [0]
     tasks:
@@ -577,7 +582,11 @@ task_groups:
         dataset: lmms-lab/VideoMMMU
       - task: video_mmmu_adaptation
         dataset: lmms-lab/VideoMMMU
-      - task: egoschema
+      - task: mvbench
+        dataset: OpenGVLab/MVBench
+        # MVBench parquet on `main`, .mp4 files on `video` — fetch both.
+        revisions: [main, video]
+      - task: egoschema_subset
         dataset: lmms-lab/egoschema
       - task: videomme
         dataset: lmms-lab/Video-MME
@@ -597,12 +606,22 @@ task_groups:
       - task: video_mmmu_comprehension
       - task: video_mmmu_adaptation
 
-  video-egoschema:
-    description: "EgoSchema long-form egocentric video QA via lmms-eval"
+  video-mvbench:
+    description: "MVBench short-clip temporal video understanding via lmms-eval (group of 20 subtasks; mean accuracy)"
     suite: lmms_eval
     n_shots: [0]
     tasks:
-      - task: egoschema
+      - task: mvbench
+        dataset: OpenGVLab/MVBench
+        # MVBench parquet on `main`, .mp4 files on `video` — fetch both.
+        revisions: [main, video]
+
+  video-egoschema:
+    description: "EgoSchema long-form egocentric video QA via lmms-eval (500-q validation subset with ground truth)"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: egoschema_subset
         dataset: lmms-lab/egoschema
 
   video-videomme:
