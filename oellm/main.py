@@ -716,13 +716,21 @@ def collect_results(
             if task_name.startswith("global_mmlu_") and task_name.count("_") >= 4:
                 continue
 
+            # Skip the lighteval 'all' aggregate pseudo-task
+            if task_name == "all":
+                continue
+
             # Get n_shot for this task.
             # Prefer original extraction from `n_shot_data` and `global_n_shot`,
             # and fall back to parsing a '|N' suffix in the task name.
+            # Use explicit None checks because n_shot=0 is falsy.
             task_name_clean, parsed_n = _split_task_and_nshot(task_name)
-            n_shot = (
-                n_shot_data.get(task_name_clean) or global_n_shot or parsed_n or "unknown"
-            )
+            _ns = n_shot_data.get(task_name_clean)
+            if _ns is None:
+                _ns = global_n_shot
+            if _ns is None:
+                _ns = parsed_n
+            n_shot = "unknown" if _ns is None else _ns
 
             # If this is a group aggregate and n_shot is missing, derive from any subtask
             if task_name_clean in group_aggregate_names and n_shot == "unknown":
