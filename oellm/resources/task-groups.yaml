@@ -52,6 +52,7 @@ task_metrics:
   arc_challenge_mt_sl: acc_norm
   arc_challenge_mt_es: acc_norm
   arc_challenge_mt_sv: acc_norm
+  arc_challenge_mt_is: acc_norm
   arc_challenge_mt_nb: acc_norm
   boolq: acc
   commonsense_qa: acc
@@ -494,7 +495,7 @@ task_groups:
       #   dataset: openaccess-ai-collective/jeopardy
 
   arc-challenge-mt-eu:
-    description: "ARC Challenge multilingual (21 European languages)"
+    description: "ARC Challenge multilingual (22 European languages)"
     suite: lm-eval-harness
     n_shots: [0]
     dataset: LumiOpen/arc_challenge_mt
@@ -539,6 +540,7 @@ task_groups:
         subset: es
       - task: arc_challenge_mt_sv
         subset: sv
+      - task: arc_challenge_mt_is
       - task: arc_challenge_mt_nb
         subset: nb
 
