@@ -1,0 +1,20 @@
+--- a/src/lighteval/tasks/templates/translation.py
++++ b/src/lighteval/tasks/templates/translation.py
+@@ -23,7 +23,8 @@
+ from typing import Callable
+ 
+-from langcodes import standardize_tag
++import langcodes
++from langcodes import standardize_tag
+ from typing_extensions import NotRequired, TypedDict
+ 
+@@ -118,8 +118,11 @@ def get_translation_prompt_function(
+     source_translation_literals = TRANSLATION_LITERALS[source_language]
+     target_translation_literals = TRANSLATION_LITERALS[target_language]
+ 
+-    source_label_string = standardize_tag(source_language.value).upper()
+-    target_label_string = standardize_tag(target_language.value).upper()
++    # Use full English language names (e.g. "Danish", "Estonian") instead of ambiguous
++    # 2-letter ISO codes (e.g. "DA", "ET") so the model reliably identifies the target language.
++    source_label_string = langcodes.get(source_language.value).display_name()
++    target_label_string = langcodes.get(target_language.value).display_name()
