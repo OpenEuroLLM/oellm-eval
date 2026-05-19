@@ -171,6 +171,7 @@ do
                     "$LIGHT_TASK_ARG" \
                     --load-tasks-multilingual \
                     --output-dir "$RESULTS_SUBDIR" \
+                    --save-details \
                     ${{LIMIT:+--max-samples $LIMIT}}
             else
                 singularity exec $SINGULARITY_ARGS \
@@ -184,6 +185,7 @@ do
                         "$LIGHT_TASK_ARG" \
                         --load-tasks-multilingual \
                         --output-dir "$RESULTS_SUBDIR" \
+                        --save-details \
                         ${{LIMIT:+--max-samples $LIMIT}}
             fi
             ;;
