@@ -1,5 +1,16 @@
 task_metrics:
   mmlu: acc
+  global_mgsm_cs: exact_match
+  global_mgsm_en: exact_match
+  global_mgsm_fr: exact_match
+  global_mgsm_de: exact_match
+  global_mgsm_el: exact_match
+  global_mgsm_hu: exact_match
+  global_mgsm_es: exact_match
+  global_mgsm_ca: exact_match
+  global_mgsm_eu: exact_match
+  global_mgsm_gl: exact_match
+  global_mgsm_sr: exact_match
   belebele_bul_Cyrl_cf: acc_norm
   belebele_hrv_Latn_cf: acc_norm
   belebele_ces_Latn_cf: acc_norm
@@ -307,6 +318,34 @@ task_groups:
         subset: uk
       - task: global_mmlu_full_he
         subset: he
+  global-mgsm-eu:
+    description: "Global MGSM European language math tasks (CohereLabs/global-mgsm, 0-shot)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: CohereLabs/global-mgsm
+    tasks:
+      - task: global_mgsm_cs
+        subset: cs
+      - task: global_mgsm_en
+        subset: en
+      - task: global_mgsm_fr
+        subset: fr
+      - task: global_mgsm_de
+        subset: de
+      - task: global_mgsm_el
+        subset: el
+      - task: global_mgsm_hu
+        subset: hu
+      - task: global_mgsm_es
+        subset: es
+      - task: global_mgsm_ca
+        subset: ca
+      - task: global_mgsm_eu
+        subset: eu
+      - task: global_mgsm_gl
+        subset: gl
+      - task: global_mgsm_sr
+        subset: sr
   mgsm-eu:
     description: "EU Language GSM benchmarks in Aya Expanse"
     suite: lm-eval-harness

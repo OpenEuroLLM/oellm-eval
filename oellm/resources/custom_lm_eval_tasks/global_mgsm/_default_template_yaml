@@ -1,0 +1,31 @@
+dataset_path: CohereLabs/global-mgsm
+output_type: generate_until
+test_split: test
+doc_to_text: "{{instruction}}\n\n{{question}}\n"
+doc_to_target: "{{answer}}"
+target_delimiter: " "
+generation_kwargs:
+  until:
+    - "</s>"
+    - "<|im_end|>"
+    - "<|endoftext|>"
+  do_sample: false
+  temperature: 0.0
+max_gen_toks: 512
+metric_list:
+  - metric: exact_match
+    aggregation: mean
+    higher_is_better: true
+    ignore_case: true
+    ignore_punctuation: true
+filter_list:
+  - name: get-answer
+    filter:
+      - function: regex
+        group_select: -1
+        regex_pattern: "(-?[$0-9.,]{2,})|(-?[0-9]+)"
+      - function: take_first
+metadata:
+  version: 0.0
+dataset_kwargs:
+  trust_remote_code: true
