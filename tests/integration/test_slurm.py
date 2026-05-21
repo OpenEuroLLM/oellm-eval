@@ -71,7 +71,7 @@ def run_schedule_eval(
     cmd = [
         "uv",
         "run",
-        "oellm",
+        "oellm-eval",
         "schedule-eval",
         "--models",
         "HuggingFaceTB/SmolLM2-135M-Instruct",
@@ -100,7 +100,7 @@ def run_schedule_eval_with_csv(
     cmd = [
         "uv",
         "run",
-        "oellm",
+        "oellm-eval",
         "schedule-eval",
         "--eval_csv_path",
         csv_path,

@@ -169,7 +169,7 @@ def schedule_evals(
                 "--local requires --venv_path. Provide a path to a Python virtual "
                 "environment with lm_eval/lighteval installed."
             )
-        local_output = str(Path.cwd() / "oellm-output")
+        local_output = str(Path.cwd() / "oellm-eval-output")
         os.environ.setdefault("EVAL_BASE_DIR", local_output)
         os.environ.setdefault("EVAL_OUTPUT_DIR", local_output)
         os.environ.setdefault("QUEUE_LIMIT", "1")
