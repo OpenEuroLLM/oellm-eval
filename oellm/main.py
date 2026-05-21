@@ -843,7 +843,7 @@ def collect_results(
             missing_df.to_csv(missing_csv, index=False)
             logging.info(f"Missing jobs saved to: {missing_csv}")
             logging.info(
-                f"You can run these with: oellm schedule-eval --eval_csv_path {missing_csv}"
+                f"You can run these with: oellm-eval schedule --eval_csv_path {missing_csv}"
             )
 
             # Show some examples if verbose
@@ -861,8 +861,8 @@ def main():
     _filter_warnings()
     auto_cli(
         {
-            "schedule-eval": schedule_evals,
-            "collect-results": collect_results,
+            "schedule": schedule_evals,
+            "collect": collect_results,
         },
         as_positional=False,
         description="OELLM: Multi-cluster evaluation tool for language models",

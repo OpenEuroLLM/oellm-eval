@@ -72,7 +72,7 @@ def run_schedule_eval(
         "uv",
         "run",
         "oellm-eval",
-        "schedule-eval",
+        "schedule",
         "--models",
         "HuggingFaceTB/SmolLM2-135M-Instruct",
         "--task_groups",
@@ -101,7 +101,7 @@ def run_schedule_eval_with_csv(
         "uv",
         "run",
         "oellm-eval",
-        "schedule-eval",
+        "schedule",
         "--eval_csv_path",
         csv_path,
         "--limit",
@@ -144,7 +144,7 @@ class TestScheduleEvalDryRun:
         )
 
         assert result.returncode == 0, (
-            f"schedule-eval failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+            f"schedule failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
         )
 
         self.eval_dir = find_eval_dir(slurm_env)
@@ -279,10 +279,10 @@ class TestFullEvaluationPipeline:
         os.unlink(csv_path)
 
         if result.returncode != 0:
-            print(f"schedule-eval stdout:\n{result.stdout}")
-            print(f"schedule-eval stderr:\n{result.stderr}")
+            print(f"schedule stdout:\n{result.stdout}")
+            print(f"schedule stderr:\n{result.stderr}")
         assert result.returncode == 0, (
-            f"schedule-eval failed for {group_name}:\nSTDERR: {result.stderr}"
+            f"schedule failed for {group_name}:\nSTDERR: {result.stderr}"
         )
 
         print("Waiting for job to complete...")

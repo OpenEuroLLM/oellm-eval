@@ -4,8 +4,8 @@ A lightweight CLI for scheduling LLM evaluations across multiple HPC clusters us
 
 ## Features
 
-- **Schedule evaluations** on multiple models and tasks: `oellm-eval schedule-eval`
-- **Collect results** and check for missing evaluations: `oellm-eval collect-results`
+- **Schedule evaluations** on multiple models and tasks: `oellm-eval schedule`
+- **Collect results** and check for missing evaluations: `oellm-eval collect`
 - **Task groups** for pre-defined evaluation suites with automatic dataset pre-downloading
 - **Multi-cluster support** with auto-detection (Leonardo, LUMI, JURECA, Snellius)
 - **Automatic building and deployment of containers** 
@@ -21,12 +21,12 @@ A lightweight CLI for scheduling LLM evaluations across multiple HPC clusters us
 uv tool install -p 3.12 git+https://github.com/OpenEuroLLM/oellm-cli.git
 
 # Run evaluations using a task group (recommended)
-oellm-eval schedule-eval \
+oellm-eval schedule \
     --models "microsoft/DialoGPT-medium,EleutherAI/pythia-160m" \
     --task_groups "open-sci-0.01"
 
 # Or specify individual tasks
-oellm-eval schedule-eval \
+oellm-eval schedule \
     --models "EleutherAI/pythia-160m" \
     --tasks "hellaswag,mmlu" \
     --n_shot 5
@@ -58,13 +58,13 @@ Super groups combine multiple task groups:
 
 ```bash
 # Use a task group
-oellm-eval schedule-eval --models "model-name" --task_groups "open-sci-0.01"
+oellm-eval schedule --models "model-name" --task_groups "open-sci-0.01"
 
 # Use multiple task groups
-oellm-eval schedule-eval --models "model-name" --task_groups "belebele-eu-5-shot,global-mmlu-eu"
+oellm-eval schedule --models "model-name" --task_groups "belebele-eu-5-shot,global-mmlu-eu"
 
 # Use a super group
-oellm-eval schedule-eval --models "model-name" --task_groups "oellm-multilingual"
+oellm-eval schedule --models "model-name" --task_groups "oellm-multilingual"
 ```
 
 ## Running Locally (without SLURM)
@@ -76,7 +76,7 @@ The `--local` flag lets you run evaluations directly on your machine without a c
 uv pip install lm-eval torch transformers accelerate "datasets<4.0.0"
 
 # 2. Run evaluations locally — useful for smoke-testing with a small sample
-oellm-eval schedule-eval \
+oellm-eval schedule \
     --models "EleutherAI/pythia-160m" \
     --tasks "gsm8k" \
     --n_shot 0 \
@@ -92,7 +92,7 @@ Results are written to `./oellm-eval-output/<timestamp>/results/`.
 ```bash
 export HF_HOME=/leonardo_work/OELLM_prod2026/users/shaldar0/oellm-evals/hf_data
 export HF_HUB_OFFLINE=1
-oellm-eval schedule-eval ... --venv_path .venv --local true
+oellm-eval schedule ... --venv_path .venv --local true
 ```
 
 The `HF_HUB_OFFLINE` value is read when you invoke `oellm-eval` and baked into the generated script.
@@ -103,11 +103,11 @@ Override cluster defaults (partition, account, time limit, memory, etc.) with `-
 
 ```bash
 # Use a different partition (e.g. dev-g on LUMI when small-g is crowded)
-oellm-eval schedule-eval --models "model-name" --task_groups "open-sci-0.01" \
+oellm-eval schedule --models "model-name" --task_groups "open-sci-0.01" \
   --slurm_template_var '{"PARTITION":"dev-g"}'
 
 # Multiple overrides: partition, account, time limit, GPUs, exact RAM
-oellm-eval schedule-eval --models "model-name" --task_groups "open-sci-0.01" \
+oellm-eval schedule --models "model-name" --task_groups "open-sci-0.01" \
   --slurm_template_var '{"PARTITION":"dev-g","ACCOUNT":"myproject","TIME":"02:00:00","GPUS_PER_NODE":2,"SLURM_MEM":"96G"}'
 ```
 
@@ -123,7 +123,7 @@ override these defaults:
 
 ```bash
 # Set an explicit batch size (overrides the local/cluster default)
-BATCH_SIZE=8 oellm-eval schedule-eval \
+BATCH_SIZE=8 oellm-eval schedule \
   --models "model-name" \
   --task_groups "belebele-eu-cf" \
   --venv_path .venv
@@ -133,7 +133,7 @@ If you need full manual control over all model args, set `MODEL_ARGS`,
 for example:
 
 ```bash
-MODEL_ARGS='batch_size=8' oellm-eval schedule-eval \
+MODEL_ARGS='batch_size=8' oellm-eval schedule \
   --models "model-name" --task_groups "belebele-eu-cf" --venv_path .venv
 ```
 
@@ -151,16 +151,16 @@ After evaluations complete, collect results into a CSV:
 
 ```bash
 # Basic collection
-oellm-eval collect-results --results_dir /path/to/eval-output-dir
+oellm-eval collect --results_dir /path/to/eval-output-dir
 
 # Check for missing evaluations and create a CSV for re-running them
-oellm-eval collect-results --results_dir /path/to/eval-output-dir --check true --output_csv results.csv
+oellm-eval collect --results_dir /path/to/eval-output-dir --check true --output_csv results.csv
 ```
 
 The `--check` flag compares completed results against `jobs.csv` and outputs a `results_missing.csv` that can be used to re-schedule failed jobs:
 
 ```bash
-oellm-eval schedule-eval --eval_csv_path results_missing.csv
+oellm-eval schedule --eval_csv_path results_missing.csv
 ```
 
 ## CSV-Based Scheduling
@@ -168,7 +168,7 @@ oellm-eval schedule-eval --eval_csv_path results_missing.csv
 For full control, provide a CSV file with columns: `model_path`, `task_path`, `n_shot`, and optionally `eval_suite`:
 
 ```bash
-oellm-eval schedule-eval --eval_csv_path custom_evals.csv
+oellm-eval schedule --eval_csv_path custom_evals.csv
 ```
 
 ## Installation
@@ -201,7 +201,7 @@ We support: Leonardo, Lumi, Jureca, Jupiter, and Snellius
 ## CLI Options
 
 ```bash
-oellm-eval schedule-eval --help
+oellm-eval schedule --help
 ```
 
 ## Development
@@ -216,7 +216,7 @@ uv sync --extra dev
 uv run pytest tests/test_datasets.py -v
 
 # Download-only mode for testing
-uv run oellm-eval schedule-eval --models "EleutherAI/pythia-160m" --task_groups "open-sci-0.01" --download_only
+uv run oellm-eval schedule --models "EleutherAI/pythia-160m" --task_groups "open-sci-0.01" --download_only
 ```
 
 ## Deploying containers
