@@ -1,5 +1,41 @@
 task_metrics:
   mmlu: acc
+  sib200_bul_Cyrl: acc_norm
+  sib200_hrv_Latn: acc_norm
+  sib200_ces_Latn: acc_norm
+  sib200_dan_Latn: acc_norm
+  sib200_nld_Latn: acc_norm
+  sib200_eng_Latn: acc_norm
+  sib200_est_Latn: acc_norm
+  sib200_fin_Latn: acc_norm
+  sib200_fra_Latn: acc_norm
+  sib200_deu_Latn: acc_norm
+  sib200_ell_Grek: acc_norm
+  sib200_hun_Latn: acc_norm
+  sib200_gle_Latn: acc_norm
+  sib200_ita_Latn: acc_norm
+  sib200_lvs_Latn: acc_norm
+  sib200_lit_Latn: acc_norm
+  sib200_mlt_Latn: acc_norm
+  sib200_pol_Latn: acc_norm
+  sib200_por_Latn: acc_norm
+  sib200_ron_Latn: acc_norm
+  sib200_slk_Latn: acc_norm
+  sib200_slv_Latn: acc_norm
+  sib200_spa_Latn: acc_norm
+  sib200_swe_Latn: acc_norm
+  sib200_cat_Latn: acc_norm
+  sib200_eus_Latn: acc_norm
+  sib200_glg_Latn: acc_norm
+  sib200_bos_Latn: acc_norm
+  sib200_kat_Geor: acc_norm
+  sib200_mkd_Cyrl: acc_norm
+  sib200_als_Latn: acc_norm
+  sib200_srp_Cyrl: acc_norm
+  sib200_tur_Latn: acc_norm
+  sib200_ukr_Cyrl: acc_norm
+  sib200_isl_Latn: acc_norm
+  sib200_nob_Latn: acc_norm
   belebele_bul_Cyrl_cf: acc_norm
   belebele_hrv_Latn_cf: acc_norm
   belebele_ces_Latn_cf: acc_norm
@@ -49,6 +85,84 @@ task_metrics:
   bigbench_cs_algorithms_generate_until: exact_match
 
 task_groups:
+  sib200-eu:
+    description: "SIB-200 European language topic classification tasks (0-shot)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: Davlan/sib200
+    tasks:
+      - task: sib200_bul_Cyrl
+        subset: bul_Cyrl
+      - task: sib200_hrv_Latn
+        subset: hrv_Latn
+      - task: sib200_ces_Latn
+        subset: ces_Latn
+      - task: sib200_dan_Latn
+        subset: dan_Latn
+      - task: sib200_nld_Latn
+        subset: nld_Latn
+      - task: sib200_eng_Latn
+        subset: eng_Latn
+      - task: sib200_est_Latn
+        subset: est_Latn
+      - task: sib200_fin_Latn
+        subset: fin_Latn
+      - task: sib200_fra_Latn
+        subset: fra_Latn
+      - task: sib200_deu_Latn
+        subset: deu_Latn
+      - task: sib200_ell_Grek
+        subset: ell_Grek
+      - task: sib200_hun_Latn
+        subset: hun_Latn
+      - task: sib200_gle_Latn
+        subset: gle_Latn
+      - task: sib200_ita_Latn
+        subset: ita_Latn
+      - task: sib200_lvs_Latn
+        subset: lvs_Latn
+      - task: sib200_lit_Latn
+        subset: lit_Latn
+      - task: sib200_mlt_Latn
+        subset: mlt_Latn
+      - task: sib200_pol_Latn
+        subset: pol_Latn
+      - task: sib200_por_Latn
+        subset: por_Latn
+      - task: sib200_ron_Latn
+        subset: ron_Latn
+      - task: sib200_slk_Latn
+        subset: slk_Latn
+      - task: sib200_slv_Latn
+        subset: slv_Latn
+      - task: sib200_spa_Latn
+        subset: spa_Latn
+      - task: sib200_swe_Latn
+        subset: swe_Latn
+      - task: sib200_cat_Latn
+        subset: cat_Latn
+      - task: sib200_eus_Latn
+        subset: eus_Latn
+      - task: sib200_glg_Latn
+        subset: glg_Latn
+      - task: sib200_bos_Latn
+        subset: bos_Latn
+      - task: sib200_kat_Geor
+        subset: kat_Geor
+      - task: sib200_mkd_Cyrl
+        subset: mkd_Cyrl
+      - task: sib200_als_Latn
+        subset: als_Latn
+      - task: sib200_srp_Cyrl
+        subset: srp_Cyrl
+      - task: sib200_tur_Latn
+        subset: tur_Latn
+      - task: sib200_ukr_Cyrl
+        subset: ukr_Cyrl
+      - task: sib200_isl_Latn
+        subset: isl_Latn
+      - task: sib200_nob_Latn
+        subset: nob_Latn
   open-sci-0.01:
     description: "open-sci-ref 0.01 evals"
     suite: lm-eval-harness
