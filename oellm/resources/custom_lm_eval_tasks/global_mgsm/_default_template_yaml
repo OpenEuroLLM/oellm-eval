@@ -11,7 +11,7 @@ generation_kwargs:
     - "<|endoftext|>"
   do_sample: false
   temperature: 0.0
-max_gen_toks: 512
+  max_gen_toks: 512
 metric_list:
   - metric: exact_match
     aggregation: mean
