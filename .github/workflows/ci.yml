@@ -66,4 +66,12 @@ jobs:
         run: uv sync --extra dev
 
       - name: Run tests
-        run: uv run pytest tests/ -v --ignore=tests/integration/
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN || '' }}
+        run: |
+          if [ -z "$HF_TOKEN" ]; then
+            echo "HF_TOKEN not set, skipping test_datasets.py"
+            uv run pytest tests/ -v --ignore=tests/integration/ --ignore=tests/test_datasets.py
+          else
+            uv run pytest tests/ -v --ignore=tests/integration/
+          fi
