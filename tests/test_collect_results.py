@@ -56,7 +56,9 @@ def _lmeval_result(model_name: str, task: str, score: float, n_shot: int = 10) -
     }
 
 
-def _write_result_json(results_dir: Path, model_name: str, task: str, score: float, n_shot: int = 10) -> None:
+def _write_result_json(
+    results_dir: Path, model_name: str, task: str, score: float, n_shot: int = 10
+) -> None:
     results_dir.mkdir(parents=True, exist_ok=True)
     safe = model_name.replace("/", "_")
     (results_dir / f"{safe}_{task}.json").write_text(
@@ -67,6 +69,7 @@ def _write_result_json(results_dir: Path, model_name: str, task: str, score: flo
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def output_root(tmp_path: Path) -> Path:
@@ -82,34 +85,76 @@ def output_root(tmp_path: Path) -> Path:
 
     # hellaswag_mt1 --------------------------------------------------------
     mt1 = root / "hellaswag_mt1"
-    _write_jobs_csv(mt1 / "jobs.csv", [
-        {"model_path": MODEL_A, "task_path": "hellaswag_da", "n_shot": 10, "eval_suite": "lm-eval-harness"},
-        {"model_path": MODEL_B, "task_path": "hellaswag_nl", "n_shot": 10, "eval_suite": "lm-eval-harness"},
-    ])
+    _write_jobs_csv(
+        mt1 / "jobs.csv",
+        [
+            {
+                "model_path": MODEL_A,
+                "task_path": "hellaswag_da",
+                "n_shot": 10,
+                "eval_suite": "lm-eval-harness",
+            },
+            {
+                "model_path": MODEL_B,
+                "task_path": "hellaswag_nl",
+                "n_shot": 10,
+                "eval_suite": "lm-eval-harness",
+            },
+        ],
+    )
     _write_result_json(mt1 / "results", MODEL_A, "hellaswag_da", 0.63)
     _write_result_json(mt1 / "results", MODEL_B, "hellaswag_nl", 0.61)
 
     # hellaswag_mt2 --------------------------------------------------------
     mt2 = root / "hellaswag_mt2"
-    _write_jobs_csv(mt2 / "jobs.csv", [
-        {"model_path": MODEL_A, "task_path": "hellaswag_fr", "n_shot": 10, "eval_suite": "lm-eval-harness"},
-    ])
+    _write_jobs_csv(
+        mt2 / "jobs.csv",
+        [
+            {
+                "model_path": MODEL_A,
+                "task_path": "hellaswag_fr",
+                "n_shot": 10,
+                "eval_suite": "lm-eval-harness",
+            },
+        ],
+    )
     _write_result_json(mt2 / "results", MODEL_A, "hellaswag_fr", 0.59)
 
     # global_mmlu1 ---------------------------------------------------------
     mmlu1 = root / "global_mmlu1"
-    _write_jobs_csv(mmlu1 / "jobs.csv", [
-        {"model_path": MODEL_A, "task_path": "global_mmlu_full_de", "n_shot": 5, "eval_suite": "lm-eval-harness"},
-        {"model_path": MODEL_B, "task_path": "global_mmlu_full_en", "n_shot": 5, "eval_suite": "lm-eval-harness"},
-    ])
+    _write_jobs_csv(
+        mmlu1 / "jobs.csv",
+        [
+            {
+                "model_path": MODEL_A,
+                "task_path": "global_mmlu_full_de",
+                "n_shot": 5,
+                "eval_suite": "lm-eval-harness",
+            },
+            {
+                "model_path": MODEL_B,
+                "task_path": "global_mmlu_full_en",
+                "n_shot": 5,
+                "eval_suite": "lm-eval-harness",
+            },
+        ],
+    )
     _write_result_json(mmlu1 / "results", MODEL_A, "global_mmlu_full_de", 0.52, n_shot=5)
     _write_result_json(mmlu1 / "results", MODEL_B, "global_mmlu_full_en", 0.55, n_shot=5)
 
     # 2026-04-28 – has jobs.csv but no results yet -------------------------
     pending = root / "2026-04-28"
-    _write_jobs_csv(pending / "jobs.csv", [
-        {"model_path": MODEL_A, "task_path": "hellaswag_sr", "n_shot": 10, "eval_suite": "lm-eval-harness"},
-    ])
+    _write_jobs_csv(
+        pending / "jobs.csv",
+        [
+            {
+                "model_path": MODEL_A,
+                "task_path": "hellaswag_sr",
+                "n_shot": 10,
+                "eval_suite": "lm-eval-harness",
+            },
+        ],
+    )
 
     return root
 
@@ -117,6 +162,7 @@ def output_root(tmp_path: Path) -> Path:
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 class TestCollectResultsMerge:
     """Results are gathered from all sub-directories and merged."""
@@ -138,7 +184,13 @@ class TestCollectResultsMerge:
         collect_results(str(output_root), output_csv=out_csv)
         df = pd.read_csv(out_csv)
         tasks = set(df["task"])
-        assert tasks == {"hellaswag_da", "hellaswag_nl", "hellaswag_fr", "global_mmlu_full_de", "global_mmlu_full_en"}
+        assert tasks == {
+            "hellaswag_da",
+            "hellaswag_nl",
+            "hellaswag_fr",
+            "global_mmlu_full_de",
+            "global_mmlu_full_en",
+        }
 
     def test_correct_scores(self, output_root, tmp_path):
         out_csv = str(tmp_path / "results.csv")
@@ -164,9 +216,17 @@ class TestCollectResultsDuplicateOverride:
         # Two subdirectories both schedule the same job
         for subdir_name in ["2026-05-01", "2026-05-02"]:
             sub = root / subdir_name
-            _write_jobs_csv(sub / "jobs.csv", [
-                {"model_path": MODEL_A, "task_path": "hellaswag_da", "n_shot": 10, "eval_suite": "lm-eval-harness"},
-            ])
+            _write_jobs_csv(
+                sub / "jobs.csv",
+                [
+                    {
+                        "model_path": MODEL_A,
+                        "task_path": "hellaswag_da",
+                        "n_shot": 10,
+                        "eval_suite": "lm-eval-harness",
+                    },
+                ],
+            )
 
         _write_result_json(root / "2026-05-02" / "results", MODEL_A, "hellaswag_da", 0.65)
 
@@ -176,15 +236,25 @@ class TestCollectResultsDuplicateOverride:
         # Even though two jobs.csv files declare the same job, the merged jobs
         # table should contain exactly one row for that combination.
         missing_csv = out_csv.replace(".csv", "_missing.csv")
-        assert not Path(missing_csv).exists(), "Job counted as missing despite result being present"
+        assert not Path(missing_csv).exists(), (
+            "Job counted as missing despite result being present"
+        )
 
     def test_result_duplicate_rows_not_doubled(self, tmp_path):
         """If the same JSON appears (e.g. symlink / copy), the output still has 1 row per result file."""
         root = tmp_path / "output"
         sub = root / "hellaswag_mt1"
-        _write_jobs_csv(sub / "jobs.csv", [
-            {"model_path": MODEL_A, "task_path": "hellaswag_da", "n_shot": 10, "eval_suite": "lm-eval-harness"},
-        ])
+        _write_jobs_csv(
+            sub / "jobs.csv",
+            [
+                {
+                    "model_path": MODEL_A,
+                    "task_path": "hellaswag_da",
+                    "n_shot": 10,
+                    "eval_suite": "lm-eval-harness",
+                },
+            ],
+        )
         _write_result_json(sub / "results", MODEL_A, "hellaswag_da", 0.63)
 
         out_csv = str(tmp_path / "results.csv")
@@ -246,9 +316,17 @@ class TestCollectResultsEdgeCases:
     def test_no_json_files_returns_without_output(self, tmp_path):
         root = tmp_path / "output"
         sub = root / "2026-04-28"
-        _write_jobs_csv(sub / "jobs.csv", [
-            {"model_path": MODEL_A, "task_path": "hellaswag_da", "n_shot": 10, "eval_suite": "lm-eval-harness"},
-        ])
+        _write_jobs_csv(
+            sub / "jobs.csv",
+            [
+                {
+                    "model_path": MODEL_A,
+                    "task_path": "hellaswag_da",
+                    "n_shot": 10,
+                    "eval_suite": "lm-eval-harness",
+                },
+            ],
+        )
         out_csv = str(tmp_path / "results.csv")
         collect_results(str(root), output_csv=out_csv)
         assert not Path(out_csv).exists()
@@ -261,18 +339,24 @@ class TestCollectResultsEdgeCases:
         """JSON files that use the 'groups' key (lm-eval aggregate) are handled."""
         root = tmp_path / "output"
         sub = root / "hellaswag_mt1"
-        _write_jobs_csv(sub / "jobs.csv", [
-            {"model_path": MODEL_A, "task_path": "hellaswag_da", "n_shot": 10, "eval_suite": "lm-eval-harness"},
-        ])
+        _write_jobs_csv(
+            sub / "jobs.csv",
+            [
+                {
+                    "model_path": MODEL_A,
+                    "task_path": "hellaswag_da",
+                    "n_shot": 10,
+                    "eval_suite": "lm-eval-harness",
+                },
+            ],
+        )
 
         results_dir = sub / "results"
         results_dir.mkdir(parents=True)
         group_json = {
             "model_name": MODEL_A,
             "results": {},
-            "groups": {
-                "hellaswag_da": {"acc,none": 0.70, "acc_stderr,none": 0.01}
-            },
+            "groups": {"hellaswag_da": {"acc,none": 0.70, "acc_stderr,none": 0.01}},
             "group_subtasks": {"hellaswag_da": []},
             "n-shot": {"hellaswag_da": 10},
         }
@@ -315,7 +399,9 @@ def _lighteval_result(model_name: str, task: str, score: float, n_shot: int = 0)
     }
 
 
-def _write_lighteval_result(results_dir: Path, model_name: str, task: str, score: float, n_shot: int = 0) -> None:
+def _write_lighteval_result(
+    results_dir: Path, model_name: str, task: str, score: float, n_shot: int = 0
+) -> None:
     results_dir.mkdir(parents=True, exist_ok=True)
     safe = model_name.replace("/", "_") + "_" + task.replace(":", "_")
     (results_dir / f"{safe}.json").write_text(
@@ -329,11 +415,29 @@ def xcopa_root(tmp_path: Path) -> Path:
     root = tmp_path / "output"
     sub = root / "2026-05-19-xcopa"
 
-    _write_jobs_csv(sub / "jobs.csv", [
-        {"model_path": MODEL_HUB, "task_path": "xcopa:et", "n_shot": 0, "eval_suite": "lighteval"},
-        {"model_path": MODEL_HUB, "task_path": "xcopa:it", "n_shot": 0, "eval_suite": "lighteval"},
-        {"model_path": MODEL_HUB, "task_path": "xcopa:tr", "n_shot": 0, "eval_suite": "lighteval"},
-    ])
+    _write_jobs_csv(
+        sub / "jobs.csv",
+        [
+            {
+                "model_path": MODEL_HUB,
+                "task_path": "xcopa:et",
+                "n_shot": 0,
+                "eval_suite": "lighteval",
+            },
+            {
+                "model_path": MODEL_HUB,
+                "task_path": "xcopa:it",
+                "n_shot": 0,
+                "eval_suite": "lighteval",
+            },
+            {
+                "model_path": MODEL_HUB,
+                "task_path": "xcopa:tr",
+                "n_shot": 0,
+                "eval_suite": "lighteval",
+            },
+        ],
+    )
     results_dir = sub / "results"
     _write_lighteval_result(results_dir, MODEL_HUB, "xcopa:et", 0.614)
     _write_lighteval_result(results_dir, MODEL_HUB, "xcopa:it", 0.660)
@@ -391,17 +495,37 @@ class TestCollectResultsLighteval:
         out_csv = str(tmp_path / "results.csv")
         collect_results(str(xcopa_root), output_csv=out_csv, check=True)
         missing_csv = out_csv.replace(".csv", "_missing.csv")
-        assert not Path(missing_csv).exists(), "All jobs completed but missing CSV was created"
+        assert not Path(missing_csv).exists(), (
+            "All jobs completed but missing CSV was created"
+        )
 
     def test_check_mode_partial_missing(self, tmp_path):
         """When one xcopa task result is absent it appears in missing CSV."""
         root = tmp_path / "output"
         sub = root / "2026-05-19-xcopa"
-        _write_jobs_csv(sub / "jobs.csv", [
-            {"model_path": MODEL_HUB, "task_path": "xcopa:et", "n_shot": 0, "eval_suite": "lighteval"},
-            {"model_path": MODEL_HUB, "task_path": "xcopa:it", "n_shot": 0, "eval_suite": "lighteval"},
-            {"model_path": MODEL_HUB, "task_path": "xcopa:tr", "n_shot": 0, "eval_suite": "lighteval"},
-        ])
+        _write_jobs_csv(
+            sub / "jobs.csv",
+            [
+                {
+                    "model_path": MODEL_HUB,
+                    "task_path": "xcopa:et",
+                    "n_shot": 0,
+                    "eval_suite": "lighteval",
+                },
+                {
+                    "model_path": MODEL_HUB,
+                    "task_path": "xcopa:it",
+                    "n_shot": 0,
+                    "eval_suite": "lighteval",
+                },
+                {
+                    "model_path": MODEL_HUB,
+                    "task_path": "xcopa:tr",
+                    "n_shot": 0,
+                    "eval_suite": "lighteval",
+                },
+            ],
+        )
         results_dir = sub / "results"
         # Only write two of the three results
         _write_lighteval_result(results_dir, MODEL_HUB, "xcopa:et", 0.614)
