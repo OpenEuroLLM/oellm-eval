@@ -68,6 +68,28 @@ task_metrics:
   winogrande: acc
   arc_challenge: acc_norm
   arc_easy: acc_norm
+  arc_challenge_mt_bg: acc_norm
+  arc_challenge_mt_cs: acc_norm
+  arc_challenge_mt_da: acc_norm
+  arc_challenge_mt_nl: acc_norm
+  arc_challenge_mt_et: acc_norm
+  arc_challenge_mt_fi: acc_norm
+  arc_challenge_mt_fr: acc_norm
+  arc_challenge_mt_de: acc_norm
+  arc_challenge_mt_el: acc_norm
+  arc_challenge_mt_hu: acc_norm
+  arc_challenge_mt_it: acc_norm
+  arc_challenge_mt_lv: acc_norm
+  arc_challenge_mt_lt: acc_norm
+  arc_challenge_mt_pl: acc_norm
+  arc_challenge_mt_pt: acc_norm
+  arc_challenge_mt_ro: acc_norm
+  arc_challenge_mt_sk: acc_norm
+  arc_challenge_mt_sl: acc_norm
+  arc_challenge_mt_es: acc_norm
+  arc_challenge_mt_sv: acc_norm
+  arc_challenge_mt_is: acc_norm
+  arc_challenge_mt_nb: acc_norm
   boolq: acc
   commonsense_qa: acc
   hellaswag: acc_norm
@@ -649,6 +671,56 @@ task_groups:
       # - task: jeopardy
       #   n_shots: [10]
       #   dataset: openaccess-ai-collective/jeopardy
+
+  arc-challenge-mt-eu:
+    description: "ARC Challenge multilingual (22 European languages)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: LumiOpen/arc_challenge_mt
+    tasks:
+      - task: arc_challenge_mt_bg
+        subset: bg
+      - task: arc_challenge_mt_cs
+        subset: cs
+      - task: arc_challenge_mt_da
+        subset: da
+      - task: arc_challenge_mt_nl
+        subset: nl
+      - task: arc_challenge_mt_et
+        subset: et
+      - task: arc_challenge_mt_fi
+        subset: fi
+      - task: arc_challenge_mt_fr
+        subset: fr
+      - task: arc_challenge_mt_de
+        subset: de
+      - task: arc_challenge_mt_el
+        subset: el
+      - task: arc_challenge_mt_hu
+        subset: hu
+      - task: arc_challenge_mt_it
+        subset: it
+      - task: arc_challenge_mt_lv
+        subset: lv
+      - task: arc_challenge_mt_lt
+        subset: lt
+      - task: arc_challenge_mt_pl
+        subset: pl
+      - task: arc_challenge_mt_pt
+        subset: pt
+      - task: arc_challenge_mt_ro
+        subset: ro
+      - task: arc_challenge_mt_sk
+        subset: sk
+      - task: arc_challenge_mt_sl
+        subset: sl
+      - task: arc_challenge_mt_es
+        subset: es
+      - task: arc_challenge_mt_sv
+        subset: sv
+      - task: arc_challenge_mt_is
+      - task: arc_challenge_mt_nb
+        subset: nb
 
   reasoning:
     description: "Reasoning tasks: GSM8k (4-shot), IFEval (0-shot), MBPP (3-shot), GPQA-Diamond (0-shot), MATH500 (0-shot), LiveCodeBench (0-shot)"
