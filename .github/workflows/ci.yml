@@ -66,6 +66,4 @@ jobs:
         run: uv sync --extra dev
 
       - name: Run tests
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: uv run pytest tests/ -v --ignore=tests/integration/
