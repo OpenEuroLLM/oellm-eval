@@ -815,6 +815,9 @@ def collect_results(
     # Create DataFrame and save to CSV (if we have results)
     if rows:
         df = pd.DataFrame(rows)
+        df = df.drop_duplicates(
+            subset=["model_name", "task", "n_shot", "metric_name"], keep="last"
+        )
         df.to_csv(output_csv, index=False)
         logging.info(f"Results saved to {output_csv}")
         logging.info(f"Extracted {len(df)} evaluation results")
