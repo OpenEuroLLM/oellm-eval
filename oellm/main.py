@@ -610,18 +610,24 @@ def collect_results(
     # ------------------------------------------------------------------
     jobs_csv_paths = sorted(results_path.rglob("jobs.csv"))
     if jobs_csv_paths:
-        logging.info(f"Found {len(jobs_csv_paths)} jobs.csv file(s): {[str(p) for p in jobs_csv_paths]}")
+        logging.info(
+            f"Found {len(jobs_csv_paths)} jobs.csv file(s): {[str(p) for p in jobs_csv_paths]}"
+        )
         jobs_frames = [pd.read_csv(p) for p in jobs_csv_paths]
         # Concatenate and let later entries win for duplicate (model_path, task_path, n_shot).
         jobs_df = pd.concat(jobs_frames, ignore_index=True)
-        dup_cols = [c for c in ("model_path", "task_path", "n_shot") if c in jobs_df.columns]
+        dup_cols = [
+            c for c in ("model_path", "task_path", "n_shot") if c in jobs_df.columns
+        ]
         if dup_cols:
             jobs_df = jobs_df.drop_duplicates(subset=dup_cols, keep="last")
         logging.info(f"Merged jobs.csv: {len(jobs_df)} unique jobs")
     else:
         jobs_df = None
         if check:
-            logging.warning(f"No jobs.csv found under {results_dir}, cannot perform check")
+            logging.warning(
+                f"No jobs.csv found under {results_dir}, cannot perform check"
+            )
             check = False
 
     # ------------------------------------------------------------------
