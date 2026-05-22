@@ -580,7 +580,16 @@ def collect_results(
             val, key = _first_matching_prefix(result_dict, preferred)
             return val, key
 
-        for metric in ["acc,none", "acc", "accuracy", "acc_norm", "f1", "exact_match"]:
+        for metric in [
+            "acc,none",
+            "acc",
+            "accuracy",
+            "acc_norm",
+            "f1",
+            "exact_match",
+            "chrf++",
+            "bleu",
+        ]:
             val, key = _first_numeric(result_dict, metric)
             if val is not None:
                 return val, key
