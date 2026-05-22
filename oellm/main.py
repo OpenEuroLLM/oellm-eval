@@ -593,13 +593,33 @@ def collect_results(
     if not results_path.exists():
         raise ValueError(f"Results directory does not exist: {results_dir}")
 
-    # Check if we need to look in a 'results' subdirectory
-    if (results_path / "results").exists() and (results_path / "results").is_dir():
-        # User passed the top-level directory, look in results subdirectory for nested json files
+    # Discover JSON files, supporting three layouts:
+    #   1. Single run:   results_dir/results/*.json  (+ results_dir/jobs.csv)
+    #   2. Multi-run:    results_dir/*/results/*.json (+ results_dir/*/jobs.csv)
+    #   3. Flat:         results_dir/*.json
+    if (results_path / "results").is_dir():
+        # Layout 1 – single run directory
         json_files = list((results_path / "results").rglob("*.json"))
+        _jobs_csv_candidates = [results_path / "jobs.csv"]
     else:
-        # User passed the results directory directly
-        json_files = list(results_path.glob("*.json"))
+        subdir_json = [
+            f
+            for d in sorted(results_path.iterdir())
+            if d.is_dir() and (d / "results").is_dir()
+            for f in (d / "results").rglob("*.json")
+        ]
+        if subdir_json:
+            # Layout 2 – root containing multiple run subdirectories
+            json_files = subdir_json
+            _jobs_csv_candidates = sorted(
+                d / "jobs.csv"
+                for d in results_path.iterdir()
+                if d.is_dir() and (d / "jobs.csv").exists()
+            )
+        else:
+            # Layout 3 – flat directory of JSON files
+            json_files = list(results_path.glob("*.json"))
+            _jobs_csv_candidates = [results_path / "jobs.csv"]
 
     if not json_files:
         logging.warning(f"No JSON files found in {results_dir}")
@@ -610,13 +630,17 @@ def collect_results(
 
     # If check mode, also load the jobs.csv to compare
     if check:
-        jobs_csv_path = results_path / "jobs.csv"
-        if not jobs_csv_path.exists():
+        available_csvs = [p for p in _jobs_csv_candidates if p.exists()]
+        if not available_csvs:
             logging.warning(f"No jobs.csv found in {results_dir}, cannot perform check")
             check = False
         else:
-            jobs_df = pd.read_csv(jobs_csv_path)
-            logging.info(f"Found {len(jobs_df)} scheduled jobs in jobs.csv")
+            jobs_df = pd.concat(
+                [pd.read_csv(p) for p in available_csvs], ignore_index=True
+            ).drop_duplicates(subset=["model_path", "task_path", "n_shot"])
+            logging.info(
+                f"Found {len(jobs_df)} scheduled jobs across {len(available_csvs)} jobs.csv file(s)"
+            )
 
     # Collect results
     rows = []
