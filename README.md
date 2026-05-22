@@ -85,7 +85,7 @@ oellm-eval schedule \
     --limit 1
 ```
 
-Results are written to `./oellm-eval-output/<timestamp>/results/`.
+Results are written to `./oellm-output/<timestamp>/results/`.
 
 **Air-gapped cluster nodes (no internet):** batch jobs set `HF_HUB_OFFLINE=1` and get `HF_HOME` from your cluster env. With `--local`, the CLI defaults `HF_HOME` to `~/.cache/huggingface` if unset and would otherwise allow Hub access—so on a compute node without network, export your real cache and offline flag before running, for example:
 
