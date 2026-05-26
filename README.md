@@ -147,7 +147,20 @@ If you use custom tasks via `--tasks` that are not in the task groups registry, 
 
 ## Collecting Results
 
-After evaluations complete, collect results into a CSV:
+After evaluations complete, collect results into a CSV.  `collect-results` **recursively** searches the given directory for every `jobs.csv` file and every `.json` result file, so you can point it at a top-level output folder that contains many sub-runs:
+
+```
+output/
+├── hellaswag_mt1/
+│   ├── jobs.csv
+│   └── results/
+├── hellaswag_mt2/
+│   ├── jobs.csv
+│   └── results/
+└── global_mmlu1/
+    ├── jobs.csv
+    └── results/
+```
 
 ```bash
 # Basic collection
@@ -157,7 +170,9 @@ oellm-eval collect --results_dir /path/to/eval-output-dir
 oellm-eval collect --results_dir /path/to/eval-output-dir --check true --output_csv results.csv
 ```
 
-The `--check` flag compares completed results against `jobs.csv` and outputs a `results_missing.csv` that can be used to re-schedule failed jobs:
+All `jobs.csv` files found under `results_dir` are merged into one; if the same `(model_path, task_path, n_shot)` row appears in multiple files the later-sorted entry wins (override duplicates). The merged jobs list is then compared against all `.json` result files found recursively.
+
+The `--check` flag outputs a `results_missing.csv` that can be used to re-schedule failed jobs:
 
 ```bash
 oellm-eval schedule --eval_csv_path results_missing.csv
