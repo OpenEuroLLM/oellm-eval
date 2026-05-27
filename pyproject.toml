@@ -1,7 +1,7 @@
 [project]
-name = "oellm"
+name = "oellm-eval"
 version = "0.1.0"
-description = "OpenEuroLLM CLI"
+description = "OpenEuroLLM Evaluation CLI"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
@@ -21,7 +21,7 @@ dev = [
 ]
 
 [project.scripts]
-oellm = "oellm.main:main"
+oellm-eval = "oellm.main:main"
 
 [build-system]
 requires = ["uv_build>=0.7.19,<0.8.0"]

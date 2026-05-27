@@ -27,7 +27,7 @@ Instead of using pre-built containers, you can run evaluations with your own Pyt
 ## Usage
 
 ```bash
-oellm schedule-eval \
+oellm-eval schedule \
     --models HuggingFaceTB/SmolLM2-135M-Instruct \
     --task_groups multilingual \
     --venv_path /path/to/.venv
@@ -47,7 +47,7 @@ uv pip install --python dclm-core-venv/bin/python -r requirements-venv-dclm.txt
 ```
 
 ```bash
-oellm schedule-eval \
+oellm-eval schedule \
     --models Qwen/Qwen3-0.6B-Base \
     --task_groups dclm-core-22 \
     --venv_path dclm-core-venv \
@@ -77,7 +77,7 @@ We use [Ali's fork](https://github.com/Ali-Elganzory/evalchemy) which includes a
 3. Run with `EVALCHEMY_DIR` pointing to the cloned repo:
    ```bash
    export HF_ALLOW_CODE_EVAL=1  # required by MBPP 
-   EVALCHEMY_DIR=$(pwd)/evalchemy oellm schedule-eval \
+   EVALCHEMY_DIR=$(pwd)/evalchemy oellm-eval schedule \
        --models HuggingFaceTB/SmolLM2-135M \
        --task_groups reasoning \
        --venv_path evalchemy-venv \

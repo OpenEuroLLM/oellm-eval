@@ -41,7 +41,7 @@ task_groups:
 2. Use it:
 
 ```bash
-oellm schedule-eval --models "model-name" --task_groups "my-benchmark"
+oellm-eval schedule --models "model-name" --task_groups "my-benchmark"
 ```
 
 ## Field Reference
