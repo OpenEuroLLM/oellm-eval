@@ -138,7 +138,9 @@ def _expand_lang_templates(data: dict) -> dict:
 
 def _load_task_groups_data() -> dict:
     """Load and pre-process the task-groups YAML, expanding any ``{lang}`` templates."""
-    raw = yaml.safe_load((files("oellm.resources") / "task-groups.yaml").read_text()) or {}
+    raw = (
+        yaml.safe_load((files("oellm.resources") / "task-groups.yaml").read_text()) or {}
+    )
     return _expand_lang_templates(raw)
 
 
