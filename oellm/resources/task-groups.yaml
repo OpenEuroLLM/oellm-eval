@@ -1,5 +1,41 @@
 task_metrics:
   mmlu: acc
+  sib200_bul_Cyrl: acc_norm
+  sib200_hrv_Latn: acc_norm
+  sib200_ces_Latn: acc_norm
+  sib200_dan_Latn: acc_norm
+  sib200_nld_Latn: acc_norm
+  sib200_eng_Latn: acc_norm
+  sib200_est_Latn: acc_norm
+  sib200_fin_Latn: acc_norm
+  sib200_fra_Latn: acc_norm
+  sib200_deu_Latn: acc_norm
+  sib200_ell_Grek: acc_norm
+  sib200_hun_Latn: acc_norm
+  sib200_gle_Latn: acc_norm
+  sib200_ita_Latn: acc_norm
+  sib200_lvs_Latn: acc_norm
+  sib200_lit_Latn: acc_norm
+  sib200_mlt_Latn: acc_norm
+  sib200_pol_Latn: acc_norm
+  sib200_por_Latn: acc_norm
+  sib200_ron_Latn: acc_norm
+  sib200_slk_Latn: acc_norm
+  sib200_slv_Latn: acc_norm
+  sib200_spa_Latn: acc_norm
+  sib200_swe_Latn: acc_norm
+  sib200_cat_Latn: acc_norm
+  sib200_eus_Latn: acc_norm
+  sib200_glg_Latn: acc_norm
+  sib200_bos_Latn: acc_norm
+  sib200_kat_Geor: acc_norm
+  sib200_mkd_Cyrl: acc_norm
+  sib200_als_Latn: acc_norm
+  sib200_srp_Cyrl: acc_norm
+  sib200_tur_Latn: acc_norm
+  sib200_ukr_Cyrl: acc_norm
+  sib200_isl_Latn: acc_norm
+  sib200_nob_Latn: acc_norm
   belebele_bul_Cyrl_cf: acc_norm
   belebele_hrv_Latn_cf: acc_norm
   belebele_ces_Latn_cf: acc_norm
@@ -32,6 +68,28 @@ task_metrics:
   winogrande: acc
   arc_challenge: acc_norm
   arc_easy: acc_norm
+  arc_challenge_mt_bg: acc_norm
+  arc_challenge_mt_cs: acc_norm
+  arc_challenge_mt_da: acc_norm
+  arc_challenge_mt_nl: acc_norm
+  arc_challenge_mt_et: acc_norm
+  arc_challenge_mt_fi: acc_norm
+  arc_challenge_mt_fr: acc_norm
+  arc_challenge_mt_de: acc_norm
+  arc_challenge_mt_el: acc_norm
+  arc_challenge_mt_hu: acc_norm
+  arc_challenge_mt_it: acc_norm
+  arc_challenge_mt_lv: acc_norm
+  arc_challenge_mt_lt: acc_norm
+  arc_challenge_mt_pl: acc_norm
+  arc_challenge_mt_pt: acc_norm
+  arc_challenge_mt_ro: acc_norm
+  arc_challenge_mt_sk: acc_norm
+  arc_challenge_mt_sl: acc_norm
+  arc_challenge_mt_es: acc_norm
+  arc_challenge_mt_sv: acc_norm
+  arc_challenge_mt_is: acc_norm
+  arc_challenge_mt_nb: acc_norm
   boolq: acc
   commonsense_qa: acc
   hellaswag: acc_norm
@@ -122,8 +180,150 @@ task_metrics:
   cn_college_listen_mcq_test: accuracy
   dream_tts_mcq_test: accuracy
   voicebench_commoneval: llm_as_judge_eval
+  global_piqa_completions_als_latn: acc_norm
+  global_piqa_completions_bos_latn: acc_norm
+  global_piqa_completions_bul_cyrl: acc_norm
+  global_piqa_completions_cat_latn: acc_norm
+  global_piqa_completions_ces_latn: acc_norm
+  global_piqa_completions_deu_latn: acc_norm
+  global_piqa_completions_ekk_latn: acc_norm
+  global_piqa_completions_ell_grek: acc_norm
+  global_piqa_completions_eng_latn: acc_norm
+  global_piqa_completions_fin_latn: acc_norm
+  global_piqa_completions_fra_latn_fran: acc_norm
+  global_piqa_completions_glg_latn: acc_norm
+  global_piqa_completions_hrv_latn: acc_norm
+  global_piqa_completions_hun_latn: acc_norm
+  global_piqa_completions_isl_latn: acc_norm
+  global_piqa_completions_ita_latn: acc_norm
+  global_piqa_completions_kat_geor: acc_norm
+  global_piqa_completions_lit_latn: acc_norm
+  global_piqa_completions_mkd_cyrl: acc_norm
+  global_piqa_completions_nld_latn: acc_norm
+  global_piqa_completions_nno_latn: acc_norm
+  global_piqa_completions_nob_latn: acc_norm
+  global_piqa_completions_pol_latn: acc_norm
+  global_piqa_completions_por_latn_port: acc_norm
+  global_piqa_completions_ron_latn: acc_norm
+  global_piqa_completions_slk_latn: acc_norm
+  global_piqa_completions_slv_latn: acc_norm
+  global_piqa_completions_spa_latn_spai: acc_norm
+  global_piqa_completions_srp_cyrl: acc_norm
+  global_piqa_completions_swe_latn: acc_norm
+  global_piqa_completions_tur_latn: acc_norm
+  global_piqa_completions_ukr_cyrl: acc_norm
+  global_piqa_prompted_als_latn: exact_match
+  global_piqa_prompted_bos_latn: exact_match
+  global_piqa_prompted_bul_cyrl: exact_match
+  global_piqa_prompted_cat_latn: exact_match
+  global_piqa_prompted_ces_latn: exact_match
+  global_piqa_prompted_deu_latn: exact_match
+  global_piqa_prompted_ekk_latn: exact_match
+  global_piqa_prompted_ell_grek: exact_match
+  global_piqa_prompted_eng_latn: exact_match
+  global_piqa_prompted_fin_latn: exact_match
+  global_piqa_prompted_fra_latn_fran: exact_match
+  global_piqa_prompted_glg_latn: exact_match
+  global_piqa_prompted_hrv_latn: exact_match
+  global_piqa_prompted_hun_latn: exact_match
+  global_piqa_prompted_isl_latn: exact_match
+  global_piqa_prompted_ita_latn: exact_match
+  global_piqa_prompted_kat_geor: exact_match
+  global_piqa_prompted_lit_latn: exact_match
+  global_piqa_prompted_mkd_cyrl: exact_match
+  global_piqa_prompted_nld_latn: exact_match
+  global_piqa_prompted_nno_latn: exact_match
+  global_piqa_prompted_nob_latn: exact_match
+  global_piqa_prompted_pol_latn: exact_match
+  global_piqa_prompted_por_latn_port: exact_match
+  global_piqa_prompted_ron_latn: exact_match
+  global_piqa_prompted_slk_latn: exact_match
+  global_piqa_prompted_slv_latn: exact_match
+  global_piqa_prompted_spa_latn_spai: exact_match
+  global_piqa_prompted_srp_cyrl: exact_match
+  global_piqa_prompted_swe_latn: exact_match
+  global_piqa_prompted_tur_latn: exact_match
+  global_piqa_prompted_ukr_cyrl: exact_match
 
 task_groups:
+  sib200-eu:
+    description: "SIB-200 European language topic classification tasks (0-shot)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: Davlan/sib200
+    tasks:
+      - task: sib200_bul_Cyrl
+        subset: bul_Cyrl
+      - task: sib200_hrv_Latn
+        subset: hrv_Latn
+      - task: sib200_ces_Latn
+        subset: ces_Latn
+      - task: sib200_dan_Latn
+        subset: dan_Latn
+      - task: sib200_nld_Latn
+        subset: nld_Latn
+      - task: sib200_eng_Latn
+        subset: eng_Latn
+      - task: sib200_est_Latn
+        subset: est_Latn
+      - task: sib200_fin_Latn
+        subset: fin_Latn
+      - task: sib200_fra_Latn
+        subset: fra_Latn
+      - task: sib200_deu_Latn
+        subset: deu_Latn
+      - task: sib200_ell_Grek
+        subset: ell_Grek
+      - task: sib200_hun_Latn
+        subset: hun_Latn
+      - task: sib200_gle_Latn
+        subset: gle_Latn
+      - task: sib200_ita_Latn
+        subset: ita_Latn
+      - task: sib200_lvs_Latn
+        subset: lvs_Latn
+      - task: sib200_lit_Latn
+        subset: lit_Latn
+      - task: sib200_mlt_Latn
+        subset: mlt_Latn
+      - task: sib200_pol_Latn
+        subset: pol_Latn
+      - task: sib200_por_Latn
+        subset: por_Latn
+      - task: sib200_ron_Latn
+        subset: ron_Latn
+      - task: sib200_slk_Latn
+        subset: slk_Latn
+      - task: sib200_slv_Latn
+        subset: slv_Latn
+      - task: sib200_spa_Latn
+        subset: spa_Latn
+      - task: sib200_swe_Latn
+        subset: swe_Latn
+      - task: sib200_cat_Latn
+        subset: cat_Latn
+      - task: sib200_eus_Latn
+        subset: eus_Latn
+      - task: sib200_glg_Latn
+        subset: glg_Latn
+      - task: sib200_bos_Latn
+        subset: bos_Latn
+      - task: sib200_kat_Geor
+        subset: kat_Geor
+      - task: sib200_mkd_Cyrl
+        subset: mkd_Cyrl
+      - task: sib200_als_Latn
+        subset: als_Latn
+      - task: sib200_srp_Cyrl
+        subset: srp_Cyrl
+      - task: sib200_tur_Latn
+        subset: tur_Latn
+      - task: sib200_ukr_Cyrl
+        subset: ukr_Cyrl
+      - task: sib200_isl_Latn
+        subset: isl_Latn
+      - task: sib200_nob_Latn
+        subset: nob_Latn
   open-sci-0.01:
     description: "open-sci-ref 0.01 evals"
     suite: lm-eval-harness
@@ -962,6 +1162,56 @@ task_groups:
       #   n_shots: [10]
       #   dataset: openaccess-ai-collective/jeopardy
 
+  arc-challenge-mt-eu:
+    description: "ARC Challenge multilingual (22 European languages)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: LumiOpen/arc_challenge_mt
+    tasks:
+      - task: arc_challenge_mt_bg
+        subset: bg
+      - task: arc_challenge_mt_cs
+        subset: cs
+      - task: arc_challenge_mt_da
+        subset: da
+      - task: arc_challenge_mt_nl
+        subset: nl
+      - task: arc_challenge_mt_et
+        subset: et
+      - task: arc_challenge_mt_fi
+        subset: fi
+      - task: arc_challenge_mt_fr
+        subset: fr
+      - task: arc_challenge_mt_de
+        subset: de
+      - task: arc_challenge_mt_el
+        subset: el
+      - task: arc_challenge_mt_hu
+        subset: hu
+      - task: arc_challenge_mt_it
+        subset: it
+      - task: arc_challenge_mt_lv
+        subset: lv
+      - task: arc_challenge_mt_lt
+        subset: lt
+      - task: arc_challenge_mt_pl
+        subset: pl
+      - task: arc_challenge_mt_pt
+        subset: pt
+      - task: arc_challenge_mt_ro
+        subset: ro
+      - task: arc_challenge_mt_sk
+        subset: sk
+      - task: arc_challenge_mt_sl
+        subset: sl
+      - task: arc_challenge_mt_es
+        subset: es
+      - task: arc_challenge_mt_sv
+        subset: sv
+      - task: arc_challenge_mt_is
+      - task: arc_challenge_mt_nb
+        subset: nb
+
   reasoning:
     description: "Reasoning tasks: GSM8k (4-shot), IFEval (0-shot), MBPP (3-shot), GPQA-Diamond (0-shot), MATH500 (0-shot), LiveCodeBench (0-shot)"
     suite: lm-eval-harness
@@ -986,6 +1236,148 @@ task_groups:
         n_shots: [0]
         suite: evalchemy
         dataset: livecodebench/code_generation_lite
+
+  global-piqa-eu-completions:
+    description: "Global PIQA European languages — multiple-choice completions (0-shot, mrlbenchmarks/global-piqa-nonparallel)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: mrlbenchmarks/global-piqa-nonparallel
+    tasks:
+      - task: global_piqa_completions_als_latn
+        subset: als_latn
+      - task: global_piqa_completions_bos_latn
+        subset: bos_latn
+      - task: global_piqa_completions_bul_cyrl
+        subset: bul_cyrl
+      - task: global_piqa_completions_cat_latn
+        subset: cat_latn
+      - task: global_piqa_completions_ces_latn
+        subset: ces_latn
+      - task: global_piqa_completions_deu_latn
+        subset: deu_latn
+      - task: global_piqa_completions_ekk_latn
+        subset: ekk_latn
+      - task: global_piqa_completions_ell_grek
+        subset: ell_grek
+      - task: global_piqa_completions_eng_latn
+        subset: eng_latn
+      - task: global_piqa_completions_fin_latn
+        subset: fin_latn
+      - task: global_piqa_completions_fra_latn_fran
+        subset: fra_latn_fran
+      - task: global_piqa_completions_glg_latn
+        subset: glg_latn
+      - task: global_piqa_completions_hrv_latn
+        subset: hrv_latn
+      - task: global_piqa_completions_hun_latn
+        subset: hun_latn
+      - task: global_piqa_completions_isl_latn
+        subset: isl_latn
+      - task: global_piqa_completions_ita_latn
+        subset: ita_latn
+      - task: global_piqa_completions_kat_geor
+        subset: kat_geor
+      - task: global_piqa_completions_lit_latn
+        subset: lit_latn
+      - task: global_piqa_completions_mkd_cyrl
+        subset: mkd_cyrl
+      - task: global_piqa_completions_nld_latn
+        subset: nld_latn
+      - task: global_piqa_completions_nno_latn
+        subset: nno_latn
+      - task: global_piqa_completions_nob_latn
+        subset: nob_latn
+      - task: global_piqa_completions_pol_latn
+        subset: pol_latn
+      - task: global_piqa_completions_por_latn_port
+        subset: por_latn_port
+      - task: global_piqa_completions_ron_latn
+        subset: ron_latn
+      - task: global_piqa_completions_slk_latn
+        subset: slk_latn
+      - task: global_piqa_completions_slv_latn
+        subset: slv_latn
+      - task: global_piqa_completions_spa_latn_spai
+        subset: spa_latn_spai
+      - task: global_piqa_completions_srp_cyrl
+        subset: srp_cyrl
+      - task: global_piqa_completions_swe_latn
+        subset: swe_latn
+      - task: global_piqa_completions_tur_latn
+        subset: tur_latn
+      - task: global_piqa_completions_ukr_cyrl
+        subset: ukr_cyrl
+
+  global-piqa-eu-prompted:
+    description: "Global PIQA European languages — prompted generation (0-shot, mrlbenchmarks/global-piqa-nonparallel)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: mrlbenchmarks/global-piqa-nonparallel
+    tasks:
+      - task: global_piqa_prompted_als_latn
+        subset: als_latn
+      - task: global_piqa_prompted_bos_latn
+        subset: bos_latn
+      - task: global_piqa_prompted_bul_cyrl
+        subset: bul_cyrl
+      - task: global_piqa_prompted_cat_latn
+        subset: cat_latn
+      - task: global_piqa_prompted_ces_latn
+        subset: ces_latn
+      - task: global_piqa_prompted_deu_latn
+        subset: deu_latn
+      - task: global_piqa_prompted_ekk_latn
+        subset: ekk_latn
+      - task: global_piqa_prompted_ell_grek
+        subset: ell_grek
+      - task: global_piqa_prompted_eng_latn
+        subset: eng_latn
+      - task: global_piqa_prompted_fin_latn
+        subset: fin_latn
+      - task: global_piqa_prompted_fra_latn_fran
+        subset: fra_latn_fran
+      - task: global_piqa_prompted_glg_latn
+        subset: glg_latn
+      - task: global_piqa_prompted_hrv_latn
+        subset: hrv_latn
+      - task: global_piqa_prompted_hun_latn
+        subset: hun_latn
+      - task: global_piqa_prompted_isl_latn
+        subset: isl_latn
+      - task: global_piqa_prompted_ita_latn
+        subset: ita_latn
+      - task: global_piqa_prompted_kat_geor
+        subset: kat_geor
+      - task: global_piqa_prompted_lit_latn
+        subset: lit_latn
+      - task: global_piqa_prompted_mkd_cyrl
+        subset: mkd_cyrl
+      - task: global_piqa_prompted_nld_latn
+        subset: nld_latn
+      - task: global_piqa_prompted_nno_latn
+        subset: nno_latn
+      - task: global_piqa_prompted_nob_latn
+        subset: nob_latn
+      - task: global_piqa_prompted_pol_latn
+        subset: pol_latn
+      - task: global_piqa_prompted_por_latn_port
+        subset: por_latn_port
+      - task: global_piqa_prompted_ron_latn
+        subset: ron_latn
+      - task: global_piqa_prompted_slk_latn
+        subset: slk_latn
+      - task: global_piqa_prompted_slv_latn
+        subset: slv_latn
+      - task: global_piqa_prompted_spa_latn_spai
+        subset: spa_latn_spai
+      - task: global_piqa_prompted_srp_cyrl
+        subset: srp_cyrl
+      - task: global_piqa_prompted_swe_latn
+        subset: swe_latn
+      - task: global_piqa_prompted_tur_latn
+        subset: tur_latn
+      - task: global_piqa_prompted_ukr_cyrl
+        subset: ukr_cyrl
 
 super_groups:
   oellm-multilingual:

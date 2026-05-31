@@ -94,7 +94,7 @@ uv pip install --python dclm-core-venv/bin/python -e '.[dclm]'
 ```
 
 ```bash
-oellm schedule-eval \
+oellm-eval schedule \
     --models Qwen/Qwen3-0.6B-Base \
     --task-groups dclm-core-22 \
     --venv-path dclm-core-venv \

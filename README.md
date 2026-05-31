@@ -4,8 +4,8 @@ A multimodal evaluation framework for scheduling LLM and VLM evaluations across 
 
 ## Features
 
-- **Schedule evaluations** on multiple models and tasks: `oellm schedule-eval`
-- **Collect results** and check for missing evaluations: `oellm collect-results`
+- **Schedule evaluations** on multiple models and tasks: `oellm-eval schedule`
+- **Collect results** and check for missing evaluations: `oellm-eval collect`
 - **Task groups** for pre-defined evaluation suites with automatic dataset pre-downloading
 - **Multi-cluster support** with auto-detection (Leonardo, LUMI, JURECA, Snellius)
 - **Image evaluation** via lmms-eval (VQAv2, MMBench, MMMU, ChartQA, DocVQA, TextVQA, OCRBench, MathVista)
@@ -149,7 +149,7 @@ The `--local` flag lets you run evaluations directly on your machine without a c
 uv pip install lm-eval torch transformers accelerate "datasets<4.0.0"
 
 # 2. Run evaluations locally — useful for smoke-testing with a small sample
-oellm schedule-eval \
+oellm-eval schedule \
     --models "EleutherAI/pythia-160m" \
     --tasks "gsm8k" \
     --n-shot 0 \
@@ -165,10 +165,10 @@ Results are written to `./oellm-output/<timestamp>/results/`.
 ```bash
 export HF_HOME=/leonardo_work/OELLM_prod2026/users/shaldar0/oellm-evals/hf_data
 export HF_HUB_OFFLINE=1
-oellm schedule-eval ... --venv_path .venv --local true
+oellm-eval schedule ... --venv_path .venv --local true
 ```
 
-The `HF_HUB_OFFLINE` value is read when you invoke `oellm` and baked into the generated script.
+The `HF_HUB_OFFLINE` value is read when you invoke `oellm-eval` and baked into the generated script.
 
 ## SLURM Overrides
 
@@ -196,7 +196,7 @@ override these defaults:
 
 ```bash
 # Set an explicit batch size (overrides the local/cluster default)
-BATCH_SIZE=8 oellm schedule-eval \
+BATCH_SIZE=8 oellm-eval schedule \
   --models "model-name" \
   --task-groups "belebele-eu-cf" \
   --venv-path .venv
@@ -219,15 +219,43 @@ If you use custom tasks via `--tasks` that are not in the task groups registry, 
 **Recommendation:** Use `--task-groups` when possible, or ensure your custom task datasets are already cached in `$HF_HOME` before scheduling.
 ## Collecting Results
 
+After evaluations complete, collect results into a CSV.  `collect-results` **recursively** searches the given directory for every `jobs.csv` file and every `.json` result file, so you can point it at a top-level output folder that contains many sub-runs:
+
+```
+output/
+├── hellaswag_mt1/
+│   ├── jobs.csv
+│   └── results/
+├── hellaswag_mt2/
+│   ├── jobs.csv
+│   └── results/
+└── global_mmlu1/
+    ├── jobs.csv
+    └── results/
+```
+
 ```bash
 # Basic collection
 oellm collect-results --results-dir /path/to/eval-output-dir
 
 # Check for missing evaluations and create a CSV for re-running them
 oellm collect-results --results-dir /path/to/eval-output-dir --check true --output-csv results.csv
+```
 
-# Re-schedule failed jobs
+All `jobs.csv` files found under `results_dir` are merged into one; if the same `(model_path, task_path, n_shot)` row appears in multiple files the later-sorted entry wins (override duplicates). The merged jobs list is then compared against all `.json` result files found recursively.
+
+The `--check` flag outputs a `results_missing.csv` that can be used to re-schedule failed jobs:
+
+```bash
 oellm schedule-eval --eval-csv-path results_missing.csv
+```
+
+## CSV-Based Scheduling
+
+For full control, provide a CSV file with columns: `model_path`, `task_path`, `n_shot`, and optionally `eval_suite`:
+
+```bash
+oellm schedule-eval --eval-csv-path custom_evals.csv
 ```
 
 ## Installation
@@ -238,7 +266,7 @@ uv tool install -p 3.12 git+https://github.com/elliot-project/elliot-cli.git
 
 Update to latest:
 ```bash
-uv tool upgrade oellm
+uv tool upgrade oellm-eval
 ```
 
 ### JURECA/JSC Specifics
@@ -258,7 +286,7 @@ We support: Leonardo, Lumi, Jureca, Jupiter, and Snellius
 ## CLI Options
 
 ```bash
-oellm schedule-eval --help
+oellm-eval schedule --help
 ```
 
 ## Development

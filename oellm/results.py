@@ -45,6 +45,7 @@ METRIC_NATIVE_SCALE: dict[str, float] = {
     "gpt_eval_accuracy": 100.0,
     "submission": 100.0,
     "bleu": 100.0,
+    "chrf++": 100.0,
     # ── 0–5 Likert scale (GPT-judge style) ──
     "gpt_eval": 5.0,
     # ── Unbounded / non-standard ──
@@ -256,15 +257,32 @@ def collect_results(
 
     logging.info(f"Found {len(json_files)} result files")
 
-    # If check mode, also load the jobs.csv to compare
+    # If check mode, recursively find and merge every jobs.csv under
+    # results_dir. Paths are sorted so later-sorted files override earlier
+    # duplicate (model_path, task_path, n_shot) rows (keep="last"). This
+    # mirrors the recursive JSON discovery above so a single top-level
+    # directory containing many sub-runs can be checked at once.
     if check:
-        jobs_csv_path = results_path / "jobs.csv"
-        if not jobs_csv_path.exists():
-            logging.warning(f"No jobs.csv found in {results_dir}, cannot perform check")
+        jobs_csv_paths = sorted(results_path.rglob("jobs.csv"))
+        if not jobs_csv_paths:
+            logging.warning(
+                f"No jobs.csv found under {results_dir}, cannot perform check"
+            )
             check = False
         else:
-            jobs_df = pd.read_csv(jobs_csv_path)
-            logging.info(f"Found {len(jobs_df)} scheduled jobs in jobs.csv")
+            logging.info(
+                f"Found {len(jobs_csv_paths)} jobs.csv file(s): "
+                f"{[str(p) for p in jobs_csv_paths]}"
+            )
+            jobs_df = pd.concat(
+                [pd.read_csv(p) for p in jobs_csv_paths], ignore_index=True
+            )
+            dup_cols = [
+                c for c in ("model_path", "task_path", "n_shot") if c in jobs_df.columns
+            ]
+            if dup_cols:
+                jobs_df = jobs_df.drop_duplicates(subset=dup_cols, keep="last")
+            logging.info(f"Merged jobs.csv: {len(jobs_df)} unique scheduled jobs")
 
     rows = []
     completed_jobs = set()
@@ -350,6 +368,9 @@ def collect_results(
                 continue
 
         for task_name, task_results in results.items():
+            # Skip the lighteval 'all' aggregate pseudo-task
+            if task_name == "all":
+                continue
             # Skip entries already added from groups
             if groups_map and task_name in group_aggregate_names:
                 continue
@@ -435,6 +456,23 @@ def collect_results(
         return
 
     if rows:
+        # Drop duplicate (model, task, n_shot, metric) rows, keeping the last
+        # occurrence. Dedup the row list directly (not just the DataFrame) so
+        # the CSV, JSON, and Markdown outputs stay consistent and None values
+        # in performance_normalized survive (a pandas round-trip would coerce
+        # them to NaN and break the JSON envelope).
+        _deduped: dict[tuple, dict] = {}
+        for _row in rows:
+            _deduped[
+                (
+                    _row.get("model_name"),
+                    _row.get("task"),
+                    _row.get("n_shot"),
+                    _row.get("metric_name"),
+                )
+            ] = _row
+        rows = list(_deduped.values())
+
         df = pd.DataFrame(rows)
         df.to_csv(output_csv, index=False)
         logging.info(f"Results saved to {output_csv}")
@@ -500,7 +538,7 @@ def collect_results(
             missing_df.to_csv(missing_csv, index=False)
             logging.info(f"Missing jobs saved to: {missing_csv}")
             logging.info(
-                f"You can run these with: oellm schedule-eval --eval_csv_path {missing_csv}"
+                f"You can run these with: oellm schedule-eval --eval-csv-path {missing_csv}"
             )
 
             if verbose and len(missing_jobs) > 0:

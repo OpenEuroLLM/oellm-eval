@@ -51,6 +51,8 @@ METRIC_FALLBACK_KEYS: list[str] = [
     "acc_norm",
     "f1",
     "exact_match",
+    "chrf++",
+    "bleu",
 ]
 
 # Tasks whose primary metric is computed by an LLM judge / extractor and
