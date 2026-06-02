@@ -1,9 +1,121 @@
 import copy
+import re
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib.resources import files
 
 import yaml
+
+# --- Language normalisation -------------------------------------------------
+# Tasks encode their language in several incompatible ways across benchmarks
+# (e.g. German is ``deu_Latn``, ``de``, ``German`` and ``deu_latn``). These
+# tables fold every spelling onto a single canonical ``lang_Scri`` code so that
+# per-language task groups (e.g. ``--task_groups deu_Latn``) can be derived.
+_LANG_ALIAS = {
+    # ISO 639-1 two-letter codes (global-mmlu, mgsm, arc-mt)
+    "de": "deu_Latn",
+    "fr": "fra_Latn",
+    "it": "ita_Latn",
+    "es": "spa_Latn",
+    "pt": "por_Latn",
+    "cs": "ces_Latn",
+    "el": "ell_Grek",
+    "lt": "lit_Latn",
+    "nl": "nld_Latn",
+    "pl": "pol_Latn",
+    "ro": "ron_Latn",
+    "ru": "rus_Cyrl",
+    "sr": "srp_Cyrl",
+    "sv": "swe_Latn",
+    "tr": "tur_Latn",
+    "uk": "ukr_Cyrl",
+    "he": "heb_Hebr",
+    "en": "eng_Latn",
+    "bg": "bul_Cyrl",
+    "da": "dan_Latn",
+    "et": "est_Latn",
+    "fi": "fin_Latn",
+    "hu": "hun_Latn",
+    "lv": "lvs_Latn",
+    "sk": "slk_Latn",
+    "sl": "slv_Latn",
+    "is": "isl_Latn",
+    "nb": "nob_Latn",
+    # full English names (include)
+    "albanian": "als_Latn",
+    "armenian": "hye_Armn",
+    "azerbaijani": "aze_Latn",
+    "basque": "eus_Latn",
+    "belarusian": "bel_Cyrl",
+    "bulgarian": "bul_Cyrl",
+    "croatian": "hrv_Latn",
+    "dutch": "nld_Latn",
+    "estonian": "est_Latn",
+    "finnish": "fin_Latn",
+    "french": "fra_Latn",
+    "georgian": "kat_Geor",
+    "german": "deu_Latn",
+    "greek": "ell_Grek",
+    "hungarian": "hun_Latn",
+    "italian": "ita_Latn",
+    "lithuanian": "lit_Latn",
+    "north macedonian": "mkd_Cyrl",
+    "polish": "pol_Latn",
+    "portuguese": "por_Latn",
+    "russian": "rus_Cyrl",
+    "serbian": "srp_Cyrl",
+    "spanish": "spa_Latn",
+    "turkish": "tur_Latn",
+    "ukrainian": "ukr_Cyrl",
+}
+# Distinct individual-language codes folded into a macrolanguage code.
+_LANG_SPECIAL = {"ekk_Latn": "est_Latn"}  # global-piqa uses ekk (Standard Estonian)
+
+
+def _canonical_language(code: str | None) -> str | None:
+    """Normalise any language spelling to a canonical ``lang_Scri`` code."""
+    if code is None:
+        return None
+    code = str(code).strip()
+    low = code.lower()
+    if low in _LANG_ALIAS:
+        return _LANG_ALIAS[low]
+    # lowercase ``lang_scri`` or ``lang_scri_region`` (e.g. ``por_latn_port``)
+    parts = low.split("_")
+    if len(parts) >= 2 and len(parts[0]) == 3 and len(parts[1]) == 4:
+        base = f"{parts[0]}_{parts[1].capitalize()}"
+        return _LANG_SPECIAL.get(base, base)
+    # already canonical ``lang_Scri``
+    if re.match(r"^[a-z]{3}_[A-Z][a-z]{3}$", code):
+        return code
+    return None
+
+
+def _resolve_task_languages(name: str, subset: str | None) -> list[str]:
+    """Return the canonical language code(s) a task belongs to, if any.
+
+    Translation pairs (``flores200:src-tgt``) resolve to their non-English
+    side; every other task resolves via its ``subset``. Tasks with no
+    recognisable language (e.g. English-only standard benchmarks) return [].
+    """
+    if name.startswith("flores200:"):
+        pair = name.split(":", 1)[1]
+        langs = [
+            _canonical_language(part) for part in pair.split("-") if part != "eng_Latn"
+        ]
+        return [lang for lang in langs if lang]
+    lang = _canonical_language(subset)
+    if lang:
+        return [lang]
+    # Some explicitly-listed tasks omit `subset` and encode the language as a
+    # trailing code in the task name (e.g. ``arc_challenge_mt_is``).
+    if subset is None:
+        m = re.search(r"_([a-z]{2})$", name)
+        if m:
+            lang = _canonical_language(m.group(1))
+            if lang:
+                return [lang]
+    return []
 
 
 @dataclass
@@ -19,6 +131,7 @@ class _Task:
     dataset: str | None = None
     subset: str | None = None
     suite: str | None = None
+    languages: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -56,6 +169,7 @@ class TaskGroup:
                     dataset=task_dataset,
                     subset=task_subset,
                     suite=task_data.get("suite"),
+                    languages=_resolve_task_languages(task_name, task_subset),
                 )
             )
 
@@ -144,6 +258,44 @@ def _load_task_groups_data() -> dict:
     return _expand_lang_templates(raw)
 
 
+def _build_language_groups(
+    task_groups: dict[str, TaskGroup],
+) -> dict[str, TaskGroup]:
+    """Derive one virtual TaskGroup per language code.
+
+    Every task that resolves to a language (via its ``{lang}`` template
+    expansion or ``subset``) is collected into a synthetic group named after
+    that canonical code, so ``--task_groups deu_Latn`` yields all German tasks
+    across all benchmarks. Each task's suite is resolved from its origin group
+    and baked on, so a language group can span lm-eval-harness and lighteval.
+    """
+    buckets: dict[str, list[_Task]] = {}
+    for group in task_groups.values():
+        for t in group.tasks:
+            resolved_suite = t.suite or group.suite
+            for lang in t.languages:
+                buckets.setdefault(lang, []).append(
+                    _Task(
+                        name=t.name,
+                        n_shots=t.n_shots,
+                        dataset=t.dataset,
+                        subset=t.subset,
+                        suite=resolved_suite,
+                        languages=t.languages,
+                    )
+                )
+
+    return {
+        lang: TaskGroup(
+            name=lang,
+            tasks=tasks,
+            suite="lm-eval-harness",  # fallback; each task carries its own suite
+            description=f"All evaluation tasks for language '{lang}' (auto-derived)",
+        )
+        for lang, tasks in buckets.items()
+    }
+
+
 def _parse_task_groups(
     requested_groups: list[str],
 ) -> dict[str, TaskSuperGroup | TaskGroup]:
@@ -160,7 +312,11 @@ def _parse_task_groups(
             super_group_name, super_group_data, task_groups
         )
 
-    result = {**task_groups, **super_groups}
+    language_groups = _build_language_groups(task_groups)
+
+    # Explicit task groups / super groups take precedence over derived language
+    # groups on any name collision.
+    result = {**language_groups, **task_groups, **super_groups}
     return {
         group_name: group
         for group_name, group in result.items()
@@ -322,3 +478,13 @@ def get_all_task_group_names() -> list[str]:
     """Return all available task group names (excluding super_groups)."""
     data = _load_task_groups_data()
     return list(data.get("task_groups", {}).keys())
+
+
+def get_all_language_codes() -> list[str]:
+    """Return all language codes requestable as auto-derived task groups."""
+    data = _load_task_groups_data()
+    task_groups = {
+        name: TaskGroup.from_dict(name, task_data)
+        for name, task_data in data.get("task_groups", {}).items()
+    }
+    return sorted(_build_language_groups(task_groups).keys())
