@@ -1,3 +1,4 @@
+import copy
 from collections.abc import Iterable
 from dataclasses import dataclass
 from importlib.resources import files
@@ -104,12 +105,49 @@ class TaskSuperGroup:
         )
 
 
+def _expand_lang_templates(data: dict) -> dict:
+    """Expand ``{lang}`` placeholders in task-group task entries.
+
+    A task group may declare a top-level ``valid_langs`` list.  Every task
+    entry whose ``task`` name or ``subset`` value contains the literal string
+    ``{lang}`` is expanded into one entry per language, with ``{lang}``
+    substituted by that language code.  Entries without ``{lang}`` are left
+    unchanged.  The ``valid_langs`` key is removed after expansion.
+    """
+    result = copy.deepcopy(data)
+    for group_data in result.get("task_groups", {}).values():
+        valid_langs = group_data.pop("valid_langs", None)
+        if not valid_langs:
+            continue
+        expanded: list[dict] = []
+        for task_data in group_data.get("tasks", []):
+            task_name = task_data.get("task", "")
+            subset = task_data.get("subset", "")
+            if "{lang}" in task_name or (subset and "{lang}" in subset):
+                for lang in valid_langs:
+                    entry = copy.deepcopy(task_data)
+                    entry["task"] = task_name.replace("{lang}", lang)
+                    if "subset" in entry:
+                        entry["subset"] = entry["subset"].replace("{lang}", lang)
+                    expanded.append(entry)
+            else:
+                expanded.append(task_data)
+        group_data["tasks"] = expanded
+    return result
+
+
+def _load_task_groups_data() -> dict:
+    """Load and pre-process the task-groups YAML, expanding any ``{lang}`` templates."""
+    raw = (
+        yaml.safe_load((files("oellm.resources") / "task-groups.yaml").read_text()) or {}
+    )
+    return _expand_lang_templates(raw)
+
+
 def _parse_task_groups(
     requested_groups: list[str],
 ) -> dict[str, TaskSuperGroup | TaskGroup]:
-    data = (
-        yaml.safe_load((files("oellm.resources") / "task-groups.yaml").read_text()) or {}
-    )
+    data = _load_task_groups_data()
 
     task_groups: dict[str, TaskGroup] = {}
 
@@ -219,9 +257,7 @@ def _collect_dataset_specs(group_names: Iterable[str]) -> list[DatasetSpec]:
 
 def _build_task_dataset_map() -> dict[str, list[DatasetSpec]]:
     """Build a mapping from task names to their dataset specs from all task groups."""
-    data = (
-        yaml.safe_load((files("oellm.resources") / "task-groups.yaml").read_text()) or {}
-    )
+    data = _load_task_groups_data()
 
     all_group_names = list(data.get("task_groups", {}).keys())
     parsed = _parse_task_groups(all_group_names)
@@ -268,9 +304,7 @@ def _lookup_dataset_specs_for_tasks(task_names: Iterable[str]) -> list[DatasetSp
 
 def _build_task_suite_map() -> dict[str, str]:
     """Build a mapping from task names to their suite from all task groups."""
-    data = (
-        yaml.safe_load((files("oellm.resources") / "task-groups.yaml").read_text()) or {}
-    )
+    data = _load_task_groups_data()
 
     task_suite_map: dict[str, str] = {}
     for _, group_data in data.get("task_groups", {}).items():
@@ -286,7 +320,5 @@ def _build_task_suite_map() -> dict[str, str]:
 
 def get_all_task_group_names() -> list[str]:
     """Return all available task group names (excluding super_groups)."""
-    data = (
-        yaml.safe_load((files("oellm.resources") / "task-groups.yaml").read_text()) or {}
-    )
+    data = _load_task_groups_data()
     return list(data.get("task_groups", {}).keys())
