@@ -178,76 +178,112 @@ task_groups:
     dataset: Davlan/sib200
     tasks:
       - task: sib200_bul_Cyrl
+        languages: [bul_Cyrl]
         subset: bul_Cyrl
       - task: sib200_hrv_Latn
+        languages: [hrv_Latn]
         subset: hrv_Latn
       - task: sib200_ces_Latn
+        languages: [ces_Latn]
         subset: ces_Latn
       - task: sib200_dan_Latn
+        languages: [dan_Latn]
         subset: dan_Latn
       - task: sib200_nld_Latn
+        languages: [nld_Latn]
         subset: nld_Latn
       - task: sib200_eng_Latn
+        languages: [eng_Latn]
         subset: eng_Latn
       - task: sib200_est_Latn
+        languages: [est_Latn]
         subset: est_Latn
       - task: sib200_fin_Latn
+        languages: [fin_Latn]
         subset: fin_Latn
       - task: sib200_fra_Latn
+        languages: [fra_Latn]
         subset: fra_Latn
       - task: sib200_deu_Latn
+        languages: [deu_Latn]
         subset: deu_Latn
       - task: sib200_ell_Grek
+        languages: [ell_Grek]
         subset: ell_Grek
       - task: sib200_hun_Latn
+        languages: [hun_Latn]
         subset: hun_Latn
       - task: sib200_gle_Latn
+        languages: [gle_Latn]
         subset: gle_Latn
       - task: sib200_ita_Latn
+        languages: [ita_Latn]
         subset: ita_Latn
       - task: sib200_lvs_Latn
+        languages: [lvs_Latn]
         subset: lvs_Latn
       - task: sib200_lit_Latn
+        languages: [lit_Latn]
         subset: lit_Latn
       - task: sib200_mlt_Latn
+        languages: [mlt_Latn]
         subset: mlt_Latn
       - task: sib200_pol_Latn
+        languages: [pol_Latn]
         subset: pol_Latn
       - task: sib200_por_Latn
+        languages: [por_Latn]
         subset: por_Latn
       - task: sib200_ron_Latn
+        languages: [ron_Latn]
         subset: ron_Latn
       - task: sib200_slk_Latn
+        languages: [slk_Latn]
         subset: slk_Latn
       - task: sib200_slv_Latn
+        languages: [slv_Latn]
         subset: slv_Latn
       - task: sib200_spa_Latn
+        languages: [spa_Latn]
         subset: spa_Latn
       - task: sib200_swe_Latn
+        languages: [swe_Latn]
         subset: swe_Latn
       - task: sib200_cat_Latn
+        languages: [cat_Latn]
         subset: cat_Latn
       - task: sib200_eus_Latn
+        languages: [eus_Latn]
         subset: eus_Latn
       - task: sib200_glg_Latn
+        languages: [glg_Latn]
         subset: glg_Latn
       - task: sib200_bos_Latn
+        languages: [bos_Latn]
         subset: bos_Latn
       - task: sib200_kat_Geor
+        languages: [kat_Geor]
         subset: kat_Geor
       - task: sib200_mkd_Cyrl
+        languages: [mkd_Cyrl]
         subset: mkd_Cyrl
       - task: sib200_als_Latn
+        languages: [als_Latn]
         subset: als_Latn
       - task: sib200_srp_Cyrl
+        languages: [srp_Cyrl]
         subset: srp_Cyrl
       - task: sib200_tur_Latn
+        languages: [tur_Latn]
         subset: tur_Latn
       - task: sib200_ukr_Cyrl
+        languages: [ukr_Cyrl]
         subset: ukr_Cyrl
       - task: sib200_isl_Latn
+        languages: [isl_Latn]
         subset: isl_Latn
       - task: sib200_nob_Latn
+        languages: [nob_Latn]
         subset: nob_Latn
   open-sci-0.01:
     description: "open-sci-ref 0.01 evals"
@@ -301,52 +337,76 @@ task_groups:
     dataset: facebook/belebele
     tasks:
       - task: belebele_bul_Cyrl
+        languages: [bul_Cyrl]
         subset: bul_Cyrl
       - task: belebele_hrv_Latn
+        languages: [hrv_Latn]
         subset: hrv_Latn
       - task: belebele_ces_Latn
+        languages: [ces_Latn]
         subset: ces_Latn
       - task: belebele_dan_Latn
+        languages: [dan_Latn]
         subset: dan_Latn
       - task: belebele_nld_Latn
+        languages: [nld_Latn]
         subset: nld_Latn
       - task: belebele_eng_Latn
+        languages: [eng_Latn]
         subset: eng_Latn
       - task: belebele_est_Latn
+        languages: [est_Latn]
         subset: est_Latn
       - task: belebele_fin_Latn
+        languages: [fin_Latn]
         subset: fin_Latn
       - task: belebele_fra_Latn
+        languages: [fra_Latn]
         subset: fra_Latn
       - task: belebele_deu_Latn
+        languages: [deu_Latn]
         subset: deu_Latn
       - task: belebele_ell_Grek
+        languages: [ell_Grek]
         subset: ell_Grek
       - task: belebele_hun_Latn
+        languages: [hun_Latn]
         subset: hun_Latn
       - task: belebele_ita_Latn
+        languages: [ita_Latn]
         subset: ita_Latn
       - task: belebele_lvs_Latn
+        languages: [lvs_Latn]
         subset: lvs_Latn
       - task: belebele_lit_Latn
+        languages: [lit_Latn]
         subset: lit_Latn
       - task: belebele_mlt_Latn
+        languages: [mlt_Latn]
         subset: mlt_Latn
       - task: belebele_pol_Latn
+        languages: [pol_Latn]
         subset: pol_Latn
       - task: belebele_por_Latn
+        languages: [por_Latn]
         subset: por_Latn
       - task: belebele_ron_Latn
+        languages: [ron_Latn]
         subset: ron_Latn
       - task: belebele_slk_Latn
+        languages: [slk_Latn]
         subset: slk_Latn
       - task: belebele_slv_Latn
+        languages: [slv_Latn]
         subset: slv_Latn
       - task: belebele_spa_Latn
+        languages: [spa_Latn]
         subset: spa_Latn
       - task: belebele_swe_Latn
+        languages: [swe_Latn]
         subset: swe_Latn
       - task: belebele_nob_Latn
+        languages: [nob_Latn]
         subset: nob_Latn
   belebele-eu-cf:
     description: "Belebele European language tasks (cloze formulation, lighteval)"
@@ -355,56 +415,82 @@ task_groups:
     dataset: facebook/belebele
     tasks:
       - task: belebele_bul_Cyrl_cf
+        languages: [bul_Cyrl]
         subset: bul_Cyrl
       - task: belebele_hrv_Latn_cf
+        languages: [hrv_Latn]
         subset: hrv_Latn
       - task: belebele_ces_Latn_cf
+        languages: [ces_Latn]
         subset: ces_Latn
       - task: belebele_dan_Latn_cf
+        languages: [dan_Latn]
         subset: dan_Latn
       - task: belebele_nld_Latn_cf
+        languages: [nld_Latn]
         subset: nld_Latn
       - task: belebele_eng_Latn_cf
+        languages: [eng_Latn]
         subset: eng_Latn
       - task: belebele_est_Latn_cf
+        languages: [est_Latn]
         subset: est_Latn
       - task: belebele_fin_Latn_cf
+        languages: [fin_Latn]
         subset: fin_Latn
       - task: belebele_fra_Latn_cf
+        languages: [fra_Latn]
         subset: fra_Latn
       - task: belebele_deu_Latn_cf
+        languages: [deu_Latn]
         subset: deu_Latn
       - task: belebele_ell_Grek_cf
+        languages: [ell_Grek]
         subset: ell_Grek
       - task: belebele_hun_Latn_cf
+        languages: [hun_Latn]
         subset: hun_Latn
       - task: belebele_ita_Latn_cf
+        languages: [ita_Latn]
         subset: ita_Latn
       - task: belebele_lvs_Latn_cf
+        languages: [lvs_Latn]
         subset: lvs_Latn
       - task: belebele_lit_Latn_cf
+        languages: [lit_Latn]
         subset: lit_Latn
       - task: belebele_mlt_Latn_cf
+        languages: [mlt_Latn]
         subset: mlt_Latn
       - task: belebele_pol_Latn_cf
+        languages: [pol_Latn]
         subset: pol_Latn
       - task: belebele_por_Latn_cf
+        languages: [por_Latn]
         subset: por_Latn
       - task: belebele_ron_Latn_cf
+        languages: [ron_Latn]
         subset: ron_Latn
       - task: belebele_slk_Latn_cf
+        languages: [slk_Latn]
         subset: slk_Latn
       - task: belebele_slv_Latn_cf
+        languages: [slv_Latn]
         subset: slv_Latn
       - task: belebele_spa_Latn_cf
+        languages: [spa_Latn]
         subset: spa_Latn
       - task: belebele_swe_Latn_cf
+        languages: [swe_Latn]
         subset: swe_Latn
       - task: belebele_nob_Latn_cf
+        languages: [nob_Latn]
         subset: nob_Latn
       - task: belebele_eus_Latn_cf
+        languages: [eus_Latn]
         subset: eus_Latn
       - task: belebele_cat_Latn_cf
+        languages: [cat_Latn]
         subset: cat_Latn
       
   flores-200-eu-to-eng:
@@ -414,28 +500,51 @@ task_groups:
     dataset: facebook/flores
     tasks:
       - task: flores200:bul_Cyrl-eng_Latn
+        languages: [bul_Cyrl]
       - task: flores200:ces_Latn-eng_Latn
+        languages: [ces_Latn]
       - task: flores200:dan_Latn-eng_Latn
+        languages: [dan_Latn]
       - task: flores200:deu_Latn-eng_Latn
+        languages: [deu_Latn]
       - task: flores200:ell_Grek-eng_Latn
+        languages: [ell_Grek]
       - task: flores200:est_Latn-eng_Latn
+        languages: [est_Latn]
       - task: flores200:fin_Latn-eng_Latn
+        languages: [fin_Latn]
       - task: flores200:fra_Latn-eng_Latn
+        languages: [fra_Latn]
       - task: flores200:gle_Latn-eng_Latn
+        languages: [gle_Latn]
       - task: flores200:hrv_Latn-eng_Latn
+        languages: [hrv_Latn]
       - task: flores200:hun_Latn-eng_Latn
+        languages: [hun_Latn]
       - task: flores200:ita_Latn-eng_Latn
+        languages: [ita_Latn]
       - task: flores200:lit_Latn-eng_Latn
+        languages: [lit_Latn]
       - task: flores200:lvs_Latn-eng_Latn
+        languages: [lvs_Latn]
       - task: flores200:mlt_Latn-eng_Latn
+        languages: [mlt_Latn]
       - task: flores200:nld_Latn-eng_Latn
+        languages: [nld_Latn]
       - task: flores200:pol_Latn-eng_Latn
+        languages: [pol_Latn]
       - task: flores200:por_Latn-eng_Latn
+        languages: [por_Latn]
       - task: flores200:ron_Latn-eng_Latn
+        languages: [ron_Latn]
       - task: flores200:slk_Latn-eng_Latn
+        languages: [slk_Latn]
       - task: flores200:slv_Latn-eng_Latn
+        languages: [slv_Latn]
       - task: flores200:spa_Latn-eng_Latn
+        languages: [spa_Latn]
       - task: flores200:swe_Latn-eng_Latn
+        languages: [swe_Latn]
   flores-200-eng-to-eu:
     description: "Flores 200 English to EU translation"
     suite: lighteval
@@ -443,28 +552,51 @@ task_groups:
     dataset: facebook/flores
     tasks:
       - task: flores200:eng_Latn-bul_Cyrl
+        languages: [bul_Cyrl]
       - task: flores200:eng_Latn-ces_Latn
+        languages: [ces_Latn]
       - task: flores200:eng_Latn-dan_Latn
+        languages: [dan_Latn]
       - task: flores200:eng_Latn-deu_Latn
+        languages: [deu_Latn]
       - task: flores200:eng_Latn-ell_Grek
+        languages: [ell_Grek]
       - task: flores200:eng_Latn-est_Latn
+        languages: [est_Latn]
       - task: flores200:eng_Latn-fin_Latn
+        languages: [fin_Latn]
       - task: flores200:eng_Latn-fra_Latn
+        languages: [fra_Latn]
       - task: flores200:eng_Latn-gle_Latn
+        languages: [gle_Latn]
       - task: flores200:eng_Latn-hrv_Latn
+        languages: [hrv_Latn]
       - task: flores200:eng_Latn-hun_Latn
+        languages: [hun_Latn]
       - task: flores200:eng_Latn-ita_Latn
+        languages: [ita_Latn]
       - task: flores200:eng_Latn-lit_Latn
+        languages: [lit_Latn]
       - task: flores200:eng_Latn-lvs_Latn
+        languages: [lvs_Latn]
       - task: flores200:eng_Latn-mlt_Latn
+        languages: [mlt_Latn]
       - task: flores200:eng_Latn-nld_Latn
+        languages: [nld_Latn]
       - task: flores200:eng_Latn-pol_Latn
+        languages: [pol_Latn]
       - task: flores200:eng_Latn-por_Latn
+        languages: [por_Latn]
       - task: flores200:eng_Latn-ron_Latn
+        languages: [ron_Latn]
       - task: flores200:eng_Latn-slk_Latn
+        languages: [slk_Latn]
       - task: flores200:eng_Latn-slv_Latn
+        languages: [slv_Latn]
       - task: flores200:eng_Latn-spa_Latn
+        languages: [spa_Latn]
       - task: flores200:eng_Latn-swe_Latn
+        languages: [swe_Latn]
   global-mmlu-eu:
     description: "Global MMLU EU tasks"
     suite: lm-eval-harness
@@ -472,40 +604,58 @@ task_groups:
     dataset: CohereForAI/Global-MMLU
     tasks:
       - task: global_mmlu_full_cs
+        languages: [ces_Latn]
         subset: cs
       - task: global_mmlu_full_de
+        languages: [deu_Latn]
         subset: de
       - task: global_mmlu_full_el
+        languages: [ell_Grek]
         subset: el
       - task: global_mmlu_full_en
+        languages: [eng_Latn]
         subset: en
       - task: global_mmlu_full_es
+        languages: [spa_Latn]
         subset: es
       - task: global_mmlu_full_fr
+        languages: [fra_Latn]
         subset: fr
       - task: global_mmlu_full_it
+        languages: [ita_Latn]
         subset: it
       - task: global_mmlu_full_lt
+        languages: [lit_Latn]
         subset: lt
       - task: global_mmlu_full_nl
+        languages: [nld_Latn]
         subset: nl
       - task: global_mmlu_full_pl
+        languages: [pol_Latn]
         subset: pl
       - task: global_mmlu_full_pt
+        languages: [por_Latn]
         subset: pt
       - task: global_mmlu_full_ro
+        languages: [ron_Latn]
         subset: ro
       - task: global_mmlu_full_ru
+        languages: [rus_Cyrl]
         subset: ru
       - task: global_mmlu_full_sr
+        languages: [srp_Cyrl]
         subset: sr
       - task: global_mmlu_full_sv
+        languages: [swe_Latn]
         subset: sv
       - task: global_mmlu_full_tr
+        languages: [tur_Latn]
         subset: tr
       - task: global_mmlu_full_uk
+        languages: [ukr_Cyrl]
         subset: uk
       - task: global_mmlu_full_he
+        languages: [heb_Hebr]
         subset: he
   mgsm-eu:
     description: "EU Language GSM benchmarks in Aya Expanse"
@@ -514,12 +664,16 @@ task_groups:
     dataset: jbross-ibm-research/mgsm
     tasks:
       - task: mgsm_native_cot_en
+        languages: [eng_Latn]
         subset: en
       - task: mgsm_native_cot_de
+        languages: [deu_Latn]
         subset: de
       - task: mgsm_native_cot_es
+        languages: [spa_Latn]
         subset: es
       - task: mgsm_native_cot_fr
+        languages: [fra_Latn]
         subset: fr
 
   generic-multilingual:
@@ -541,54 +695,79 @@ task_groups:
     dataset: CohereForAI/include-base-44
     tasks:
       - task: include_base_44_albanian
+        languages: [als_Latn]
         subset: Albanian
       - task: include_base_44_armenian
+        languages: [hye_Armn]
         subset: Armenian
       - task: include_base_44_azerbaijani
+        languages: [aze_Latn]
         subset: Azerbaijani
       - task: include_base_44_basque
+        languages: [eus_Latn]
         subset: Basque
       - task: include_base_44_belarusian
+        languages: [bel_Cyrl]
         subset: Belarusian
       - task: include_base_44_bulgarian
+        languages: [bul_Cyrl]
         subset: Bulgarian
       - task: include_base_44_croatian
+        languages: [hrv_Latn]
         subset: Croatian
       - task: include_base_44_dutch
+        languages: [nld_Latn]
         subset: Dutch
       - task: include_base_44_estonian
+        languages: [est_Latn]
         subset: Estonian
       - task: include_base_44_finnish
+        languages: [fin_Latn]
         subset: Finnish
       - task: include_base_44_french
+        languages: [fra_Latn]
         subset: French
       - task: include_base_44_georgian
+        languages: [kat_Geor]
         subset: Georgian
       - task: include_base_44_german
+        languages: [deu_Latn]
         subset: German
       - task: include_base_44_greek
+        languages: [ell_Grek]
         subset: Greek
       - task: include_base_44_hungarian
+        languages: [hun_Latn]
         subset: Hungarian
       - task: include_base_44_italian
+        languages: [ita_Latn]
         subset: Italian
       - task: include_base_44_lithuanian
+        languages: [lit_Latn]
         subset: Lithuanian
       - task: include_base_44_north macedonian
+        languages: [mkd_Cyrl]
         subset: North Macedonian
       - task: include_base_44_polish
+        languages: [pol_Latn]
         subset: Polish
       - task: include_base_44_portuguese
+        languages: [por_Latn]
         subset: Portuguese
       - task: include_base_44_russian
+        languages: [rus_Cyrl]
         subset: Russian
       - task: include_base_44_serbian
+        languages: [srp_Cyrl]
         subset: Serbian
       - task: include_base_44_spanish
+        languages: [spa_Latn]
         subset: Spanish
       - task: include_base_44_turkish
+        languages: [tur_Latn]
         subset: Turkish
       - task: include_base_44_ukrainian
+        languages: [ukr_Cyrl]
         subset: Ukrainian
 
   dclm-core-22:
@@ -679,47 +858,69 @@ task_groups:
     dataset: LumiOpen/arc_challenge_mt
     tasks:
       - task: arc_challenge_mt_bg
+        languages: [bul_Cyrl]
         subset: bg
       - task: arc_challenge_mt_cs
+        languages: [ces_Latn]
         subset: cs
       - task: arc_challenge_mt_da
+        languages: [dan_Latn]
         subset: da
       - task: arc_challenge_mt_nl
+        languages: [nld_Latn]
         subset: nl
       - task: arc_challenge_mt_et
+        languages: [est_Latn]
         subset: et
       - task: arc_challenge_mt_fi
+        languages: [fin_Latn]
         subset: fi
       - task: arc_challenge_mt_fr
+        languages: [fra_Latn]
         subset: fr
       - task: arc_challenge_mt_de
+        languages: [deu_Latn]
         subset: de
       - task: arc_challenge_mt_el
+        languages: [ell_Grek]
         subset: el
       - task: arc_challenge_mt_hu
+        languages: [hun_Latn]
         subset: hu
       - task: arc_challenge_mt_it
+        languages: [ita_Latn]
         subset: it
       - task: arc_challenge_mt_lv
+        languages: [lvs_Latn]
         subset: lv
       - task: arc_challenge_mt_lt
+        languages: [lit_Latn]
         subset: lt
       - task: arc_challenge_mt_pl
+        languages: [pol_Latn]
         subset: pl
       - task: arc_challenge_mt_pt
+        languages: [por_Latn]
         subset: pt
       - task: arc_challenge_mt_ro
+        languages: [ron_Latn]
         subset: ro
       - task: arc_challenge_mt_sk
+        languages: [slk_Latn]
         subset: sk
       - task: arc_challenge_mt_sl
+        languages: [slv_Latn]
         subset: sl
       - task: arc_challenge_mt_es
+        languages: [spa_Latn]
         subset: es
       - task: arc_challenge_mt_sv
+        languages: [swe_Latn]
         subset: sv
       - task: arc_challenge_mt_is
+        languages: [isl_Latn]
       - task: arc_challenge_mt_nb
+        languages: [nob_Latn]
         subset: nb
 
   reasoning:
@@ -754,68 +955,100 @@ task_groups:
     dataset: mrlbenchmarks/global-piqa-nonparallel
     tasks:
       - task: global_piqa_completions_als_latn
+        languages: [als_Latn]
         subset: als_latn
       - task: global_piqa_completions_bos_latn
+        languages: [bos_Latn]
         subset: bos_latn
       - task: global_piqa_completions_bul_cyrl
+        languages: [bul_Cyrl]
         subset: bul_cyrl
       - task: global_piqa_completions_cat_latn
+        languages: [cat_Latn]
         subset: cat_latn
       - task: global_piqa_completions_ces_latn
+        languages: [ces_Latn]
         subset: ces_latn
       - task: global_piqa_completions_deu_latn
+        languages: [deu_Latn]
         subset: deu_latn
       - task: global_piqa_completions_ekk_latn
+        languages: [est_Latn]
         subset: ekk_latn
       - task: global_piqa_completions_ell_grek
+        languages: [ell_Grek]
         subset: ell_grek
       - task: global_piqa_completions_eng_latn
+        languages: [eng_Latn]
         subset: eng_latn
       - task: global_piqa_completions_fin_latn
+        languages: [fin_Latn]
         subset: fin_latn
       - task: global_piqa_completions_fra_latn_fran
+        languages: [fra_Latn]
         subset: fra_latn_fran
       - task: global_piqa_completions_glg_latn
+        languages: [glg_Latn]
         subset: glg_latn
       - task: global_piqa_completions_hrv_latn
+        languages: [hrv_Latn]
         subset: hrv_latn
       - task: global_piqa_completions_hun_latn
+        languages: [hun_Latn]
         subset: hun_latn
       - task: global_piqa_completions_isl_latn
+        languages: [isl_Latn]
         subset: isl_latn
       - task: global_piqa_completions_ita_latn
+        languages: [ita_Latn]
         subset: ita_latn
       - task: global_piqa_completions_kat_geor
+        languages: [kat_Geor]
         subset: kat_geor
       - task: global_piqa_completions_lit_latn
+        languages: [lit_Latn]
         subset: lit_latn
       - task: global_piqa_completions_mkd_cyrl
+        languages: [mkd_Cyrl]
         subset: mkd_cyrl
       - task: global_piqa_completions_nld_latn
+        languages: [nld_Latn]
         subset: nld_latn
       - task: global_piqa_completions_nno_latn
+        languages: [nno_Latn]
         subset: nno_latn
       - task: global_piqa_completions_nob_latn
+        languages: [nob_Latn]
         subset: nob_latn
       - task: global_piqa_completions_pol_latn
+        languages: [pol_Latn]
         subset: pol_latn
       - task: global_piqa_completions_por_latn_port
+        languages: [por_Latn]
         subset: por_latn_port
       - task: global_piqa_completions_ron_latn
+        languages: [ron_Latn]
         subset: ron_latn
       - task: global_piqa_completions_slk_latn
+        languages: [slk_Latn]
         subset: slk_latn
       - task: global_piqa_completions_slv_latn
+        languages: [slv_Latn]
         subset: slv_latn
       - task: global_piqa_completions_spa_latn_spai
+        languages: [spa_Latn]
         subset: spa_latn_spai
       - task: global_piqa_completions_srp_cyrl
+        languages: [srp_Cyrl]
         subset: srp_cyrl
       - task: global_piqa_completions_swe_latn
+        languages: [swe_Latn]
         subset: swe_latn
       - task: global_piqa_completions_tur_latn
+        languages: [tur_Latn]
         subset: tur_latn
       - task: global_piqa_completions_ukr_cyrl
+        languages: [ukr_Cyrl]
         subset: ukr_cyrl
 
   global-piqa-eu-prompted:
@@ -825,68 +1058,100 @@ task_groups:
     dataset: mrlbenchmarks/global-piqa-nonparallel
     tasks:
       - task: global_piqa_prompted_als_latn
+        languages: [als_Latn]
         subset: als_latn
       - task: global_piqa_prompted_bos_latn
+        languages: [bos_Latn]
         subset: bos_latn
       - task: global_piqa_prompted_bul_cyrl
+        languages: [bul_Cyrl]
         subset: bul_cyrl
       - task: global_piqa_prompted_cat_latn
+        languages: [cat_Latn]
         subset: cat_latn
       - task: global_piqa_prompted_ces_latn
+        languages: [ces_Latn]
         subset: ces_latn
       - task: global_piqa_prompted_deu_latn
+        languages: [deu_Latn]
         subset: deu_latn
       - task: global_piqa_prompted_ekk_latn
+        languages: [est_Latn]
         subset: ekk_latn
       - task: global_piqa_prompted_ell_grek
+        languages: [ell_Grek]
         subset: ell_grek
       - task: global_piqa_prompted_eng_latn
+        languages: [eng_Latn]
         subset: eng_latn
       - task: global_piqa_prompted_fin_latn
+        languages: [fin_Latn]
         subset: fin_latn
       - task: global_piqa_prompted_fra_latn_fran
+        languages: [fra_Latn]
         subset: fra_latn_fran
       - task: global_piqa_prompted_glg_latn
+        languages: [glg_Latn]
         subset: glg_latn
       - task: global_piqa_prompted_hrv_latn
+        languages: [hrv_Latn]
         subset: hrv_latn
       - task: global_piqa_prompted_hun_latn
+        languages: [hun_Latn]
         subset: hun_latn
       - task: global_piqa_prompted_isl_latn
+        languages: [isl_Latn]
         subset: isl_latn
       - task: global_piqa_prompted_ita_latn
+        languages: [ita_Latn]
         subset: ita_latn
       - task: global_piqa_prompted_kat_geor
+        languages: [kat_Geor]
         subset: kat_geor
       - task: global_piqa_prompted_lit_latn
+        languages: [lit_Latn]
         subset: lit_latn
       - task: global_piqa_prompted_mkd_cyrl
+        languages: [mkd_Cyrl]
         subset: mkd_cyrl
       - task: global_piqa_prompted_nld_latn
+        languages: [nld_Latn]
         subset: nld_latn
       - task: global_piqa_prompted_nno_latn
+        languages: [nno_Latn]
         subset: nno_latn
       - task: global_piqa_prompted_nob_latn
+        languages: [nob_Latn]
         subset: nob_latn
       - task: global_piqa_prompted_pol_latn
+        languages: [pol_Latn]
         subset: pol_latn
       - task: global_piqa_prompted_por_latn_port
+        languages: [por_Latn]
         subset: por_latn_port
       - task: global_piqa_prompted_ron_latn
+        languages: [ron_Latn]
         subset: ron_latn
       - task: global_piqa_prompted_slk_latn
+        languages: [slk_Latn]
         subset: slk_latn
       - task: global_piqa_prompted_slv_latn
+        languages: [slv_Latn]
         subset: slv_latn
       - task: global_piqa_prompted_spa_latn_spai
+        languages: [spa_Latn]
         subset: spa_latn_spai
       - task: global_piqa_prompted_srp_cyrl
+        languages: [srp_Cyrl]
         subset: srp_cyrl
       - task: global_piqa_prompted_swe_latn
+        languages: [swe_Latn]
         subset: swe_latn
       - task: global_piqa_prompted_tur_latn
+        languages: [tur_Latn]
         subset: tur_latn
       - task: global_piqa_prompted_ukr_cyrl
+        languages: [ukr_Cyrl]
         subset: ukr_cyrl
 
 super_groups:
