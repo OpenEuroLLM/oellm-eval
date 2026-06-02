@@ -7,7 +7,12 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "pandas",
     "jsonargparse",
-    "datasets<4.0.0",
+    # datasets was pinned <4.0 because oellm-cli itself only uses the
+    # legacy load_dataset signature. lm-eval >=0.4.12 needs datasets>=4
+    # to load the current dataset-card metadata, so the [eval] extras
+    # below override this floor. Keep the loose pin here so plain
+    # `pip install oellm` still works without lm-eval.
+    "datasets",
     "rich",
     "huggingface_hub",
     "pyyaml",
@@ -18,6 +23,37 @@ dev = [
     "pytest>=8.4.1",
     "pytest-timeout>=2.3.1",
     "pre-commit",
+]
+# `oellm schedule-eval --local true` shells out to `python -m lm_eval`,
+# so it needs lm-eval-harness and its task deps installed in the same
+# env. The extras are split so callers can opt out of the parts their
+# environment already provides:
+#
+#   pip install oellm[eval]      # full stack from PyPI (venv on CUDA)
+#   pip install oellm[eval-base] # task surface + API backends, no torch
+#                                # (use inside containers that ship torch +
+#                                # transformers themselves: Leonardo, Lumi)
+#
+# Extras chosen:
+#   [api]      — requests/aiohttp/tenacity/tiktoken for OpenAI-style endpoints
+#   [tasks]    — aggregate of [discrim_eval, ifeval, japanese_leaderboard,
+#                longbench, libra, math, multilingual, ruler]
+#   [hf]       — transformers + torch + accelerate + peft (local HF eval)
+#   [vllm]     — vllm>=0.18 (CUDA-only; the PyPI wheel doesn't work on
+#                ROCm, and Lumi's container already ships a custom
+#                rocm-vllm — keep this out of [eval-base])
+#
+# Not included by default (opt in if you need them): [litellm], [gptq],
+# [gptqmodel], [ipex], [optimum], [habana], [ibm_watsonx_ai], [acpbench]
+# (mutually exclusive with [tasks] and [math]), [audiolm_qwen],
+# [unitxt], [wandb], [zeno], [trackio], [sentencepiece], [archiver].
+eval-base = [
+    "lm_eval[api,tasks]>=0.4.12",
+    "datasets>=4.0",
+]
+eval = [
+    "oellm[eval-base]",
+    "lm_eval[hf,vllm]>=0.4.12",
 ]
 
 [project.scripts]

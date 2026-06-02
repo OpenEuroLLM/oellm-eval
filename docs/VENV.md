@@ -11,12 +11,21 @@ Instead of using pre-built containers, you can run evaluations with your own Pyt
    uv venv --python 3.12 /path/to/.venv
    ```
 
-2. Install lm-eval dependencies:
+2. Install oellm-cli + lm-eval-harness via the `[eval]` extras:
    ```bash
-   uv pip install --python /path/to/.venv/bin/python -r requirements-venv.txt
+   uv pip install --python /path/to/.venv/bin/python -e .[eval]
    ```
 
-3. Install lighteval as isolated tool (avoids datasets version conflict):
+   `[eval]` pulls `lm_eval[hf,vllm,api,tasks]>=0.4.12` and
+   `datasets>=4.0` — local HF + vLLM backends, OpenAI-style API
+   backends, and the full task family aggregate (ifeval, math,
+   multilingual, longbench, …). From a container that already ships
+   torch/transformers (Leonardo, Lumi), use `.[eval-base]` instead — it
+   drops `[hf]` and `[vllm]` so the container's pre-built torch (and on
+   Lumi the custom ROCm-vllm) isn't replaced by PyPI wheels.
+
+3. Install lighteval as isolated tool (keeps its heavier dep tree out of
+   the lm-eval env):
    ```bash
    UV_TOOL_DIR=/path/to/.uv-tools UV_TOOL_BIN_DIR=/path/to/.venv/bin \
      uv tool install --python 3.12 \
@@ -35,7 +44,12 @@ oellm schedule-eval \
 
 ## Why Two Install Steps?
 
-lm-eval requires `datasets<4.0.0` while lighteval requires `datasets>=4.0.0`. Installing lighteval as an isolated uv tool (like the containers do) avoids this conflict.
+Historically lm-eval required `datasets<4.0.0` while lighteval required
+`datasets>=4.0.0`, and the `lighteval-as-uv-tool` split existed to
+resolve that conflict. lm-eval-harness >=0.4.12 (what `[eval]` pulls)
+now works with `datasets>=4.0`, so the split is no longer about a
+version conflict — it's about keeping lighteval's wider dep tree out of
+the lm-eval venv.
 
 ## DCLM-core-22
 
