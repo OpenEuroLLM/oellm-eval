@@ -18,6 +18,7 @@ class _Task:
     dataset: str | None = None
     subset: str | None = None
     suite: str | None = None
+    languages: list[str] | None = None
 
 
 @dataclass
@@ -55,6 +56,7 @@ class TaskGroup:
                     dataset=task_dataset,
                     subset=task_subset,
                     suite=task_data.get("suite"),
+                    languages=task_data.get("languages"),
                 )
             )
 
@@ -104,6 +106,46 @@ class TaskSuperGroup:
         )
 
 
+def _build_language_groups(
+    task_groups: dict[str, TaskGroup],
+) -> dict[str, TaskGroup]:
+    """Derive one virtual TaskGroup per language code from `languages` tags.
+
+    Every task tagged with a language (e.g. ``languages: [deu_Latn]``) is
+    collected into a synthetic group named after that code, so requesting
+    ``--task_groups "deu_Latn"`` yields all German tasks across all benchmarks.
+    Each task's suite is resolved from its origin group and baked onto the task,
+    so language groups can span lm-eval-harness and lighteval tasks at once.
+    """
+    buckets: dict[str, list[_Task]] = {}
+    for group in task_groups.values():
+        for t in group.tasks:
+            if not t.languages:
+                continue
+            resolved_suite = t.suite or group.suite
+            for lang in t.languages:
+                buckets.setdefault(lang, []).append(
+                    _Task(
+                        name=t.name,
+                        n_shots=t.n_shots,
+                        dataset=t.dataset,
+                        subset=t.subset,
+                        suite=resolved_suite,
+                        languages=t.languages,
+                    )
+                )
+
+    return {
+        lang: TaskGroup(
+            name=lang,
+            tasks=tasks,
+            suite="lm-eval-harness",  # fallback; each task carries its own suite
+            description=f"All evaluation tasks tagged with language '{lang}' (auto-derived)",
+        )
+        for lang, tasks in buckets.items()
+    }
+
+
 def _parse_task_groups(
     requested_groups: list[str],
 ) -> dict[str, TaskSuperGroup | TaskGroup]:
@@ -122,7 +164,11 @@ def _parse_task_groups(
             super_group_name, super_group_data, task_groups
         )
 
-    result = {**task_groups, **super_groups}
+    language_groups = _build_language_groups(task_groups)
+
+    # Explicit task groups / super groups take precedence over derived language
+    # groups on any name collision.
+    result = {**language_groups, **task_groups, **super_groups}
     return {
         group_name: group
         for group_name, group in result.items()
@@ -290,3 +336,15 @@ def get_all_task_group_names() -> list[str]:
         yaml.safe_load((files("oellm.resources") / "task-groups.yaml").read_text()) or {}
     )
     return list(data.get("task_groups", {}).keys())
+
+
+def get_all_language_codes() -> list[str]:
+    """Return all language codes requestable as auto-derived task groups."""
+    data = (
+        yaml.safe_load((files("oellm.resources") / "task-groups.yaml").read_text()) or {}
+    )
+    task_groups = {
+        name: TaskGroup.from_dict(name, task_data)
+        for name, task_data in data.get("task_groups", {}).items()
+    }
+    return sorted(_build_language_groups(task_groups).keys())
