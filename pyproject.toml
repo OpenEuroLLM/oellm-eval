@@ -52,7 +52,7 @@ eval-base = [
     "datasets>=4.0",
 ]
 eval = [
-    "oellm[eval-base]",
+    "oellm-eval[eval-base]",
     "lm_eval[hf,vllm]>=0.4.12",
 ]
 
