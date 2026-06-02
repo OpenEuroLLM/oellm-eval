@@ -63,7 +63,7 @@ jobs:
         run: uv python install 3.12
 
       - name: Install dependencies
-        run: uv sync --extra dev
+        run: uv sync --extra dev --extra eval-base
 
       - name: Run tests
         run: uv run pytest tests/ -v --ignore=tests/integration/
