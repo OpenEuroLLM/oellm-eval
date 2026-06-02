@@ -523,8 +523,18 @@ def collect_results(
     """
     Collect evaluation results from JSON files and export to CSV.
 
+    Recursively searches ``results_dir`` for every sub-directory that contains
+    a ``jobs.csv`` file, merges all those CSV files into one (later directories
+    override duplicate rows), then recursively finds every ``.json`` result
+    file under ``results_dir``.
+
+    With ``--check`` the merged jobs are compared against the extracted results
+    and any missing evaluations are written to a ``*_missing.csv`` file.
+    Without ``--check`` the results are simply merged and written to
+    ``output_csv``.
+
     Args:
-        results_dir: Path to the directory containing result JSON files
+        results_dir: Root directory to search for jobs.csv files and JSON results
         output_csv: Output CSV filename (default: eval_results.csv)
         check: Check for missing evaluations and create a missing jobs CSV
         verbose: Enable verbose logging
@@ -570,7 +580,16 @@ def collect_results(
             val, key = _first_matching_prefix(result_dict, preferred)
             return val, key
 
-        for metric in ["acc,none", "acc", "accuracy", "acc_norm", "f1", "exact_match"]:
+        for metric in [
+            "acc,none",
+            "acc",
+            "accuracy",
+            "acc_norm",
+            "f1",
+            "exact_match",
+            "chrf++",
+            "bleu",
+        ]:
             val, key = _first_numeric(result_dict, metric)
             if val is not None:
                 return val, key
@@ -593,30 +612,44 @@ def collect_results(
     if not results_path.exists():
         raise ValueError(f"Results directory does not exist: {results_dir}")
 
-    # Check if we need to look in a 'results' subdirectory
-    if (results_path / "results").exists() and (results_path / "results").is_dir():
-        # User passed the top-level directory, look in results subdirectory for nested json files
-        json_files = list((results_path / "results").rglob("*.json"))
+    # ------------------------------------------------------------------
+    # 1. Find all directories containing jobs.csv and merge them.
+    #    Directories are sorted so that deeper / later-alphabetical paths
+    #    are processed last, meaning their rows override earlier duplicates.
+    # ------------------------------------------------------------------
+    jobs_csv_paths = sorted(results_path.rglob("jobs.csv"))
+    if jobs_csv_paths:
+        logging.info(
+            f"Found {len(jobs_csv_paths)} jobs.csv file(s): {[str(p) for p in jobs_csv_paths]}"
+        )
+        jobs_frames = [pd.read_csv(p) for p in jobs_csv_paths]
+        # Concatenate and let later entries win for duplicate (model_path, task_path, n_shot).
+        jobs_df = pd.concat(jobs_frames, ignore_index=True)
+        dup_cols = [
+            c for c in ("model_path", "task_path", "n_shot") if c in jobs_df.columns
+        ]
+        if dup_cols:
+            jobs_df = jobs_df.drop_duplicates(subset=dup_cols, keep="last")
+        logging.info(f"Merged jobs.csv: {len(jobs_df)} unique jobs")
     else:
-        # User passed the results directory directly
-        json_files = list(results_path.glob("*.json"))
+        jobs_df = None
+        if check:
+            logging.warning(
+                f"No jobs.csv found under {results_dir}, cannot perform check"
+            )
+            check = False
+
+    # ------------------------------------------------------------------
+    # 2. Recursively find all JSON result files.
+    # ------------------------------------------------------------------
+    json_files = sorted(results_path.rglob("*.json"))
 
     if not json_files:
-        logging.warning(f"No JSON files found in {results_dir}")
+        logging.warning(f"No JSON files found under {results_dir}")
         if not check:
             return
 
-    logging.info(f"Found {len(json_files)} result files")
-
-    # If check mode, also load the jobs.csv to compare
-    if check:
-        jobs_csv_path = results_path / "jobs.csv"
-        if not jobs_csv_path.exists():
-            logging.warning(f"No jobs.csv found in {results_dir}, cannot perform check")
-            check = False
-        else:
-            jobs_df = pd.read_csv(jobs_csv_path)
-            logging.info(f"Found {len(jobs_df)} scheduled jobs in jobs.csv")
+    logging.info(f"Found {len(json_files)} result file(s)")
 
     # Collect results
     rows = []
@@ -716,13 +749,21 @@ def collect_results(
             if task_name.startswith("global_mmlu_") and task_name.count("_") >= 4:
                 continue
 
+            # Skip the lighteval 'all' aggregate pseudo-task
+            if task_name == "all":
+                continue
+
             # Get n_shot for this task.
             # Prefer original extraction from `n_shot_data` and `global_n_shot`,
             # and fall back to parsing a '|N' suffix in the task name.
+            # Use explicit None checks because n_shot=0 is falsy.
             task_name_clean, parsed_n = _split_task_and_nshot(task_name)
-            n_shot = (
-                n_shot_data.get(task_name_clean) or global_n_shot or parsed_n or "unknown"
-            )
+            _ns = n_shot_data.get(task_name_clean)
+            if _ns is None:
+                _ns = global_n_shot
+            if _ns is None:
+                _ns = parsed_n
+            n_shot = "unknown" if _ns is None else _ns
 
             # If this is a group aggregate and n_shot is missing, derive from any subtask
             if task_name_clean in group_aggregate_names and n_shot == "unknown":
@@ -783,6 +824,9 @@ def collect_results(
     # Create DataFrame and save to CSV (if we have results)
     if rows:
         df = pd.DataFrame(rows)
+        df = df.drop_duplicates(
+            subset=["model_name", "task", "n_shot", "metric_name"], keep="last"
+        )
         df.to_csv(output_csv, index=False)
         logging.info(f"Results saved to {output_csv}")
         logging.info(f"Extracted {len(df)} evaluation results")
@@ -843,7 +887,7 @@ def collect_results(
             missing_df.to_csv(missing_csv, index=False)
             logging.info(f"Missing jobs saved to: {missing_csv}")
             logging.info(
-                f"You can run these with: oellm schedule-eval --eval_csv_path {missing_csv}"
+                f"You can run these with: oellm-eval schedule --eval_csv_path {missing_csv}"
             )
 
             # Show some examples if verbose
@@ -861,8 +905,8 @@ def main():
     _filter_warnings()
     auto_cli(
         {
-            "schedule-eval": schedule_evals,
-            "collect-results": collect_results,
+            "schedule": schedule_evals,
+            "collect": collect_results,
         },
         as_positional=False,
         description="OELLM: Multi-cluster evaluation tool for language models",
