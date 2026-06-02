@@ -67,6 +67,30 @@ oellm-eval schedule --models "model-name" --task_groups "belebele-eu-5-shot,glob
 oellm-eval schedule --models "model-name" --task_groups "oellm-multilingual"
 ```
 
+### Per-language task groups
+
+A task group is automatically derived for each language, letting you run *every*
+available evaluation for one language with a single canonical
+[`lang_Script`](https://en.wikipedia.org/wiki/IETF_language_tag) code:
+
+```bash
+# All German evaluations (SIB-200, Belebele MC+CF, Global-MMLU, ARC-MT,
+# Global-PIQA, INCLUDE, MGSM, FLORES, …)
+oellm-eval schedule --models "my-model" --task_groups "deu_Latn"
+
+# Several monolingual models against their own language
+oellm-eval schedule --models "model" --task_groups "fra_Latn,ita_Latn,por_Latn"
+```
+
+These groups are derived in code from each task's language: the `{lang}` value
+of a `valid_langs` template, or the task's `subset` for explicitly-listed
+multilingual groups (see [docs/TASKS.md](docs/TASKS.md)). No per-task tagging is
+needed — adding a benchmark with a `valid_langs` template makes its languages
+available as groups automatically. A language group transparently spans both
+`lm-eval-harness` and `lighteval` tasks. Some languages lack certain benchmarks
+(e.g. Italian/Portuguese have no MGSM), in which case the group simply contains
+fewer tasks.
+
 ## Running Locally (without SLURM)
 
 The `--local` flag lets you run evaluations directly on your machine without a cluster or Singularity container. It generates the same eval script and executes it with bash, injecting fake SLURM environment variables so all tasks run sequentially in a single process. This is useful for testing that tasks and models are correctly configured before submitting to a cluster.
