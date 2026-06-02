@@ -11,7 +11,7 @@ Instead of using pre-built containers, you can run evaluations with your own Pyt
    uv venv --python 3.12 /path/to/.venv
    ```
 
-2. Install oellm-cli + lm-eval-harness via the `[eval]` extras:
+2. Install oellm-evals + lm-eval-harness via the `[eval]` extras:
    ```bash
    uv pip install --python /path/to/.venv/bin/python -e .[eval]
    ```

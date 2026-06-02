@@ -7,7 +7,7 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "pandas",
     "jsonargparse",
-    # datasets was pinned <4.0 because oellm-cli itself only uses the
+    # datasets was pinned <4.0 because oellm-evals itself only uses the
     # legacy load_dataset signature. lm-eval >=0.4.12 needs datasets>=4
     # to load the current dataset-card metadata, so the [eval] extras
     # below override this floor. Keep the loose pin here so plain
