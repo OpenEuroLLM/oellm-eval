@@ -41,33 +41,67 @@ MULTILINGUAL_GROUPS = {
 # Map the various spellings used across benchmarks to the canonical lang_Scri code.
 ALIAS = {
     # ISO 639-1 two-letter codes (global-mmlu, mgsm, arc-mt)
-    "de": "deu_Latn", "fr": "fra_Latn", "it": "ita_Latn", "es": "spa_Latn",
-    "pt": "por_Latn", "cs": "ces_Latn", "el": "ell_Grek", "lt": "lit_Latn",
-    "nl": "nld_Latn", "pl": "pol_Latn", "ro": "ron_Latn", "ru": "rus_Cyrl",
-    "sr": "srp_Cyrl", "sv": "swe_Latn", "tr": "tur_Latn", "uk": "ukr_Cyrl",
-    "he": "heb_Hebr", "en": "eng_Latn", "bg": "bul_Cyrl", "da": "dan_Latn",
-    "et": "est_Latn", "fi": "fin_Latn", "hu": "hun_Latn", "lv": "lvs_Latn",
-    "sk": "slk_Latn", "sl": "slv_Latn", "is": "isl_Latn", "nb": "nob_Latn",
+    "de": "deu_Latn",
+    "fr": "fra_Latn",
+    "it": "ita_Latn",
+    "es": "spa_Latn",
+    "pt": "por_Latn",
+    "cs": "ces_Latn",
+    "el": "ell_Grek",
+    "lt": "lit_Latn",
+    "nl": "nld_Latn",
+    "pl": "pol_Latn",
+    "ro": "ron_Latn",
+    "ru": "rus_Cyrl",
+    "sr": "srp_Cyrl",
+    "sv": "swe_Latn",
+    "tr": "tur_Latn",
+    "uk": "ukr_Cyrl",
+    "he": "heb_Hebr",
+    "en": "eng_Latn",
+    "bg": "bul_Cyrl",
+    "da": "dan_Latn",
+    "et": "est_Latn",
+    "fi": "fin_Latn",
+    "hu": "hun_Latn",
+    "lv": "lvs_Latn",
+    "sk": "slk_Latn",
+    "sl": "slv_Latn",
+    "is": "isl_Latn",
+    "nb": "nob_Latn",
     # full English names (include)
-    "albanian": "als_Latn", "armenian": "hye_Armn", "azerbaijani": "aze_Latn",
-    "basque": "eus_Latn", "belarusian": "bel_Cyrl", "bulgarian": "bul_Cyrl",
-    "croatian": "hrv_Latn", "dutch": "nld_Latn", "estonian": "est_Latn",
-    "finnish": "fin_Latn", "french": "fra_Latn", "georgian": "kat_Geor",
-    "german": "deu_Latn", "greek": "ell_Grek", "hungarian": "hun_Latn",
-    "italian": "ita_Latn", "lithuanian": "lit_Latn",
-    "north macedonian": "mkd_Cyrl", "polish": "pol_Latn",
-    "portuguese": "por_Latn", "russian": "rus_Cyrl", "serbian": "srp_Cyrl",
-    "spanish": "spa_Latn", "turkish": "tur_Latn", "ukrainian": "ukr_Cyrl",
+    "albanian": "als_Latn",
+    "armenian": "hye_Armn",
+    "azerbaijani": "aze_Latn",
+    "basque": "eus_Latn",
+    "belarusian": "bel_Cyrl",
+    "bulgarian": "bul_Cyrl",
+    "croatian": "hrv_Latn",
+    "dutch": "nld_Latn",
+    "estonian": "est_Latn",
+    "finnish": "fin_Latn",
+    "french": "fra_Latn",
+    "georgian": "kat_Geor",
+    "german": "deu_Latn",
+    "greek": "ell_Grek",
+    "hungarian": "hun_Latn",
+    "italian": "ita_Latn",
+    "lithuanian": "lit_Latn",
+    "north macedonian": "mkd_Cyrl",
+    "polish": "pol_Latn",
+    "portuguese": "por_Latn",
+    "russian": "rus_Cyrl",
+    "serbian": "srp_Cyrl",
+    "spanish": "spa_Latn",
+    "turkish": "tur_Latn",
+    "ukrainian": "ukr_Cyrl",
 }
 
 # Distinct individual-language codes that should fold into a macrolanguage code.
 SPECIAL = {"ekk_Latn": "est_Latn"}  # global-piqa uses ekk (Standard Estonian)
 
 DEFAULT_PATH = (
-    Path(__file__).resolve().parent.parent
-    / "oellm"
-    / "resources"
-    / "task-groups.yaml"
+    Path(__file__).resolve().parent.parent / "oellm" / "resources" / "task-groups.yaml"
 )
 
 
@@ -108,7 +142,9 @@ def resolve_languages(task: dict) -> list[str]:
     return [code] if code else []
 
 
-def build_task_language_map(path: Path) -> tuple[dict[str, list[str]], list[tuple[str, str]]]:
+def build_task_language_map(
+    path: Path,
+) -> tuple[dict[str, list[str]], list[tuple[str, str]]]:
     """Map ``task name -> languages`` for all multilingual tasks, plus unresolved."""
     data = yaml.safe_load(path.read_text()) or {}
     mapping: dict[str, list[str]] = {}
@@ -143,7 +179,7 @@ def insert_tags(path: Path, mapping: dict[str, list[str]]) -> tuple[int, str]:
             key_indent = m.group("indent") + "  "
             # Look ahead within this task block for an existing languages: key.
             already = False
-            for nxt in lines[i + 1:]:
+            for nxt in lines[i + 1 :]:
                 stripped = nxt.strip()
                 if not stripped:
                     continue
@@ -166,10 +202,12 @@ def insert_tags(path: Path, mapping: dict[str, list[str]]) -> tuple[int, str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--path", type=Path, default=DEFAULT_PATH,
-                        help="Path to task-groups.yaml")
-    parser.add_argument("--check", action="store_true",
-                        help="Dry run: report counts without writing.")
+    parser.add_argument(
+        "--path", type=Path, default=DEFAULT_PATH, help="Path to task-groups.yaml"
+    )
+    parser.add_argument(
+        "--check", action="store_true", help="Dry run: report counts without writing."
+    )
     args = parser.parse_args()
 
     mapping, unresolved = build_task_language_map(args.path)
@@ -179,7 +217,9 @@ def main() -> int:
         args.path.write_text(new_text)
 
     verb = "Would insert" if args.check else "Inserted"
-    print(f"Resolved {len(mapping)} multilingual tasks; {verb} {inserted} languages: tags")
+    print(
+        f"Resolved {len(mapping)} multilingual tasks; {verb} {inserted} languages: tags"
+    )
     for group, task_name in unresolved:
         print(f"UNRESOLVED: {group} / {task_name}")
 
