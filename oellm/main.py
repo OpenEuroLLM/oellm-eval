@@ -561,9 +561,7 @@ def collect_results(
         _pm_path = files("oellm.resources") / "primary-metrics.yaml"
         try:
             _pm_data = yaml.safe_load(_pm_path.read_text())
-            _primary_metrics_raw = list(
-                (_pm_data.get("primary_metrics") or {}).items()
-            )
+            _primary_metrics_raw = list((_pm_data.get("primary_metrics") or {}).items())
         except Exception as exc:
             logging.warning(
                 "Could not load primary-metrics.yaml (%s); falling back to all metrics.",
@@ -818,7 +816,9 @@ def collect_results(
             # Extract all available metrics for this task
             task_metric_pairs = _extract_all_metrics(task_results)
             if not fetch_all_metrics:
-                task_metric_pairs = _resolve_primary_metric(task_name_clean, task_metric_pairs)
+                task_metric_pairs = _resolve_primary_metric(
+                    task_name_clean, task_metric_pairs
+                )
 
             if task_metric_pairs:
                 # Track completed job for check mode (once per task, not per metric)
