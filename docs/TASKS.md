@@ -66,6 +66,12 @@ oellm-eval schedule --models "m" --languages "deu_Latn"
 
 # Intersection: only German tasks within these benchmarks
 oellm-eval schedule --models "m" --task_groups "sib200-eu" --languages "deu_Latn"
+
+# Per-group override: different language per benchmark, via a [...] bracket
+# (codes separated by `,` or `|`). The bracket overrides --languages for that
+# group, and errors if it matches nothing in that group.
+oellm-eval schedule --models "m" \
+    --task_groups "sib200-eu[fra_Latn],flores-200-eu-to-eng[deu_Latn]"
 ```
 
 Languages are **derived in code** — there is no `languages` field to set in the

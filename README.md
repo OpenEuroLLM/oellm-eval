@@ -93,6 +93,19 @@ oellm-eval schedule --models "my-model" \
 oellm-eval schedule --models "my-model" --task_groups "sib200-eu"
 ```
 
+For different languages per benchmark, attach a `[...]` bracket to a task group.
+The bracketed codes (separated by `,` or `|`) override the global `--languages`
+filter for that group only:
+
+```bash
+# French SIB-200 *and* German FLORES in one run.
+oellm-eval schedule --models "my-model" \
+    --task_groups "sib200-eu[fra_Latn],flores-200-eu-to-eng[deu_Latn]"
+
+# Multiple languages inside one bracket.
+oellm-eval schedule --models "my-model" --task_groups "sib200-eu[fra_Latn|deu_Latn]"
+```
+
 Each task's language is derived in code from the `{lang}` value of a
 `valid_langs` template, or the task's `subset` for explicitly-listed
 multilingual groups (see [docs/TASKS.md](docs/TASKS.md)). No per-task tagging is
@@ -110,6 +123,8 @@ Notes:
 - A **partial** match (some requested languages absent from the selected
   groups) warns and proceeds with the rest. Some languages simply lack certain
   benchmarks (e.g. Italian/Portuguese have no MGSM).
+- A per-group `[...]` bracket is stricter: if it matches nothing in *its* group
+  it errors (the request was explicit, so an empty result is a mistake).
 
 ## Running Locally (without SLURM)
 
