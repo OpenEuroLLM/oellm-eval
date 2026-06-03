@@ -1,4 +1,5 @@
 import copy
+import logging
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -10,7 +11,7 @@ import yaml
 # Tasks encode their language in several incompatible ways across benchmarks
 # (e.g. German is ``deu_Latn``, ``de``, ``German`` and ``deu_latn``). These
 # tables fold every spelling onto a single canonical ``lang_Scri`` code so that
-# per-language task groups (e.g. ``--task_groups deu_Latn``) can be derived.
+# the ``--languages deu_Latn`` filter can match tasks across benchmarks.
 _LANG_ALIAS = {
     # ISO 639-1 two-letter codes (global-mmlu, mgsm, arc-mt)
     "de": "deu_Latn",
@@ -258,41 +259,18 @@ def _load_task_groups_data() -> dict:
     return _expand_lang_templates(raw)
 
 
-def _build_language_groups(
-    task_groups: dict[str, TaskGroup],
-) -> dict[str, TaskGroup]:
-    """Derive one virtual TaskGroup per language code.
+def _language_codes_from_groups(task_groups: dict[str, TaskGroup]) -> set[str]:
+    """Collect every canonical language code that at least one task resolves to.
 
-    Every task that resolves to a language (via its ``{lang}`` template
-    expansion or ``subset``) is collected into a synthetic group named after
-    that canonical code, so ``--task_groups deu_Latn`` yields all German tasks
-    across all benchmarks. Each task's suite is resolved from its origin group
-    and baked on, so a language group can span lm-eval-harness and lighteval.
+    These are the codes accepted by the ``--languages`` filter; a task resolves
+    to a code via its ``{lang}`` template expansion or its ``subset`` (see
+    ``_resolve_task_languages``).
     """
-    buckets: dict[str, list[_Task]] = {}
-    for group in task_groups.values():
-        for t in group.tasks:
-            resolved_suite = t.suite or group.suite
-            for lang in t.languages:
-                buckets.setdefault(lang, []).append(
-                    _Task(
-                        name=t.name,
-                        n_shots=t.n_shots,
-                        dataset=t.dataset,
-                        subset=t.subset,
-                        suite=resolved_suite,
-                        languages=t.languages,
-                    )
-                )
-
     return {
-        lang: TaskGroup(
-            name=lang,
-            tasks=tasks,
-            suite="lm-eval-harness",  # fallback; each task carries its own suite
-            description=f"All evaluation tasks for language '{lang}' (auto-derived)",
-        )
-        for lang, tasks in buckets.items()
+        lang
+        for group in task_groups.values()
+        for t in group.tasks
+        for lang in t.languages
     }
 
 
@@ -312,11 +290,7 @@ def _parse_task_groups(
             super_group_name, super_group_data, task_groups
         )
 
-    language_groups = _build_language_groups(task_groups)
-
-    # Explicit task groups / super groups take precedence over derived language
-    # groups on any name collision.
-    result = {**language_groups, **task_groups, **super_groups}
+    result = {**task_groups, **super_groups}
     return {
         group_name: group
         for group_name, group in result.items()
@@ -331,34 +305,119 @@ class TaskGroupResult:
     suite: str
 
 
-def _expand_task_groups(group_names: Iterable[str]) -> list[TaskGroupResult]:
-    parsed = _parse_task_groups([str(n).strip() for n in group_names if str(n).strip()])
-    missing = {str(n).strip() for n in group_names if str(n).strip()} - set(parsed.keys())
+def _iter_group_tasks(
+    parsed: dict[str, "TaskSuperGroup | TaskGroup"],
+) -> Iterable[tuple[str, _Task]]:
+    """Yield ``(resolved_suite, task)`` for every task in the parsed groups.
+
+    Flattens both plain task groups and super groups, resolving each task's
+    suite from its explicit ``suite`` or the owning group's default.
+    """
+    for group in parsed.values():
+        if isinstance(group, TaskGroup):
+            for t in group.tasks:
+                yield (t.suite or group.suite), t
+        else:
+            for g in group.task_groups:
+                for t in g.tasks:
+                    yield (t.suite or g.suite), t
+
+
+def _normalise_language_codes(languages: Iterable[str]) -> list[str]:
+    """Validate requested language codes and fold them onto canonical codes.
+
+    Accepts any spelling the normaliser understands (``de``, ``german``,
+    ``deu_Latn``). Raises ``ValueError`` listing the valid codes if any
+    requested code is unknown.
+    """
+    valid = set(get_all_language_codes())
+    requested: list[str] = []
+    unknown: list[str] = []
+    for code in languages:
+        raw = str(code).strip()
+        if not raw:
+            continue
+        canon = _canonical_language(raw)
+        if canon and canon in valid:
+            if canon not in requested:
+                requested.append(canon)
+        else:
+            unknown.append(raw)
+    if unknown:
+        raise ValueError(
+            f"Unknown language code(s): {', '.join(unknown)}. "
+            f"Valid codes: {', '.join(sorted(valid))}"
+        )
+    return requested
+
+
+def _check_language_match(
+    requested: list[str],
+    matched: set[str],
+    group_names: list[str],
+    has_results: bool,
+) -> None:
+    """Enforce the empty-intersection policy after language filtering.
+
+    Hard-errors when *no* requested language matched any selected task (a
+    well-formed but empty pairing); warns when only *some* languages matched.
+    """
+    scope = (
+        f"task group(s) {{{', '.join(group_names)}}}"
+        if group_names
+        else "any task group"
+    )
+    if not has_results:
+        raise ValueError(
+            f"No tasks in {scope} match language(s) "
+            f"{{{', '.join(requested)}}}."
+        )
+    unmatched = [lang for lang in requested if lang not in matched]
+    if unmatched:
+        logging.warning(
+            "No tasks matched language(s) %s in the selected groups; "
+            "kept language(s) %s.",
+            ", ".join(unmatched),
+            ", ".join(lang for lang in requested if lang in matched),
+        )
+
+
+def _resolve_group_names(
+    group_names: Iterable[str], lang_filter: list[str] | None
+) -> list[str]:
+    """Normalise requested group names; default to all groups when only
+    languages are requested (the ``--languages`` without ``--task_groups`` case)."""
+    names = [str(n).strip() for n in group_names if str(n).strip()]
+    if not names and lang_filter:
+        return get_all_task_group_names()
+    return names
+
+
+def _expand_task_groups(
+    group_names: Iterable[str], languages: Iterable[str] | None = None
+) -> list[TaskGroupResult]:
+    lang_filter = _normalise_language_codes(languages) if languages else None
+    names = _resolve_group_names(group_names, lang_filter)
+
+    parsed = _parse_task_groups(names)
+    missing = set(names) - set(parsed.keys())
     if missing:
         raise ValueError(f"Unknown task group(s): {', '.join(sorted(missing))}")
 
     results: list[TaskGroupResult] = []
+    matched_langs: set[str] = set()
 
-    for _, group in parsed.items():
-        if isinstance(group, TaskGroup):
-            suite = group.suite
-            for t in group.tasks:
-                shots = [int(s) for s in (t.n_shots or [])]
-                task_suite = t.suite or suite
-                for shot in shots:
-                    results.append(
-                        TaskGroupResult(task=t.name, n_shot=shot, suite=task_suite)
-                    )
-        else:
-            for g in group.task_groups:
-                suite = g.suite
-                for t in g.tasks:
-                    shots = [int(s) for s in (t.n_shots or [])]
-                    task_suite = t.suite or suite
-                    for shot in shots:
-                        results.append(
-                            TaskGroupResult(task=t.name, n_shot=shot, suite=task_suite)
-                        )
+    for suite, t in _iter_group_tasks(parsed):
+        if lang_filter is not None:
+            hits = set(t.languages) & set(lang_filter)
+            if not hits:
+                continue
+            matched_langs |= hits
+        for shot in (int(s) for s in (t.n_shots or [])):
+            results.append(TaskGroupResult(task=t.name, n_shot=shot, suite=suite))
+
+    if lang_filter is not None:
+        _check_language_match(lang_filter, matched_langs, names, bool(results))
 
     return results
 
@@ -377,8 +436,12 @@ def _extract_flores_subsets(task_name: str) -> list[str]:
     return []
 
 
-def _collect_dataset_specs(group_names: Iterable[str]) -> list[DatasetSpec]:
-    parsed = _parse_task_groups([str(n).strip() for n in group_names if str(n).strip()])
+def _collect_dataset_specs(
+    group_names: Iterable[str], languages: Iterable[str] | None = None
+) -> list[DatasetSpec]:
+    lang_filter = _normalise_language_codes(languages) if languages else None
+    names = _resolve_group_names(group_names, lang_filter)
+    parsed = _parse_task_groups(names)
 
     specs: list[DatasetSpec] = []
     seen: set[tuple[str, str | None]] = set()
@@ -391,22 +454,14 @@ def _collect_dataset_specs(group_names: Iterable[str]) -> list[DatasetSpec]:
             seen.add(key)
             specs.append(DatasetSpec(repo_id=dataset, subset=subset))
 
-    for _, group in parsed.items():
-        if isinstance(group, TaskGroup):
-            for t in group.tasks:
-                if t.dataset == "facebook/flores" and not t.subset:
-                    for lang in _extract_flores_subsets(t.name):
-                        add_spec(t.dataset, lang)
-                else:
-                    add_spec(t.dataset, t.subset)
+    for _suite, t in _iter_group_tasks(parsed):
+        if lang_filter is not None and not (set(t.languages) & set(lang_filter)):
+            continue
+        if t.dataset == "facebook/flores" and not t.subset:
+            for lang in _extract_flores_subsets(t.name):
+                add_spec(t.dataset, lang)
         else:
-            for g in group.task_groups:
-                for t in g.tasks:
-                    if t.dataset == "facebook/flores" and not t.subset:
-                        for lang in _extract_flores_subsets(t.name):
-                            add_spec(t.dataset, lang)
-                    else:
-                        add_spec(t.dataset, t.subset)
+            add_spec(t.dataset, t.subset)
 
     return specs
 
@@ -481,10 +536,10 @@ def get_all_task_group_names() -> list[str]:
 
 
 def get_all_language_codes() -> list[str]:
-    """Return all language codes requestable as auto-derived task groups."""
+    """Return all language codes accepted by the ``--languages`` filter."""
     data = _load_task_groups_data()
     task_groups = {
         name: TaskGroup.from_dict(name, task_data)
         for name, task_data in data.get("task_groups", {}).items()
     }
-    return sorted(_build_language_groups(task_groups).keys())
+    return sorted(_language_codes_from_groups(task_groups))

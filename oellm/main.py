@@ -105,6 +105,7 @@ def schedule_evals(
     models: str | None = None,
     tasks: str | None = None,
     task_groups: str | None = None,
+    languages: str | None = None,
     n_shot: int | list[int] | None = None,
     eval_csv_path: str | None = None,
     *,
@@ -137,6 +138,11 @@ def schedule_evals(
             Requires `n_shot` to be provided. Tasks here are assumed to be lm_eval unless otherwise handled via CSV.
         task_groups: A string of comma-separated task group names defined in `task-groups.yaml`.
             Each group expands into concrete (task, n_shots, suite) entries; `n_shot` is ignored for groups.
+        languages: A string of comma-separated language codes (e.g. `deu_Latn,fra_Latn`) used to
+            filter tasks by language. With `task_groups`, keeps only matching-language tasks within
+            those groups (intersection). Without `task_groups`, selects all matching-language tasks
+            across every benchmark. Unknown codes raise; an entirely empty intersection raises, while
+            a partial match warns and proceeds.
         n_shot: An integer or list of integers specifying the number of shots applied to `tasks`.
         eval_csv_path: A path to a CSV file containing evaluation data.
             Warning: exclusive argument. Cannot specify `models`, `tasks`, `task_groups`, or `n_shot` when `eval_csv_path` is provided.
@@ -204,9 +210,9 @@ def schedule_evals(
 
     eval_jobs: list[EvaluationJob] = []
     if eval_csv_path:
-        if models or tasks or task_groups or n_shot:
+        if models or tasks or task_groups or languages or n_shot:
             raise ValueError(
-                "Cannot specify `models`, `tasks`, `task_groups`, or `n_shot` when `eval_csv_path` is provided."
+                "Cannot specify `models`, `tasks`, `task_groups`, `languages`, or `n_shot` when `eval_csv_path` is provided."
             )
         df = pd.read_csv(eval_csv_path)
         required_cols = {"model_path", "task_path", "n_shot"}
@@ -235,7 +241,7 @@ def schedule_evals(
         )
 
     elif models:
-        if task_groups is None:
+        if task_groups is None and languages is None:
             task_suite_map = _build_task_suite_map()
             eval_jobs.extend(
                 [
@@ -251,7 +257,13 @@ def schedule_evals(
                 ]
             )
         else:
-            expanded = _expand_task_groups([g.strip() for g in task_groups.split(",")])
+            group_list = (
+                [g.strip() for g in task_groups.split(",")] if task_groups else []
+            )
+            lang_list = (
+                [lang.strip() for lang in languages.split(",")] if languages else None
+            )
+            expanded = _expand_task_groups(group_list, languages=lang_list)
             eval_jobs.extend(
                 [
                     EvaluationJob(
@@ -305,10 +317,14 @@ def schedule_evals(
     # network access on compute nodes.
     if not skip_checks:
         dataset_specs = []
-        if task_groups:
-            dataset_specs = _collect_dataset_specs(
-                [g.strip() for g in task_groups.split(",")]
+        if task_groups or languages:
+            group_list = (
+                [g.strip() for g in task_groups.split(",")] if task_groups else []
             )
+            lang_list = (
+                [lang.strip() for lang in languages.split(",")] if languages else None
+            )
+            dataset_specs = _collect_dataset_specs(group_list, languages=lang_list)
         else:
             # Look up individual tasks in task groups registry
             all_tasks = df["task_path"].unique().tolist()
