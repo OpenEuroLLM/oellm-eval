@@ -67,29 +67,49 @@ oellm-eval schedule --models "model-name" --task_groups "belebele-eu-5-shot,glob
 oellm-eval schedule --models "model-name" --task_groups "oellm-multilingual"
 ```
 
-### Per-language task groups
+### Filtering by language
 
-A task group is automatically derived for each language, letting you run *every*
-available evaluation for one language with a single canonical
-[`lang_Script`](https://en.wikipedia.org/wiki/IETF_language_tag) code:
+`--languages` filters tasks by language, using canonical
+[`lang_Script`](https://en.wikipedia.org/wiki/IETF_language_tag) codes (e.g.
+`deu_Latn`, `fra_Latn`). It is a separate axis from `--task_groups`:
+`--task_groups` chooses *which benchmarks*, `--languages` chooses *which
+languages*. They compose in three ways:
 
 ```bash
-# All German evaluations (SIB-200, Belebele MC+CF, Global-MMLU, ARC-MT,
-# Global-PIQA, INCLUDE, MGSM, FLORES, …)
-oellm-eval schedule --models "my-model" --task_groups "deu_Latn"
+# Languages only: every available evaluation for German across all benchmarks
+# (SIB-200, Belebele MC+CF, Global-MMLU, ARC-MT, Global-PIQA, INCLUDE, MGSM,
+# FLORES, …) — spanning both lm-eval-harness and lighteval.
+oellm-eval schedule --models "my-model" --languages "deu_Latn"
 
-# Several monolingual models against their own language
-oellm-eval schedule --models "model" --task_groups "fra_Latn,ita_Latn,por_Latn"
+# Several monolingual models, each against its own language.
+oellm-eval schedule --models "model" --languages "fra_Latn,ita_Latn,por_Latn"
+
+# Task groups + languages: the intersection — only the German tasks within
+# those two benchmarks.
+oellm-eval schedule --models "my-model" \
+    --task_groups "sib200-eu,global-mmlu-eu" --languages "deu_Latn"
+
+# Task groups only: unchanged — all languages in the group.
+oellm-eval schedule --models "my-model" --task_groups "sib200-eu"
 ```
 
-These groups are derived in code from each task's language: the `{lang}` value
-of a `valid_langs` template, or the task's `subset` for explicitly-listed
+Each task's language is derived in code from the `{lang}` value of a
+`valid_langs` template, or the task's `subset` for explicitly-listed
 multilingual groups (see [docs/TASKS.md](docs/TASKS.md)). No per-task tagging is
 needed — adding a benchmark with a `valid_langs` template makes its languages
-available as groups automatically. A language group transparently spans both
-`lm-eval-harness` and `lighteval` tasks. Some languages lack certain benchmarks
-(e.g. Italian/Portuguese have no MGSM), in which case the group simply contains
-fewer tasks.
+filterable automatically.
+
+Notes:
+
+- Codes accept common spellings (`de`, `german`, `deu_Latn`) and are folded to
+  the canonical `lang_Script` form.
+- An **unknown** code (typo) errors and lists the valid codes.
+- A **fully empty** intersection (e.g. `--task_groups flores-200-eu-to-eng
+  --languages ukr_Cyrl`, since FLORES-EU has no Ukrainian) errors rather than
+  silently scheduling nothing.
+- A **partial** match (some requested languages absent from the selected
+  groups) warns and proceeds with the rest. Some languages simply lack certain
+  benchmarks (e.g. Italian/Portuguese have no MGSM).
 
 ## Running Locally (without SLURM)
 
