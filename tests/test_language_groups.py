@@ -11,12 +11,15 @@ from importlib.resources import files
 
 import yaml
 
+import pytest
+
 from oellm.task_groups import (
     _collect_dataset_specs,
     _expand_task_groups,
     _load_task_groups_data,
     _resolve_task_languages,
     get_all_language_codes,
+    split_group_tokens,
 )
 
 # Multilingual groups still defined with explicit per-language task lists
@@ -88,10 +91,53 @@ def test_language_filter_collects_dataset_specs():
 
 
 def test_unknown_language_code_rejected():
-    import pytest
-
     with pytest.raises(ValueError, match="Unknown language code"):
         _expand_task_groups([], languages=["zzz_Fake"])
+
+
+# --- per-group bracket syntax ------------------------------------------------
+
+
+def test_split_group_tokens_is_bracket_aware():
+    assert split_group_tokens("a[x,y],b") == ["a[x,y]", "b"]
+    assert split_group_tokens("sib200-eu , flores200") == ["sib200-eu", "flores200"]
+    assert split_group_tokens("g[x|y]") == ["g[x|y]"]
+
+
+def test_bracket_scopes_language_to_one_group():
+    jobs = _expand_task_groups(["sib200-eu[fra_Latn]"])
+    assert {j.task for j in jobs} == {"sib200_fra_Latn"}
+
+
+def test_bracket_allows_per_group_languages():
+    jobs = _expand_task_groups(
+        ["sib200-eu[fra_Latn]", "flores-200-eu-to-eng[deu_Latn]"]
+    )
+    assert {j.task for j in jobs} == {
+        "sib200_fra_Latn",
+        "flores200:deu_Latn-eng_Latn",
+    }
+
+
+def test_bracket_accepts_comma_or_pipe_separator():
+    comma = {j.task for j in _expand_task_groups(["sib200-eu[fra_Latn,deu_Latn]"])}
+    pipe = {j.task for j in _expand_task_groups(["sib200-eu[fra_Latn|deu_Latn]"])}
+    assert comma == pipe == {"sib200_fra_Latn", "sib200_deu_Latn"}
+
+
+def test_bracket_overrides_global_languages_filter():
+    jobs = _expand_task_groups(["sib200-eu[fra_Latn]"], languages=["deu_Latn"])
+    assert {j.task for j in jobs} == {"sib200_fra_Latn"}
+
+
+def test_bracket_empty_intersection_hard_errors():
+    with pytest.raises(ValueError, match="No tasks in task group 'flores"):
+        _expand_task_groups(["flores-200-eu-to-eng[ukr_Cyrl]"])
+
+
+def test_empty_bracket_rejected():
+    with pytest.raises(ValueError, match="Empty language bracket"):
+        _expand_task_groups(["sib200-eu[]"])
 
 
 def test_templated_tasks_all_resolve_to_a_language():
