@@ -518,6 +518,7 @@ def collect_results(
     output_csv: str = "eval_results.csv",
     *,
     check: bool = False,
+    fetch_all_metrics: bool = False,
     verbose: bool = False,
 ) -> None:
     """
@@ -537,11 +538,59 @@ def collect_results(
         results_dir: Root directory to search for jobs.csv files and JSON results
         output_csv: Output CSV filename (default: eval_results.csv)
         check: Check for missing evaluations and create a missing jobs CSV
+        fetch_all_metrics: If True, include every computed metric for each task.
+            If False (default), only the single "primary" metric defined in
+            ``primary-metrics.yaml`` is kept per task.  When a task name does
+            not match any rule in that file, all metrics are kept as a fallback.
         verbose: Enable verbose logging
     """
     import json
 
+    import yaml
+
     _setup_logging(verbose)
+
+    # ------------------------------------------------------------------
+    # Load primary-metrics.yaml for standardised-metric filtering.
+    # The file maps task-name prefixes (ending with '*') or exact names
+    # to their canonical metric.  Rules are tested in YAML order; the
+    # first match wins.
+    # ------------------------------------------------------------------
+    _primary_metrics_raw: list[tuple[str, str]] = []
+    if not fetch_all_metrics:
+        _pm_path = files("oellm.resources") / "primary-metrics.yaml"
+        try:
+            _pm_data = yaml.safe_load(_pm_path.read_text())
+            _primary_metrics_raw = list(
+                (_pm_data.get("primary_metrics") or {}).items()
+            )
+        except Exception as exc:
+            logging.warning(
+                "Could not load primary-metrics.yaml (%s); falling back to all metrics.",
+                exc,
+            )
+            _primary_metrics_raw = []
+
+    def _resolve_primary_metric(
+        task_name: str, metrics: list[tuple[str, float]]
+    ) -> list[tuple[str, float]]:
+        """Return only the primary metric for *task_name*, or all metrics if
+        no rule matches (option-c fallback)."""
+        task_lower = task_name.lower()
+        for pattern, metric in _primary_metrics_raw:
+            pat_lower = pattern.lower()
+            if pat_lower.endswith("*"):
+                if task_lower.startswith(pat_lower[:-1]):
+                    matched_metric = metric.lower()
+                    filtered = [(m, v) for m, v in metrics if m.lower() == matched_metric]
+                    return filtered if filtered else metrics
+            else:
+                if task_lower == pat_lower:
+                    matched_metric = metric.lower()
+                    filtered = [(m, v) for m, v in metrics if m.lower() == matched_metric]
+                    return filtered if filtered else metrics
+        # No rule matched — return everything
+        return metrics
 
     def _extract_all_metrics(result_dict: dict) -> list[tuple[str, float]]:
         """Return (metric_name, value) for every numeric entry in result_dict.
@@ -688,6 +737,8 @@ def collect_results(
             if n_shot == "unknown" and parsed_n is not None:
                 n_shot = parsed_n
             task_metric_pairs = _extract_all_metrics(group_results)
+            if not fetch_all_metrics:
+                task_metric_pairs = _resolve_primary_metric(group_name, task_metric_pairs)
             if task_metric_pairs:
                 if check:
                     completed_jobs.add((model_name, group_name, n_shot))
@@ -766,6 +817,8 @@ def collect_results(
 
             # Extract all available metrics for this task
             task_metric_pairs = _extract_all_metrics(task_results)
+            if not fetch_all_metrics:
+                task_metric_pairs = _resolve_primary_metric(task_name_clean, task_metric_pairs)
 
             if task_metric_pairs:
                 # Track completed job for check mode (once per task, not per metric)
