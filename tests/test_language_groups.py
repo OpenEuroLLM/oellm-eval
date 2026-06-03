@@ -9,9 +9,8 @@ exposed as a filter on ``--task_groups`` rather than as task groups themselves:
 
 from importlib.resources import files
 
-import yaml
-
 import pytest
+import yaml
 
 from oellm.task_groups import (
     _collect_dataset_specs,
@@ -110,9 +109,7 @@ def test_bracket_scopes_language_to_one_group():
 
 
 def test_bracket_allows_per_group_languages():
-    jobs = _expand_task_groups(
-        ["sib200-eu[fra_Latn]", "flores-200-eu-to-eng[deu_Latn]"]
-    )
+    jobs = _expand_task_groups(["sib200-eu[fra_Latn]", "flores-200-eu-to-eng[deu_Latn]"])
     assert {j.task for j in jobs} == {
         "sib200_fra_Latn",
         "flores200:deu_Latn-eng_Latn",
