@@ -351,74 +351,153 @@ def _normalise_language_codes(languages: Iterable[str]) -> list[str]:
     return requested
 
 
-def _check_language_match(
-    requested: list[str],
-    matched: set[str],
-    group_names: list[str],
-    has_results: bool,
-) -> None:
-    """Enforce the empty-intersection policy after language filtering.
+_GROUP_SPEC = re.compile(r"^(?P<name>[^\[\]]+?)(?:\[(?P<langs>[^\[\]]*)\])?$")
 
-    Hard-errors when *no* requested language matched any selected task (a
-    well-formed but empty pairing); warns when only *some* languages matched.
+
+def split_group_tokens(raw: str) -> list[str]:
+    """Split a ``--task_groups`` string on top-level commas only.
+
+    Commas inside a per-group ``[...]`` language bracket are preserved so that
+    ``sib200-eu[fra_Latn,deu_Latn],flores200`` splits into two tokens, not
+    three. Blank tokens are dropped.
     """
-    scope = (
-        f"task group(s) {{{', '.join(group_names)}}}"
-        if group_names
-        else "any task group"
-    )
-    if not has_results:
-        raise ValueError(
-            f"No tasks in {scope} match language(s) "
-            f"{{{', '.join(requested)}}}."
-        )
-    unmatched = [lang for lang in requested if lang not in matched]
-    if unmatched:
-        logging.warning(
-            "No tasks matched language(s) %s in the selected groups; "
-            "kept language(s) %s.",
-            ", ".join(unmatched),
-            ", ".join(lang for lang in requested if lang in matched),
-        )
+    tokens: list[str] = []
+    depth = 0
+    current: list[str] = []
+    for ch in raw:
+        if ch == "[":
+            depth += 1
+            current.append(ch)
+        elif ch == "]":
+            depth = max(0, depth - 1)
+            current.append(ch)
+        elif ch == "," and depth == 0:
+            tokens.append("".join(current))
+            current = []
+        else:
+            current.append(ch)
+    tokens.append("".join(current))
+    return [t.strip() for t in tokens if t.strip()]
 
 
-def _resolve_group_names(
-    group_names: Iterable[str], lang_filter: list[str] | None
-) -> list[str]:
-    """Normalise requested group names; default to all groups when only
-    languages are requested (the ``--languages`` without ``--task_groups`` case)."""
-    names = [str(n).strip() for n in group_names if str(n).strip()]
-    if not names and lang_filter:
-        return get_all_task_group_names()
-    return names
+def _parse_group_spec(token: str) -> tuple[str, list[str] | None]:
+    """Split a group token into ``(name, per_group_languages_or_None)``.
+
+    ``sib200-eu`` -> ``("sib200-eu", None)``; ``sib200-eu[fra_Latn|deu_Latn]``
+    -> ``("sib200-eu", ["fra_Latn", "deu_Latn"])``. Languages inside the
+    bracket may be separated by ``,`` or ``|``. An empty bracket is rejected.
+    """
+    match = _GROUP_SPEC.match(token.strip())
+    if not match:
+        raise ValueError(f"Malformed task group spec: {token!r}")
+    name = match.group("name").strip()
+    langs_raw = match.group("langs")
+    if langs_raw is None:
+        return name, None
+    langs = [part.strip() for part in re.split(r"[,|]", langs_raw) if part.strip()]
+    if not langs:
+        raise ValueError(f"Empty language bracket in task group spec: {token!r}")
+    return name, langs
+
+
+def _resolve_group_specs(
+    group_names: Iterable[str], global_filter: list[str] | None
+) -> list[tuple[str, list[str] | None, bool]]:
+    """Resolve requested group tokens to ``(name, effective_filter, is_explicit)``.
+
+    A per-group ``[...]`` bracket overrides the global ``--languages`` filter for
+    that group (``is_explicit`` True). With no groups but a global filter set,
+    every group is selected with the global filter applied.
+    """
+    specs: list[tuple[str, list[str] | None, bool]] = []
+    for token in (str(n).strip() for n in group_names if str(n).strip()):
+        name, per_langs = _parse_group_spec(token)
+        if per_langs is not None:
+            specs.append((name, _normalise_language_codes(per_langs), True))
+        else:
+            specs.append((name, global_filter, False))
+    if not specs and global_filter:
+        return [(name, global_filter, False) for name in get_all_task_group_names()]
+    return specs
+
+
+def _select_tasks(
+    group_names: Iterable[str], languages: Iterable[str] | None
+) -> list[tuple[str, _Task]]:
+    """Resolve requested groups + language filters to ``(suite, task)`` pairs.
+
+    Applies both the global ``--languages`` filter and any per-group ``[...]``
+    bracket overrides, enforcing the empty-intersection policy: a per-group
+    bracket that matches nothing hard-errors for that group; the global filter
+    hard-errors only if it matches nothing across all the groups it applies to,
+    and warns for languages that matched nothing.
+    """
+    global_filter = _normalise_language_codes(languages) if languages else None
+    specs = _resolve_group_specs(group_names, global_filter)
+
+    parsed = _parse_task_groups([name for name, _, _ in specs])
+    missing = {name for name, _, _ in specs} - set(parsed.keys())
+    if missing:
+        raise ValueError(f"Unknown task group(s): {', '.join(sorted(missing))}")
+
+    selected: list[tuple[str, _Task]] = []
+    global_requested = set(global_filter or [])
+    global_matched: set[str] = set()
+    global_groups = 0
+    global_kept = 0
+
+    for name, filt, is_explicit in specs:
+        group_pairs = list(_iter_group_tasks({name: parsed[name]}))
+        if filt is None:
+            kept = group_pairs
+        else:
+            kept = [(s, t) for s, t in group_pairs if set(t.languages) & set(filt)]
+            matched = {lang for _s, t in kept for lang in t.languages if lang in filt}
+            if is_explicit:
+                if not kept:
+                    raise ValueError(
+                        f"No tasks in task group '{name}' match language(s) "
+                        f"{{{', '.join(filt)}}}."
+                    )
+                unmatched = [lang for lang in filt if lang not in matched]
+                if unmatched:
+                    logging.warning(
+                        "No tasks matched language(s) %s in group '%s'; kept %s.",
+                        ", ".join(unmatched),
+                        name,
+                        ", ".join(lang for lang in filt if lang in matched),
+                    )
+            else:
+                global_groups += 1
+                global_kept += len(kept)
+                global_matched |= matched
+        selected.extend(kept)
+
+    if global_requested and global_groups:
+        if global_kept == 0:
+            raise ValueError(
+                f"No tasks in the selected groups match language(s) "
+                f"{{{', '.join(sorted(global_requested))}}}."
+            )
+        unmatched = sorted(global_requested - global_matched)
+        if unmatched:
+            logging.warning(
+                "No tasks matched language(s) %s in the selected groups; "
+                "kept language(s) %s.",
+                ", ".join(unmatched),
+                ", ".join(sorted(global_matched)),
+            )
+
+    return selected
 
 
 def _expand_task_groups(
     group_names: Iterable[str], languages: Iterable[str] | None = None
 ) -> list[TaskGroupResult]:
-    lang_filter = _normalise_language_codes(languages) if languages else None
-    names = _resolve_group_names(group_names, lang_filter)
-
-    parsed = _parse_task_groups(names)
-    missing = set(names) - set(parsed.keys())
-    if missing:
-        raise ValueError(f"Unknown task group(s): {', '.join(sorted(missing))}")
-
     results: list[TaskGroupResult] = []
-    matched_langs: set[str] = set()
-
-    for suite, t in _iter_group_tasks(parsed):
-        if lang_filter is not None:
-            hits = set(t.languages) & set(lang_filter)
-            if not hits:
-                continue
-            matched_langs |= hits
+    for suite, t in _select_tasks(group_names, languages):
         for shot in (int(s) for s in (t.n_shots or [])):
             results.append(TaskGroupResult(task=t.name, n_shot=shot, suite=suite))
-
-    if lang_filter is not None:
-        _check_language_match(lang_filter, matched_langs, names, bool(results))
-
     return results
 
 
@@ -439,10 +518,6 @@ def _extract_flores_subsets(task_name: str) -> list[str]:
 def _collect_dataset_specs(
     group_names: Iterable[str], languages: Iterable[str] | None = None
 ) -> list[DatasetSpec]:
-    lang_filter = _normalise_language_codes(languages) if languages else None
-    names = _resolve_group_names(group_names, lang_filter)
-    parsed = _parse_task_groups(names)
-
     specs: list[DatasetSpec] = []
     seen: set[tuple[str, str | None]] = set()
 
@@ -454,9 +529,7 @@ def _collect_dataset_specs(
             seen.add(key)
             specs.append(DatasetSpec(repo_id=dataset, subset=subset))
 
-    for _suite, t in _iter_group_tasks(parsed):
-        if lang_filter is not None and not (set(t.languages) & set(lang_filter)):
-            continue
+    for _suite, t in _select_tasks(group_names, languages):
         if t.dataset == "facebook/flores" and not t.subset:
             for lang in _extract_flores_subsets(t.name):
                 add_spec(t.dataset, lang)
