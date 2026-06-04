@@ -55,21 +55,20 @@ oellm-eval schedule --models "model-name" --task_groups "my-benchmark"
 | `task` | Yes | task | Task name as recognized by the evaluation suite |
 | `subset` | No | task | HuggingFace dataset config/subset name |
 
-## Language filtering (`--languages`)
+## Language filtering (`group[lang]` brackets)
 
-Tasks can be filtered by language with `--languages`, independently of which
-groups are selected:
+Scope a task group (or super group) to one or more languages by attaching a
+`[...]` bracket to its name. Codes inside the bracket may be separated by `,`
+or `|`:
 
 ```bash
-# All German tasks across every benchmark
-oellm-eval schedule --models "m" --languages "deu_Latn"
+# The applicable subset of the multilingual super group, for one language
+oellm-eval schedule --models "m" --task_groups "oellm-multilingual[deu_Latn]"
 
-# Intersection: only German tasks within these benchmarks
-oellm-eval schedule --models "m" --task_groups "sib200-eu" --languages "deu_Latn"
+# A single benchmark, scoped to German
+oellm-eval schedule --models "m" --task_groups "sib200-eu[deu_Latn]"
 
-# Per-group override: different language per benchmark, via a [...] bracket
-# (codes separated by `,` or `|`). The bracket overrides --languages for that
-# group, and errors if it matches nothing in that group.
+# Different language per benchmark in one run
 oellm-eval schedule --models "m" \
     --task_groups "sib200-eu[fra_Latn],flores-200-eu-to-eng[deu_Latn]"
 ```
@@ -95,9 +94,11 @@ recognise, add it to `_LANG_ALIAS`. The guard test
 fails if any task in a templated or multilingual group does not resolve to a
 language.
 
-A single language filter transparently spans both `lm-eval-harness` and
-`lighteval` tasks, since each task carries its own resolved suite. Unknown codes
-error; a fully empty intersection errors; a partial match warns and proceeds.
+A language bracket transparently spans both `lm-eval-harness` and `lighteval`
+tasks, since each task carries its own resolved suite. Unknown codes error; a
+bracket that matches no task in its group errors; when a bracket lists several
+languages and only some are present, the matches are kept and the rest warned
+about (some languages simply lack certain benchmarks).
 
 ## Important: Dataset Requirement
 

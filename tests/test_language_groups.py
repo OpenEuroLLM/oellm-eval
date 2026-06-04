@@ -1,10 +1,10 @@
-"""Tests for the ``--languages`` filter (e.g. --languages deu_Latn).
+"""Tests for per-group language brackets (e.g. ``sib200-eu[deu_Latn]``).
 
 Languages are derived in code from each task's ``{lang}`` template expansion or
-``subset`` (see oellm/task_groups.py), so they require no YAML tagging. They are
-exposed as a filter on ``--task_groups`` rather than as task groups themselves:
-``--languages X`` alone selects all X tasks across every benchmark, while
-``--task_groups G --languages X`` intersects.
+``subset`` (see oellm/task_groups.py), so they require no YAML tagging. A
+``group[lang]`` (or ``super_group[lang]``) bracket keeps only the tasks in that
+group that resolve to one of the bracketed languages; codes inside the bracket
+may be separated by ``,`` or ``|``.
 """
 
 from importlib.resources import files
@@ -39,70 +39,6 @@ def test_language_codes_available():
         assert expected in codes
 
 
-def test_language_filter_alone_expands_and_mixes_suites():
-    # No task groups: select all German tasks across every benchmark.
-    jobs = _expand_task_groups([], languages=["deu_Latn"])
-    assert len(jobs) >= 10
-    # German spans both evaluation suites (belebele-cf + flores are lighteval).
-    suites = {j.suite for j in jobs}
-    assert "lm-eval-harness" in suites
-    assert "lighteval" in suites
-    assert all(isinstance(j.n_shot, int) for j in jobs)
-
-
-def test_language_filter_intersects_with_task_group():
-    # Within sib200-eu only, German narrows to a single sib200 task.
-    jobs = _expand_task_groups(["sib200-eu"], languages=["deu_Latn"])
-    tasks = {j.task for j in jobs}
-    assert tasks == {"sib200_deu_Latn"}
-
-
-def test_language_codes_are_no_longer_task_groups():
-    """A bare language code must not resolve as a task group (the old union
-    footgun); it has to come in via the languages filter instead."""
-    import pytest
-
-    with pytest.raises(ValueError, match="Unknown task group"):
-        _expand_task_groups(["deu_Latn"])
-
-
-def test_empty_intersection_hard_errors():
-    """flores-eu has no Ukrainian side -> a fully empty intersection must raise."""
-    import pytest
-
-    with pytest.raises(ValueError, match="match language"):
-        _expand_task_groups(["flores-200-eu-to-eng"], languages=["ukr_Cyrl"])
-
-
-def test_mgsm_gap_is_handled():
-    """Italian/Portuguese lack mgsm; their filter should still resolve (no crash)
-    and simply omit the mgsm task rather than fail."""
-    for lang in ["ita_Latn", "por_Latn"]:
-        tasks = {j.task for j in _expand_task_groups([], languages=[lang])}
-        assert tasks
-        assert not any(t.startswith("mgsm") for t in tasks)
-
-
-def test_language_filter_collects_dataset_specs():
-    specs = _collect_dataset_specs([], languages=["deu_Latn"])
-    assert specs
-    assert "facebook/belebele" in {s.repo_id for s in specs}
-
-
-def test_unknown_language_code_rejected():
-    with pytest.raises(ValueError, match="Unknown language code"):
-        _expand_task_groups([], languages=["zzz_Fake"])
-
-
-# --- per-group bracket syntax ------------------------------------------------
-
-
-def test_split_group_tokens_is_bracket_aware():
-    assert split_group_tokens("a[x,y],b") == ["a[x,y]", "b"]
-    assert split_group_tokens("sib200-eu , flores200") == ["sib200-eu", "flores200"]
-    assert split_group_tokens("g[x|y]") == ["g[x|y]"]
-
-
 def test_bracket_scopes_language_to_one_group():
     jobs = _expand_task_groups(["sib200-eu[fra_Latn]"])
     assert {j.task for j in jobs} == {"sib200_fra_Latn"}
@@ -122,12 +58,21 @@ def test_bracket_accepts_comma_or_pipe_separator():
     assert comma == pipe == {"sib200_fra_Latn", "sib200_deu_Latn"}
 
 
-def test_bracket_overrides_global_languages_filter():
-    jobs = _expand_task_groups(["sib200-eu[fra_Latn]"], languages=["deu_Latn"])
-    assert {j.task for j in jobs} == {"sib200_fra_Latn"}
+def test_split_group_tokens_is_bracket_aware():
+    assert split_group_tokens("a[x,y],b") == ["a[x,y]", "b"]
+    assert split_group_tokens("sib200-eu , flores200") == ["sib200-eu", "flores200"]
+    assert split_group_tokens("g[x|y]") == ["g[x|y]"]
+
+
+def test_language_codes_are_not_task_groups():
+    """A bare language code must not resolve as a task group (the old union
+    footgun); it only has meaning inside a ``group[lang]`` bracket."""
+    with pytest.raises(ValueError, match="Unknown task group"):
+        _expand_task_groups(["deu_Latn"])
 
 
 def test_bracket_empty_intersection_hard_errors():
+    """flores-eu has no Ukrainian side -> an empty bracket match must raise."""
     with pytest.raises(ValueError, match="No tasks in task group 'flores"):
         _expand_task_groups(["flores-200-eu-to-eng[ukr_Cyrl]"])
 
@@ -135,6 +80,93 @@ def test_bracket_empty_intersection_hard_errors():
 def test_empty_bracket_rejected():
     with pytest.raises(ValueError, match="Empty language bracket"):
         _expand_task_groups(["sib200-eu[]"])
+
+
+def test_unknown_language_code_rejected():
+    with pytest.raises(ValueError, match="Unknown language code"):
+        _expand_task_groups(["sib200-eu[zzz_Fake]"])
+
+
+# --- super_group support -----------------------------------------------------
+
+
+def test_super_group_bracket_resolves_language_subset():
+    """Sampo's request: scoping the oellm-multilingual super_group to a language
+    selects the applicable subset across its member benchmarks, and spans both
+    evaluation suites."""
+    jobs = _expand_task_groups(["oellm-multilingual[deu_Latn]"])
+    tasks = {j.task for j in jobs}
+    assert tasks == {
+        "belebele_deu_Latn",
+        "flores200:deu_Latn-eng_Latn",
+        "flores200:eng_Latn-deu_Latn",
+        "global_mmlu_full_de",
+        "include_base_44_german",
+        "mgsm_native_cot_de",
+    }
+    suites = {j.suite for j in jobs}
+    assert "lm-eval-harness" in suites
+    assert "lighteval" in suites
+
+
+def test_super_group_bracket_collects_dataset_specs():
+    specs = _collect_dataset_specs(["oellm-multilingual[deu_Latn]"])
+    assert specs
+    repos = {s.repo_id for s in specs}
+    assert "facebook/belebele" in repos
+    assert "facebook/flores" in repos
+
+
+def test_all_super_group_is_auto_generated():
+    """The `all` super_group is synthesised from the registry (no YAML entry),
+    so it spans every task group without hand-maintenance, and it is not itself
+    listed as a plain task group."""
+    from oellm.task_groups import get_all_task_group_names
+
+    assert "all" not in get_all_task_group_names()
+    # Reaching it at all proves the synthetic group exists.
+    assert _expand_task_groups(["all"])
+
+
+def test_all_super_group_deduplicates_overlapping_tasks():
+    """Groups inside `all` share some benchmarks (e.g. copa, hellaswag); each
+    (suite, task, n_shot) must be scheduled exactly once."""
+    jobs = _expand_task_groups(["all"])
+    keys = [(j.suite, j.task, j.n_shot) for j in jobs]
+    assert len(keys) == len(set(keys))
+
+
+def test_all_super_group_bracket_spans_whole_registry():
+    """The `all` super_group + [lang] reaches every benchmark's tasks for that
+    language (e.g. German tasks that live outside oellm-multilingual)."""
+    tasks = {j.task for j in _expand_task_groups(["all[deu_Latn]"])}
+    # tasks unique to groups not in oellm-multilingual
+    for extra in [
+        "sib200_deu_Latn",
+        "arc_challenge_mt_de",
+        "belebele_deu_Latn_cf",
+        "global_piqa_completions_deu_latn",
+        "global_piqa_prompted_deu_latn",
+    ]:
+        assert extra in tasks
+    # and still a superset of the curated multilingual subset
+    multiling = {j.task for j in _expand_task_groups(["oellm-multilingual[deu_Latn]"])}
+    assert multiling <= tasks
+
+
+def test_super_group_without_bracket_keeps_all_languages():
+    scoped = _expand_task_groups(["oellm-multilingual[deu_Latn]"])
+    full = _expand_task_groups(["oellm-multilingual"])
+    assert len(full) > len(scoped)
+
+
+def test_mgsm_gap_is_handled():
+    """Italian/Portuguese lack mgsm; scoping the super_group to them should still
+    resolve (no crash) and simply omit the mgsm task rather than fail."""
+    for lang in ["ita_Latn", "por_Latn"]:
+        tasks = {j.task for j in _expand_task_groups([f"oellm-multilingual[{lang}]"])}
+        assert tasks
+        assert not any(t.startswith("mgsm") for t in tasks)
 
 
 def test_templated_tasks_all_resolve_to_a_language():

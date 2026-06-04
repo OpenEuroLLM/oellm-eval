@@ -69,41 +69,35 @@ oellm-eval schedule --models "model-name" --task_groups "oellm-multilingual"
 
 ### Filtering by language
 
-`--languages` filters tasks by language, using canonical
+Scope a task group (or super group) to one or more languages by attaching a
+`[...]` bracket to its name. Languages use canonical
 [`lang_Script`](https://en.wikipedia.org/wiki/IETF_language_tag) codes (e.g.
-`deu_Latn`, `fra_Latn`). It is a separate axis from `--task_groups`:
-`--task_groups` chooses *which benchmarks*, `--languages` chooses *which
-languages*. They compose in three ways:
+`deu_Latn`, `fra_Latn`); codes inside a bracket may be separated by `,` or `|`.
 
 ```bash
-# Languages only: every available evaluation for German across all benchmarks
-# (SIB-200, Belebele MC+CF, Global-MMLU, ARC-MT, Global-PIQA, INCLUDE, MGSM,
-# FLORES, …) — spanning both lm-eval-harness and lighteval.
-oellm-eval schedule --models "my-model" --languages "deu_Latn"
+# The applicable subset of the multilingual super group for one language —
+# the simplest way to evaluate a monolingual model on its language across
+# every multilingual benchmark (FLORES, Belebele, Global-MMLU, INCLUDE, MGSM,
+# …), spanning both lm-eval-harness and lighteval.
+oellm-eval schedule --models "my-model" --task_groups "oellm-multilingual[deu_Latn]"
 
-# Several monolingual models, each against its own language.
-oellm-eval schedule --models "model" --languages "fra_Latn,ita_Latn,por_Latn"
+# Every benchmark in the registry for one language. `all` is an auto-generated
+# super group (always spans every task group, no hand-maintenance) — use it for
+# the complete per-language set rather than the curated `oellm-multilingual`.
+oellm-eval schedule --models "my-model" --task_groups "all[deu_Latn]"
 
-# Task groups + languages: the intersection — only the German tasks within
-# those two benchmarks.
-oellm-eval schedule --models "my-model" \
-    --task_groups "sib200-eu,global-mmlu-eu" --languages "deu_Latn"
-
-# Task groups only: unchanged — all languages in the group.
-oellm-eval schedule --models "my-model" --task_groups "sib200-eu"
-```
-
-For different languages per benchmark, attach a `[...]` bracket to a task group.
-The bracketed codes (separated by `,` or `|`) override the global `--languages`
-filter for that group only:
-
-```bash
-# French SIB-200 *and* German FLORES in one run.
-oellm-eval schedule --models "my-model" \
-    --task_groups "sib200-eu[fra_Latn],flores-200-eu-to-eng[deu_Latn]"
+# A single benchmark, scoped to German.
+oellm-eval schedule --models "my-model" --task_groups "sib200-eu[deu_Latn]"
 
 # Multiple languages inside one bracket.
 oellm-eval schedule --models "my-model" --task_groups "sib200-eu[fra_Latn|deu_Latn]"
+
+# Different languages per benchmark in one run — French SIB-200 *and* German FLORES.
+oellm-eval schedule --models "my-model" \
+    --task_groups "sib200-eu[fra_Latn],flores-200-eu-to-eng[deu_Latn]"
+
+# No bracket: the group is unchanged — all of its languages.
+oellm-eval schedule --models "my-model" --task_groups "sib200-eu"
 ```
 
 Each task's language is derived in code from the `{lang}` value of a
@@ -117,14 +111,13 @@ Notes:
 - Codes accept common spellings (`de`, `german`, `deu_Latn`) and are folded to
   the canonical `lang_Script` form.
 - An **unknown** code (typo) errors and lists the valid codes.
-- A **fully empty** intersection (e.g. `--task_groups flores-200-eu-to-eng
-  --languages ukr_Cyrl`, since FLORES-EU has no Ukrainian) errors rather than
-  silently scheduling nothing.
-- A **partial** match (some requested languages absent from the selected
-  groups) warns and proceeds with the rest. Some languages simply lack certain
-  benchmarks (e.g. Italian/Portuguese have no MGSM).
-- A per-group `[...]` bracket is stricter: if it matches nothing in *its* group
-  it errors (the request was explicit, so an empty result is a mistake).
+- A bracket that matches **no task** in its group (e.g.
+  `flores-200-eu-to-eng[ukr_Cyrl]`, since FLORES-EU has no Ukrainian) errors
+  rather than silently scheduling nothing.
+- When a bracket lists several languages and only **some** are present in the
+  group, it keeps the matches and warns about the rest. Some languages simply
+  lack certain benchmarks (e.g. Italian/Portuguese have no MGSM), so a super
+  group bracket transparently omits the missing ones.
 
 ## Running Locally (without SLURM)
 

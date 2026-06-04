@@ -106,7 +106,6 @@ def schedule_evals(
     models: str | None = None,
     tasks: str | None = None,
     task_groups: str | None = None,
-    languages: str | None = None,
     n_shot: int | list[int] | None = None,
     eval_csv_path: str | None = None,
     *,
@@ -139,13 +138,11 @@ def schedule_evals(
             Requires `n_shot` to be provided. Tasks here are assumed to be lm_eval unless otherwise handled via CSV.
         task_groups: A string of comma-separated task group names defined in `task-groups.yaml`.
             Each group expands into concrete (task, n_shots, suite) entries; `n_shot` is ignored for groups.
-        languages: A string of comma-separated language codes (e.g. `deu_Latn,fra_Latn`) used to
-            filter tasks by language. With `task_groups`, keeps only matching-language tasks within
-            those groups (intersection). Without `task_groups`, selects all matching-language tasks
-            across every benchmark. Unknown codes raise; an entirely empty intersection raises, while
-            a partial match warns and proceeds. A per-group override may be given as a bracket on a
-            task group, e.g. `--task_groups "sib200-eu[fra_Latn],flores200[deu_Latn]"`, where the
-            bracketed codes (separated by `,` or `|`) replace this global filter for that group.
+            A group (or super_group) may be scoped to one or more languages with a bracket, e.g.
+            `--task_groups "oellm-multilingual[deu_Latn]"` or
+            `--task_groups "sib200-eu[fra_Latn|deu_Latn],flores200[deu_Latn]"`. Bracketed codes are
+            separated by `,` or `|`; unknown codes raise, and a bracket that matches no task in its
+            group raises.
         n_shot: An integer or list of integers specifying the number of shots applied to `tasks`.
         eval_csv_path: A path to a CSV file containing evaluation data.
             Warning: exclusive argument. Cannot specify `models`, `tasks`, `task_groups`, or `n_shot` when `eval_csv_path` is provided.
@@ -213,9 +210,9 @@ def schedule_evals(
 
     eval_jobs: list[EvaluationJob] = []
     if eval_csv_path:
-        if models or tasks or task_groups or languages or n_shot:
+        if models or tasks or task_groups or n_shot:
             raise ValueError(
-                "Cannot specify `models`, `tasks`, `task_groups`, `languages`, or `n_shot` when `eval_csv_path` is provided."
+                "Cannot specify `models`, `tasks`, `task_groups`, or `n_shot` when `eval_csv_path` is provided."
             )
         df = pd.read_csv(eval_csv_path)
         required_cols = {"model_path", "task_path", "n_shot"}
@@ -244,7 +241,7 @@ def schedule_evals(
         )
 
     elif models:
-        if task_groups is None and languages is None:
+        if task_groups is None:
             task_suite_map = _build_task_suite_map()
             eval_jobs.extend(
                 [
@@ -261,10 +258,7 @@ def schedule_evals(
             )
         else:
             group_list = split_group_tokens(task_groups) if task_groups else []
-            lang_list = (
-                [lang.strip() for lang in languages.split(",")] if languages else None
-            )
-            expanded = _expand_task_groups(group_list, languages=lang_list)
+            expanded = _expand_task_groups(group_list)
             eval_jobs.extend(
                 [
                     EvaluationJob(
@@ -318,12 +312,9 @@ def schedule_evals(
     # network access on compute nodes.
     if not skip_checks:
         dataset_specs = []
-        if task_groups or languages:
-            group_list = split_group_tokens(task_groups) if task_groups else []
-            lang_list = (
-                [lang.strip() for lang in languages.split(",")] if languages else None
-            )
-            dataset_specs = _collect_dataset_specs(group_list, languages=lang_list)
+        if task_groups:
+            group_list = split_group_tokens(task_groups)
+            dataset_specs = _collect_dataset_specs(group_list)
         else:
             # Look up individual tasks in task groups registry
             all_tasks = df["task_path"].unique().tolist()
