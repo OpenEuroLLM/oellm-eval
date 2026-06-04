@@ -18,7 +18,7 @@ A lightweight CLI for scheduling LLM evaluations across multiple HPC clusters us
 
 ```bash
 # Install the package
-uv tool install -p 3.12 git+https://github.com/OpenEuroLLM/oellm-cli.git
+uv tool install -p 3.12 git+https://github.com/OpenEuroLLM/oellm-eval.git
 
 # Run evaluations using a task group (recommended)
 oellm-eval schedule \
@@ -191,7 +191,7 @@ oellm-eval schedule --eval_csv_path custom_evals.csv
 ### General Installation
 
 ```bash
-uv tool install -p 3.12 git+https://github.com/OpenEuroLLM/oellm-cli.git
+uv tool install -p 3.12 git+https://github.com/OpenEuroLLM/oellm-eval.git
 ```
 
 Update to latest:
@@ -223,8 +223,8 @@ oellm-eval schedule --help
 
 ```bash
 # Clone and install in dev mode
-git clone https://github.com/OpenEuroLLM/oellm-cli.git
-cd oellm-cli
+git clone https://github.com/OpenEuroLLM/oellm-eval.git
+cd oellm-eval
 uv sync --extra dev
 
 # Run dataset validation tests
@@ -236,9 +236,9 @@ uv run oellm-eval schedule --models "EleutherAI/pythia-160m" --task_groups "open
 
 ## Deploying containers
 
-Containers are deployed manually since [PR #46](https://github.com/OpenEuroLLM/oellm-cli/pull/46) to save costs.
+Containers are deployed manually since [PR #46](https://github.com/OpenEuroLLM/oellm-eval/pull/46) to save costs.
 
-To build and deploy them, select run workflow in [Actions](https://github.com/OpenEuroLLM/oellm-cli/actions/workflows/build-and-push-apptainer.yml).
+To build and deploy them, select run workflow in [Actions](https://github.com/OpenEuroLLM/oellm-eval/actions/workflows/build-and-push-apptainer.yml).
 
 
 ## Troubleshooting
