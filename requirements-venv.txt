@@ -1,12 +1,19 @@
-# Dependencies for lm-eval (install in venv)
-# Install with: uv pip install -r requirements-venv.txt
-lm-eval
-torch
-transformers
-accelerate
-datasets<4.0.0
-
-# lighteval must be installed separately as a uv tool to avoid datasets version conflict:
-# UV_TOOL_DIR=/path/to/.uv-tools UV_TOOL_BIN_DIR=/path/to/.venv/bin \
-#   uv tool install --python 3.12 --with "langcodes[data]" --with "pillow" \
-#     "lighteval[multilingual] @ git+https://github.com/huggingface/lighteval.git"
+# Dependencies for lm-eval (install in venv).
+#
+# This file is now a thin wrapper that delegates to the [eval] extras
+# declared in pyproject.toml — keep it for back-compat with
+# `uv pip install -r requirements-venv.txt`, but the canonical install
+# is:
+#
+#   uv pip install --python /path/to/.venv/bin/python -e .[eval]
+#
+# `[eval]` pulls lm-eval-harness, torch, transformers, accelerate, peft
+# and datasets>=4.0. Use `[eval-base]` instead from inside a container
+# that already ships torch/transformers (Leonardo/Lumi eval SIFs).
+#
+# lighteval must still be installed separately as a uv tool to avoid
+# pulling its own (heavier) dep tree into the lm-eval env:
+#   UV_TOOL_DIR=/path/to/.uv-tools UV_TOOL_BIN_DIR=/path/to/.venv/bin \
+#     uv tool install --python 3.12 --with "langcodes[data]" --with "pillow" \
+#       "lighteval[multilingual] @ git+https://github.com/huggingface/lighteval.git"
+-e .[eval]
