@@ -38,7 +38,7 @@ lumi:
   hostname_pattern: "uan*"
   EVAL_BASE_DIR: "/pfs/lustrep4/scratch/project_462000963/oellm-cli-shared-evals"
   PARTITION: "small-g"
-  ACCOUNT: "project_462000963"
+  ACCOUNT: "project_465002530"
   QUEUE_LIMIT: 210
   EVAL_CONTAINER_IMAGE: "eval_env-lumi.sif"
   SINGULARITY_ARGS: "--rocm"
