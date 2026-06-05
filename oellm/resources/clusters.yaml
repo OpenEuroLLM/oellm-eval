@@ -36,7 +36,7 @@ jupiter:
 
 lumi:
   hostname_pattern: "uan*"
-  EVAL_BASE_DIR: "/pfs/lustrep4/scratch/project_462000963/oellm-cli-shared-evals"
+  EVAL_BASE_DIR: "/scratch/project_465002530/oellm-cli-shared-evals"
   PARTITION: "small-g"
   ACCOUNT: "project_465002530"
   QUEUE_LIMIT: 210
