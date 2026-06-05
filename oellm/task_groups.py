@@ -10,8 +10,10 @@ import yaml
 # --- Language normalisation -------------------------------------------------
 # Tasks encode their language in several incompatible ways across benchmarks
 # (e.g. German is ``deu_Latn``, ``de``, ``German`` and ``deu_latn``). These
-# tables fold every spelling onto a single canonical ``lang_Scri`` code so that
-# a ``group[deu_Latn]`` language bracket can match tasks across benchmarks.
+# tables fold every benchmark spelling onto a single canonical ``lang_Scri``
+# code so that a ``group[deu_Latn]`` bracket can match tasks across benchmarks.
+# Note: this folding applies to the *benchmarks'* internal spellings only — the
+# user-facing bracket accepts the canonical ``lang_Scri`` form exclusively.
 _LANG_ALIAS = {
     # ISO 639-1 two-letter codes (global-mmlu, mgsm, arc-mt)
     "de": "deu_Latn",
@@ -335,11 +337,14 @@ def _iter_group_tasks(
 
 
 def _normalise_language_codes(languages: Iterable[str]) -> list[str]:
-    """Validate requested language codes and fold them onto canonical codes.
+    """Validate requested language codes against the canonical code set.
 
-    Accepts any spelling the normaliser understands (``de``, ``german``,
-    ``deu_Latn``). Raises ``ValueError`` listing the valid codes if any
-    requested code is unknown.
+    Only the precise ``lang_Scri`` form (e.g. ``deu_Latn``) is accepted in a
+    ``group[lang]`` bracket; looser spellings such as ``de`` or ``german`` are
+    rejected so the interface stays unambiguous. When a rejected code is a
+    recognised alias, the error points at the canonical code to use instead.
+    (The alias table is still used internally to *derive* each task's language
+    from the benchmark's own spelling; it just isn't accepted as user input.)
     """
     valid = set(get_all_language_codes())
     requested: list[str] = []
@@ -348,16 +353,19 @@ def _normalise_language_codes(languages: Iterable[str]) -> list[str]:
         raw = str(code).strip()
         if not raw:
             continue
+        if raw in valid:
+            if raw not in requested:
+                requested.append(raw)
+            continue
         canon = _canonical_language(raw)
-        if canon and canon in valid:
-            if canon not in requested:
-                requested.append(canon)
+        if canon and canon in valid and canon != raw:
+            unknown.append(f"{raw} (use {canon})")
         else:
             unknown.append(raw)
     if unknown:
         raise ValueError(
             f"Unknown language code(s): {', '.join(unknown)}. "
-            f"Valid codes: {', '.join(sorted(valid))}"
+            f"Use the precise lang_Scri form. Valid codes: {', '.join(sorted(valid))}"
         )
     return requested
 

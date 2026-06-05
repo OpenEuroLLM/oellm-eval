@@ -73,6 +73,12 @@ oellm-eval schedule --models "m" \
     --task_groups "sib200-eu[fra_Latn],flores-200-eu-to-eng[deu_Latn]"
 ```
 
+Inside the bracket, use the precise canonical `lang_Scri` code (e.g.
+`deu_Latn`). Looser spellings such as `de` or `german` are **not** accepted as
+input — they are rejected with an error naming the canonical code. (The folding
+described below applies only to the benchmarks' own internal spellings when
+deriving a task's language, not to what you type in the bracket.)
+
 Languages are **derived in code** — there is no `languages` field to set in the
 YAML. A task resolves to a canonical [`lang_Script`](https://en.wikipedia.org/wiki/IETF_language_tag)
 code (e.g. `deu_Latn`) from, in order:

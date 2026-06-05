@@ -87,6 +87,20 @@ def test_unknown_language_code_rejected():
         _expand_task_groups(["sib200-eu[zzz_Fake]"])
 
 
+@pytest.mark.parametrize("loose", ["de", "german", "German", "deu_latn"])
+def test_loose_spellings_rejected_with_canonical_hint(loose):
+    """Only the precise lang_Scri code is accepted; aliases like `de`/`german`
+    are rejected, and the error points at the canonical code to use instead."""
+    with pytest.raises(ValueError) as excinfo:
+        _expand_task_groups([f"sib200-eu[{loose}]"])
+    assert "use deu_Latn" in str(excinfo.value)
+
+
+def test_canonical_code_still_accepted():
+    jobs = _expand_task_groups(["sib200-eu[deu_Latn]"])
+    assert {j.task for j in jobs} == {"sib200_deu_Latn"}
+
+
 # --- super_group support -----------------------------------------------------
 
 

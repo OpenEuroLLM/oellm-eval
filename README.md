@@ -108,8 +108,9 @@ filterable automatically.
 
 Notes:
 
-- Codes accept common spellings (`de`, `german`, `deu_Latn`) and are folded to
-  the canonical `lang_Script` form.
+- Use the precise canonical `lang_Scri` code (e.g. `deu_Latn`). Looser
+  spellings such as `de` or `german` are rejected; if you pass one, the error
+  names the canonical code to use instead.
 - An **unknown** code (typo) errors and lists the valid codes.
 - A bracket that matches **no task** in its group (e.g.
   `flores-200-eu-to-eng[ukr_Cyrl]`, since FLORES-EU has no Ukrainian) errors
