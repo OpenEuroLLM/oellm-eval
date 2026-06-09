@@ -373,7 +373,9 @@ def schedule_evals(
     total_minutes = total_evals * minutes_per_eval
     max_minutes_per_job = 18 * 60  # 18 hours
     min_array_size_for_time = max(1, int(math.ceil(total_minutes / max_minutes_per_job)))
-    desired_array_size = min(max_array_len, total_evals) if total_evals >= max_array_len else total_evals
+    desired_array_size = (
+        min(max_array_len, total_evals) if total_evals >= max_array_len else total_evals
+    )
     if desired_array_size < min_array_size_for_time:
         desired_array_size = min_array_size_for_time
     actual_array_size = min(remaining_queue_capacity, desired_array_size, total_evals)
