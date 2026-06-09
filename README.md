@@ -67,6 +67,59 @@ oellm-eval schedule --models "model-name" --task_groups "belebele-eu-5-shot,glob
 oellm-eval schedule --models "model-name" --task_groups "oellm-multilingual"
 ```
 
+### Filtering by language
+
+Scope a task group (or super group) to one or more languages by attaching a
+`[...]` bracket to its name. Languages use canonical
+[`lang_Script`](https://en.wikipedia.org/wiki/IETF_language_tag) codes (e.g.
+`deu_Latn`, `fra_Latn`); codes inside a bracket may be separated by `,` or `|`.
+
+```bash
+# The applicable subset of the multilingual super group for one language —
+# the simplest way to evaluate a monolingual model on its language across
+# every multilingual benchmark (FLORES, Belebele, Global-MMLU, INCLUDE, MGSM,
+# …), spanning both lm-eval-harness and lighteval.
+oellm-eval schedule --models "my-model" --task_groups "oellm-multilingual[deu_Latn]"
+
+# Every benchmark in the registry for one language. `all` is an auto-generated
+# super group (always spans every task group, no hand-maintenance) — use it for
+# the complete per-language set rather than the curated `oellm-multilingual`.
+oellm-eval schedule --models "my-model" --task_groups "all[deu_Latn]"
+
+# A single benchmark, scoped to German.
+oellm-eval schedule --models "my-model" --task_groups "sib200-eu[deu_Latn]"
+
+# Multiple languages inside one bracket.
+oellm-eval schedule --models "my-model" --task_groups "sib200-eu[fra_Latn|deu_Latn]"
+
+# Different languages per benchmark in one run — French SIB-200 *and* German FLORES.
+oellm-eval schedule --models "my-model" \
+    --task_groups "sib200-eu[fra_Latn],flores-200-eu-to-eng[deu_Latn]"
+
+# No bracket: the group is unchanged — all of its languages.
+oellm-eval schedule --models "my-model" --task_groups "sib200-eu"
+```
+
+Each task's language is derived in code from the `{lang}` value of a
+`valid_langs` template, or the task's `subset` for explicitly-listed
+multilingual groups (see [docs/TASKS.md](docs/TASKS.md)). No per-task tagging is
+needed — adding a benchmark with a `valid_langs` template makes its languages
+filterable automatically.
+
+Notes:
+
+- Use the precise canonical `lang_Scri` code (e.g. `deu_Latn`). Looser
+  spellings such as `de` or `german` are rejected; if you pass one, the error
+  names the canonical code to use instead.
+- An **unknown** code (typo) errors and lists the valid codes.
+- A bracket that matches **no task** in its group (e.g.
+  `flores-200-eu-to-eng[ukr_Cyrl]`, since FLORES-EU has no Ukrainian) errors
+  rather than silently scheduling nothing.
+- When a bracket lists several languages and only **some** are present in the
+  group, it keeps the matches and warns about the rest. Some languages simply
+  lack certain benchmarks (e.g. Italian/Portuguese have no MGSM), so a super
+  group bracket transparently omits the missing ones.
+
 ## Running Locally (without SLURM)
 
 The `--local` flag lets you run evaluations directly on your machine without a cluster or Singularity container. It generates the same eval script and executes it with bash, injecting fake SLURM environment variables so all tasks run sequentially in a single process. This is useful for testing that tasks and models are correctly configured before submitting to a cluster.
