@@ -1,0 +1,6 @@
+dataset_name: ces_Latn
+include: _default_template_yaml
+task: belebele_ces_Latn_trans__eng_Latn__EuroLLM-1.7B
+test_split: train
+dataset_kwargs:
+  data_files: /Users/salinasd/Documents/code/multisynt-evals/oellm-cli/oellm/resources/custom_lm_eval_tasks/belebele_trans/ces_Latn-eng_Latn.json

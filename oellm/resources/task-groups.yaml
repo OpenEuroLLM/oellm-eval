@@ -39,6 +39,7 @@ task_metrics:
   belebele_bul_Cyrl_cf: acc_norm
   belebele_hrv_Latn_cf: acc_norm
   belebele_ces_Latn_cf: acc_norm
+  belebele_ces_Latn_trans__eng_Latn__EuroLLM-1.7B: acc_norm
   belebele_dan_Latn_cf: acc_norm
   belebele_nld_Latn_cf: acc_norm
   belebele_eng_Latn_cf: acc_norm
@@ -495,6 +496,13 @@ task_groups:
     tasks:
       - task: "global_piqa_completions_{lang}"
         subset: "{lang}"
+
+  belebele-trans-ces-EuroLLM-1.7B:
+    description: "Belebele Czech translated to English via EuroLLM-1.7B"
+    suite: lm-eval-harness
+    n_shots: [0]
+    tasks:
+      - task: belebele_ces_Latn_trans__eng_Latn__EuroLLM-1.7B
 
   global-piqa-eu-prompted:
     description: "Global PIQA European languages — prompted generation (0-shot, mrlbenchmarks/global-piqa-nonparallel)"
