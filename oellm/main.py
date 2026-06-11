@@ -120,6 +120,7 @@ def schedule_evals(
     lm_eval_include_path: str | None = None,
     local: bool = False,
     slurm_template_var: str | None = None,
+    nodelist: str | None = None,
 ) -> None:
     """
     Schedule evaluation jobs for a given set of models, tasks, and number of shots.
@@ -166,6 +167,9 @@ def schedule_evals(
         slurm_template_var: JSON object of template variable overrides. Use exact env var names
             (PARTITION, ACCOUNT, GPUS_PER_NODE, SLURM_MEM). "TIME" overrides the time limit.
             Example: '{"PARTITION":"dev-g","ACCOUNT":"FOO","TIME":"02:00:00","GPUS_PER_NODE":2,"SLURM_MEM":"96G"}'
+        nodelist: Optional SLURM nodelist to constrain the job to specific node(s),
+            e.g. "tdll-3gpu4". Passed through as #SBATCH --nodelist. If unset, no
+            node constraint is added.
     """
     _setup_logging(verbose)
 
@@ -407,6 +411,10 @@ def schedule_evals(
                 os.environ[key] = str(value)
                 logging.info(f"Using slurm_template_var override: {key}={value}")
 
+    if nodelist:
+        os.environ["NODELIST"] = nodelist
+        logging.info(f"Constraining job to nodelist: {nodelist}")
+
     # Log the calculated values
     slurm_mem = _resolve_slurm_mem()
     logging.info("📊 Evaluation planning:")
@@ -444,6 +452,12 @@ def schedule_evals(
         additional_model_args=_resolve_additional_model_args(local),  # Batch size
         evalchemy_dir=os.environ.get("EVALCHEMY_DIR", "/opt/evalchemy"),
     )
+
+    if not os.environ.get("ACCOUNT"):
+        sbatch_script = sbatch_script.replace("#SBATCH --account=$ACCOUNT\n", "")
+
+    if not os.environ.get("NODELIST"):
+        sbatch_script = sbatch_script.replace("#SBATCH --nodelist=$NODELIST\n", "")
 
     # substitute any $ENV_VAR occurrences
     sbatch_script = Template(sbatch_script).safe_substitute(os.environ)

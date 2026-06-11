@@ -111,24 +111,31 @@ def _load_cluster_env() -> None:
     Loads the correct cluster environment variables from `clusters.yaml` based on the hostname.
     """
     clusters = yaml.safe_load((files("oellm.resources") / "clusters.yaml").read_text())
-    hostname = socket.gethostname()
 
     shared_cfg = clusters.get("shared", {}) or {}
 
-    cluster_cfg_raw: dict | None = None
-    for name, cfg in clusters.items():
-        if name == "shared":
-            continue
-        pattern = cfg.get("hostname_pattern")
-        if isinstance(pattern, str):
-            patterns = [pattern]
-        elif isinstance(pattern, list):
-            patterns = pattern
-        else:
-            continue
-        if any(fnmatch.fnmatch(hostname, p) for p in patterns):
-            cluster_cfg_raw = dict(cfg)
-            break
+    def _match_cluster(hostname: str) -> dict | None:
+        for name, cfg in clusters.items():
+            if name == "shared":
+                continue
+            pattern = cfg.get("hostname_pattern")
+            if isinstance(pattern, str):
+                patterns = [pattern]
+            elif isinstance(pattern, list):
+                patterns = pattern
+            else:
+                continue
+            if any(fnmatch.fnmatch(hostname, p) for p in patterns):
+                return dict(cfg)
+        return None
+
+    hostname = socket.gethostname()
+    cluster_cfg_raw = _match_cluster(hostname)
+    if cluster_cfg_raw is None:
+        fqdn = socket.getfqdn()
+        if fqdn != hostname:
+            cluster_cfg_raw = _match_cluster(fqdn)
+            hostname = fqdn
     if cluster_cfg_raw is None:
         raise ValueError(f"No cluster found for hostname: {hostname}")
 
