@@ -263,6 +263,21 @@ export UV_PYTHON_INSTALL_DIR="/p/project1/<project>/$USER/.local/share/uv/python
 export UV_TOOL_DIR="/p/project1/<project>/$USER/.cache/uv-tool-cache"
 ```
 
+### UFAL Specifics
+
+Due to limited space in `$HOME` on UFAL cluster, set these environment variables for your personal copies of tools and models:
+
+```bash
+export UV_CACHE_DIR="/lnet/troja/tmp/$USER/cache/uv-cache"
+export UV_INSTALL_DIR="/lnet/troja/tmp/$USER/local"
+export UV_PYTHON_INSTALL_DIR="/lnet/troja/tmp/$USER/local/share/uv/python"
+export UV_TOOL_DIR="/lnet/troja/tmp/$USER/cache/uv-tool-cache"
+export HF_HOME="/lnet/troja/tmp/$USER/cache/huggingface"
+```
+
+Later, we will add recommendation for a project-wide setting to share tools and models.
+
+
 ## Supported Clusters:
 We support: Leonardo, Lumi, Jureca, Jupiter, and Snellius
 
