@@ -268,11 +268,12 @@ export UV_TOOL_DIR="/p/project1/<project>/$USER/.cache/uv-tool-cache"
 Due to limited space in `$HOME` on UFAL cluster, set these environment variables for your personal copies of tools and models:
 
 ```bash
-export UV_CACHE_DIR="/lnet/troja/tmp/$USER/cache/uv-cache"
-export UV_INSTALL_DIR="/lnet/troja/tmp/$USER/local"
-export UV_PYTHON_INSTALL_DIR="/lnet/troja/tmp/$USER/local/share/uv/python"
-export UV_TOOL_DIR="/lnet/troja/tmp/$USER/cache/uv-tool-cache"
-export HF_HOME="/lnet/troja/tmp/$USER/cache/huggingface"
+basedir="/lnet/troja/tmp/$USER"
+export UV_CACHE_DIR="$basedir/cache/uv-cache"
+export UV_INSTALL_DIR="$basedir/local"
+export UV_PYTHON_INSTALL_DIR="$basedir/local/share/uv/python"
+export UV_TOOL_DIR="$basedir/cache/uv-tool-cache"
+export HF_HOME="$basedir//cache/huggingface"
 ```
 
 Later, we will add recommendation for a project-wide setting to share tools and models.
