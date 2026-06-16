@@ -8,6 +8,7 @@
 #SBATCH --account=$ACCOUNT
 #SBATCH --error={log_dir}/%x-%A-%a.err
 #SBATCH --array=0-{array_limit}%{max_array_len}
+#SBATCH --nodelist=$NODELIST
 
 
 CSV_PATH="{csv_path}"
@@ -26,6 +27,7 @@ export HF_HUB_OFFLINE={hf_hub_offline}
 export EVAL_SIF_PATH="$EVAL_BASE_DIR/$EVAL_CONTAINER_IMAGE"
 
 echo "Running eval on $CSV_PATH with $NUM_JOBS array jobs distributing $TOTAL_EVALS evaluations"
+echo "hostname: "`hostname`
 echo "SLURM_JOB_ID: $SLURM_JOB_ID"
 echo "SLURM_ARRAY_JOB_ID: $SLURM_ARRAY_JOB_ID"
 echo "SLURM_ARRAY_TASK_ID: $SLURM_ARRAY_TASK_ID"

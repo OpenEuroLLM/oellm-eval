@@ -64,6 +64,53 @@ def test_schedule_evals_slurm_template_var_overrides(tmp_path):
     assert "#SBATCH --gres=gpu:2" in sbatch_content
 
 
+def test_schedule_evals_nodelist(tmp_path):
+    """Verify --nodelist adds an #SBATCH --nodelist directive to the sbatch."""
+    env = {k: v for k, v in os.environ.items() if k != "NODELIST"}
+    with (
+        patch("oellm.main._load_cluster_env"),
+        patch("oellm.main._num_jobs_in_queue", return_value=0),
+        patch.dict(os.environ, {**env, "EVAL_OUTPUT_DIR": str(tmp_path)}, clear=True),
+    ):
+        schedule_evals(
+            models="EleutherAI/pythia-70m",
+            tasks="hellaswag",
+            n_shot=0,
+            skip_checks=True,
+            venv_path=str(Path(sys.prefix)),
+            dry_run=True,
+            nodelist="tdll-3gpu4",
+        )
+
+    sbatch_files = list(tmp_path.glob("**/submit_evals.sbatch"))
+    assert len(sbatch_files) == 1
+    sbatch_content = sbatch_files[0].read_text()
+    assert "#SBATCH --nodelist=tdll-3gpu4" in sbatch_content
+
+
+def test_schedule_evals_no_nodelist(tmp_path):
+    """Without --nodelist the directive is stripped from the sbatch."""
+    env = {k: v for k, v in os.environ.items() if k != "NODELIST"}
+    with (
+        patch("oellm.main._load_cluster_env"),
+        patch("oellm.main._num_jobs_in_queue", return_value=0),
+        patch.dict(os.environ, {**env, "EVAL_OUTPUT_DIR": str(tmp_path)}, clear=True),
+    ):
+        schedule_evals(
+            models="EleutherAI/pythia-70m",
+            tasks="hellaswag",
+            n_shot=0,
+            skip_checks=True,
+            venv_path=str(Path(sys.prefix)),
+            dry_run=True,
+        )
+
+    sbatch_files = list(tmp_path.glob("**/submit_evals.sbatch"))
+    assert len(sbatch_files) == 1
+    sbatch_content = sbatch_files[0].read_text()
+    assert "--nodelist" not in sbatch_content
+
+
 def test_schedule_evals_slurm_template_var_invalid_json(tmp_path):
     """Verify invalid slurm_template_var raises ValueError."""
     with (

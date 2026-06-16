@@ -52,6 +52,13 @@ snellius:
   EVAL_CONTAINER_IMAGE: "eval_env-snellius.sif"
   SINGULARITY_ARGS: "--nv --contain"
 
+ufal:
+  hostname_pattern: "*.mff.cuni.cz"
+  EVAL_BASE_DIR: "/lnet/troja/projects/oellm-shared-evals"
+  PARTITION: "gpu-ms,gpu-troja"
+  QUEUE_LIMIT: 250
+  HF_HUB_OFFLINE: "0"
+
 ci: # lambda labs
   hostname_pattern:
     - "ip-*"
