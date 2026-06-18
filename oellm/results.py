@@ -332,6 +332,17 @@ def collect_results(
         )
 
         results = data.get("results", {})
+        if not isinstance(results, dict):
+            # Not a standard eval-result file — e.g. this tool's own
+            # eval_results.json output (whose `results` is a list of rows) if it
+            # was written into a scanned directory, or any other non-eval JSON
+            # the recursive *.json discovery picked up. Skip it so re-running
+            # collect in place doesn't ingest its own output.
+            logging.debug(
+                f"Skipping '{json_file}': 'results' is a "
+                f"{type(results).__name__}, not a dict"
+            )
+            continue
         n_shot_data = data.get("n-shot", {})
 
         # lmms-eval has no "n-shot" dict; fall back to per-task config "num_fewshot"

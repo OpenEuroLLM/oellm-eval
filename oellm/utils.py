@@ -441,11 +441,16 @@ def _pre_download_datasets_from_specs(
             label = f"{spec.repo_id}" + (f"/{spec.subset}" if spec.subset else "")
             status.update(f"Downloading '{label}' ({idx}/{len(specs_list)})")
 
-            snapshot_failed = False
+            # Media datasets (audio/video/image → needs_snapshot_download) keep
+            # their media as SEPARATE files in the repo (video .mp4s, audio
+            # clips) that load_dataset() does NOT fetch — it only builds the
+            # parquet/QA. snapshot_download the full repo (every revision, e.g.
+            # OpenGVLab/MVBench's `video` branch) so those media files are
+            # present on the offline compute node; load_dataset() below then
+            # builds the Arrow cache from the same files. BOTH are required:
+            # snapshot for the media assets, load_dataset for offline-loadability.
             revisions = getattr(spec, "revisions", None) or ["main"]
             if spec.needs_snapshot_download:
-                # Iterate every requested revision (e.g. OpenGVLab/MVBench
-                # splits content across `main` and `video` branches).
                 for rev in revisions:
                     rev_label = f"{label}@{rev}" if rev != "main" else label
                     status.update(f"Downloading '{rev_label}' ({idx}/{len(specs_list)})")
@@ -459,24 +464,18 @@ def _pre_download_datasets_from_specs(
                             max_workers=2,
                         )
                     except Exception as e:
-                        snapshot_failed = True
                         logging.warning(
-                            f"snapshot_download failed for '{rev_label}': {e}; "
-                            f"falling back to load_dataset."
+                            f"snapshot_download failed for '{rev_label}': {e}"
                         )
 
-                if spec.needs_snapshot_download and not snapshot_failed:
-                    # Snapshot already cached the raw files. Skip the
-                    # load_dataset() build below: it fully materializes the
-                    # dataset into Arrow (decoding every image/audio sample),
-                    # which OOM-kills large media datasets on the memory-capped
-                    # login node. The compute node builds at runtime from the
-                    # cached files (offline-safe and has far more RAM).
-                    logging.debug(
-                        f"Snapshot complete for '{label}'; skipping load_dataset build."
-                    )
-                    continue
-
+            # Build the Arrow cache — this is what makes the dataset loadable on the
+            # OFFLINE compute nodes. load_dataset() needs the BUILT dataset under
+            # HF_DATASETS_CACHE; a bare hub snapshot is not loadable offline (it
+            # still tries to reach the Hub for the dataset module → ConnectionError).
+            # load_dataset reuses any files already fetched above — it does not
+            # re-download them. NOTE: the build can OOM the login node for very
+            # large media datasets (e.g. 60 GB librispeech), which then need a
+            # separate staging strategy.
             try:
                 ds = load_dataset(
                     spec.repo_id,
@@ -527,11 +526,6 @@ def _pre_download_datasets_from_specs(
             else:
                 logging.debug(f"Finished downloading dataset '{label}'.")
                 continue
-
-            if snapshot_failed:
-                logging.debug(
-                    f"Both snapshot_download and load_dataset failed for '{label}'."
-                )
 
     if failures:
         details = "\n".join(

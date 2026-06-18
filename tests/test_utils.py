@@ -173,9 +173,10 @@ class TestPreDownloadRevisions:
     """Tests for DatasetSpec.revisions handling in pre-download.
 
     Datasets like OpenGVLab/MVBench split content across branches: parquet
-    metadata on `main`, video assets on `video`. snapshot_download must be
-    called once per revision; the default of ["main"] preserves the
-    legacy single-snapshot behavior for all other datasets.
+    metadata on `main`, video assets on `video`. For media datasets
+    (needs_snapshot_download) snapshot_download runs once per revision so every
+    branch's files — including separate video/audio assets that load_dataset()
+    does not fetch — are present on the offline compute node.
     """
 
     def test_snapshot_download_called_once_per_revision(self, monkeypatch):
@@ -201,13 +202,16 @@ class TestPreDownloadRevisions:
 
         _pre_download_datasets_from_specs(specs)
 
+        # Media datasets snapshot EVERY revision so each branch's files (incl.
+        # the separate video/audio assets) are fetched; load_dataset() then
+        # builds the Arrow cache.
         assert snapshot_calls == [
             ("OpenGVLab/MVBench", "main"),
             ("OpenGVLab/MVBench", "video"),
         ]
 
     def test_default_revisions_falls_back_to_main(self, monkeypatch):
-        """Specs without an explicit revisions list still snapshot 'main'."""
+        """A media spec without an explicit revisions list still snapshots 'main'."""
         snapshot_calls = []
 
         def fake_snapshot(*, repo_id, repo_type, revision, max_workers):
@@ -220,12 +224,33 @@ class TestPreDownloadRevisions:
         monkeypatch.setattr("huggingface_hub.snapshot_download", fake_snapshot)
         monkeypatch.setattr("datasets.load_dataset", fake_load_dataset)
 
-        # Spec with default revisions=["main"].
+        # Media spec with default revisions=["main"].
         specs = [_FakeSpec(repo_id="some-org/dataset", needs_snapshot_download=True)]
 
         _pre_download_datasets_from_specs(specs)
 
         assert snapshot_calls == [("some-org/dataset", "main")]
+
+    def test_non_media_spec_is_not_snapshotted(self, monkeypatch):
+        """Text datasets (needs_snapshot_download=False) skip snapshot entirely —
+        load_dataset() fetches + builds them in one step."""
+        snapshot_calls = []
+
+        def fake_snapshot(*, repo_id, repo_type, revision, max_workers):
+            snapshot_calls.append((repo_id, revision))
+
+        def fake_load_dataset(*args, **kwargs):
+            return object()
+
+        monkeypatch.setattr("oellm.utils.get_console", lambda: _NoopConsole())
+        monkeypatch.setattr("huggingface_hub.snapshot_download", fake_snapshot)
+        monkeypatch.setattr("datasets.load_dataset", fake_load_dataset)
+
+        specs = [_FakeSpec(repo_id="text-org/dataset", needs_snapshot_download=False)]
+
+        _pre_download_datasets_from_specs(specs)
+
+        assert snapshot_calls == []
 
 
 class TestMaterializeExternalUrls:
