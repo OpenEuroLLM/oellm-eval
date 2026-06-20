@@ -46,6 +46,26 @@ uv venv --python 3.12 dclm-core-venv
 uv pip install --python dclm-core-venv/bin/python -r requirements-venv-dclm.txt
 ```
 
+The `jeopardy` task is a custom task loaded via `--include_path`. lm-eval `0.4.9.2` has a bug where `pretty_print_task` assumes every task YAML lives under `lm_eval/tasks/`, so it crashes on any `--include_path` task (fixed upstream in [lm-evaluation-harness#3436](https://github.com/EleutherAI/lm-evaluation-harness/pull/3436), but we can't upgrade since 0.4.10+ breaks `agieval_lsat_ar`). Apply the one-line fix to the venv after installing:
+
+```bash
+dclm-core-venv/bin/python - <<'PY'
+import pathlib, lm_eval.tasks as t
+f = pathlib.Path(t.__file__); s = f.read_text()
+old = "        relative_yaml_path = yaml_path.relative_to(lm_eval_tasks_path)\n"
+new = ("        try:\n"
+       "            relative_yaml_path = yaml_path.relative_to(lm_eval_tasks_path)\n"
+       "        except ValueError:\n"
+       "            relative_yaml_path = yaml_path\n")
+if "except ValueError" in s:
+    print("already patched:", f)
+elif old in s:
+    f.write_text(s.replace(old, new)); print("patched:", f)
+else:
+    raise SystemExit(f"target line not found in {f} (unexpected lm-eval version?)")
+PY
+```
+
 ```bash
 oellm-eval schedule \
     --models Qwen/Qwen3-0.6B-Base \
