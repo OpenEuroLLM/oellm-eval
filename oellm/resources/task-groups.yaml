@@ -442,10 +442,9 @@ task_groups:
       - task: squadv2
         n_shots: [10]
         dataset: rajpurkar/squad_v2
-      # TODO: jeopardy is not available in lm-eval-harness.
-      # - task: jeopardy
-      #   n_shots: [10]
-      #   dataset: openaccess-ai-collective/jeopardy
+      - task: jeopardy
+        n_shots: [10]
+        dataset: openeurollm/jeopardy
 
   arc-challenge-mt-eu:
     description: "ARC Challenge multilingual (22 European languages)"
