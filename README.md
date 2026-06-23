@@ -279,10 +279,10 @@ export HF_HOME="$basedir/cache/huggingface"
 Then, please install the virtual environment that is compatible with UFAL cluster as follows:
 ```bash
 uv venv --python 3.11
-uv pip sync requirements-venv-ufal-that-works-for-nam.txt
+uv pip install -r requirements-venv-ufal.txt --no-deps
 ```
 
-To run an evaluation, you **MUST** include the `--venv_path <installed_venv_path>`, as the UFAL cluster does not support containers (for now, Jun 22), for example:
+To run an evaluation, you **MUST** include the `--venv_path <installed_venv_path>`, as the UFAL cluster does not support containers (for now, Jun 23 2026), for example:
 ```bash
 oellm-eval schedule \
     --models "EleutherAI/pythia-160m" \
