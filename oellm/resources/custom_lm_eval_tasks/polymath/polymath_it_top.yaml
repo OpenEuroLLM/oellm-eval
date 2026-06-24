@@ -1,0 +1,7 @@
+include: _default_template_yaml
+task: polymath_it_top
+dataset_name: it
+test_split: top
+tag:
+  - polymath
+  - polymath_it

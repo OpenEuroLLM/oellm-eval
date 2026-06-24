@@ -169,6 +169,30 @@ task_metrics:
   global_piqa_prompted_swe_latn: exact_match
   global_piqa_prompted_tur_latn: exact_match
   global_piqa_prompted_ukr_cyrl: exact_match
+  polymath_de_low: exact_match
+  polymath_de_medium: exact_match
+  polymath_de_high: exact_match
+  polymath_de_top: exact_match
+  polymath_en_low: exact_match
+  polymath_en_medium: exact_match
+  polymath_en_high: exact_match
+  polymath_en_top: exact_match
+  polymath_es_low: exact_match
+  polymath_es_medium: exact_match
+  polymath_es_high: exact_match
+  polymath_es_top: exact_match
+  polymath_fr_low: exact_match
+  polymath_fr_medium: exact_match
+  polymath_fr_high: exact_match
+  polymath_fr_top: exact_match
+  polymath_it_low: exact_match
+  polymath_it_medium: exact_match
+  polymath_it_high: exact_match
+  polymath_it_top: exact_match
+  polymath_pt_low: exact_match
+  polymath_pt_medium: exact_match
+  polymath_pt_high: exact_match
+  polymath_pt_top: exact_match
 
 task_groups:
   sib200-eu:
@@ -506,6 +530,22 @@ task_groups:
                   ron_latn, slk_latn, slv_latn, spa_latn_spai, srp_cyrl, swe_latn, tur_latn, ukr_cyrl]
     tasks:
       - task: "global_piqa_prompted_{lang}"
+        subset: "{lang}"
+
+  polymath-eu:
+    description: "PolyMath multilingual math reasoning — EU languages (0-shot, generative; final answer extracted from \\boxed{} and scored with exact_match). One task per language per difficulty split (low/medium/high/top)."
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: Qwen/PolyMath
+    valid_langs: [de, en, es, fr, it, pt]
+    tasks:
+      - task: "polymath_{lang}_low"
+        subset: "{lang}"
+      - task: "polymath_{lang}_medium"
+        subset: "{lang}"
+      - task: "polymath_{lang}_high"
+        subset: "{lang}"
+      - task: "polymath_{lang}_top"
         subset: "{lang}"
 
 super_groups:

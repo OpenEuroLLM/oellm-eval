@@ -1,0 +1,7 @@
+include: _default_template_yaml
+task: polymath_de_medium
+dataset_name: de
+test_split: medium
+tag:
+  - polymath
+  - polymath_de
