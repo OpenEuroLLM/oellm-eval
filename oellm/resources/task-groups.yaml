@@ -532,8 +532,12 @@ task_groups:
       - task: "global_piqa_prompted_{lang}"
         subset: "{lang}"
 
-  polymath-eu:
-    description: "PolyMath multilingual math reasoning — EU languages (0-shot, generative; final answer extracted from \\boxed{} and scored with exact_match). One task per language per difficulty split (low/medium/high/top)."
+  # PolyMath ships 4 expert-calibrated difficulty tiers (low/medium/high/top,
+  # from grade-school to Olympiad-level), each its own group so a tier can be run
+  # in isolation. EU languages only (de/en/es/fr/it/pt); 0-shot generative, with
+  # the final answer extracted from \boxed{} and scored with exact_match.
+  polymath-eu-low:
+    description: "PolyMath EU-language math reasoning — low difficulty tier (0-shot, \\boxed{} answer extraction)."
     suite: lm-eval-harness
     n_shots: [0]
     dataset: Qwen/PolyMath
@@ -541,10 +545,34 @@ task_groups:
     tasks:
       - task: "polymath_{lang}_low"
         subset: "{lang}"
+
+  polymath-eu-medium:
+    description: "PolyMath EU-language math reasoning — medium difficulty tier (0-shot, \\boxed{} answer extraction)."
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: Qwen/PolyMath
+    valid_langs: [de, en, es, fr, it, pt]
+    tasks:
       - task: "polymath_{lang}_medium"
         subset: "{lang}"
+
+  polymath-eu-high:
+    description: "PolyMath EU-language math reasoning — high difficulty tier (0-shot, \\boxed{} answer extraction)."
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: Qwen/PolyMath
+    valid_langs: [de, en, es, fr, it, pt]
+    tasks:
       - task: "polymath_{lang}_high"
         subset: "{lang}"
+
+  polymath-eu-top:
+    description: "PolyMath EU-language math reasoning — top (Olympiad-level) difficulty tier (0-shot, \\boxed{} answer extraction)."
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: Qwen/PolyMath
+    valid_langs: [de, en, es, fr, it, pt]
+    tasks:
       - task: "polymath_{lang}_top"
         subset: "{lang}"
 
