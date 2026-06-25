@@ -56,8 +56,11 @@ ufal:
   hostname_pattern: "*.mff.cuni.cz"
   EVAL_BASE_DIR: "/lnet/troja/projects/oellm-shared-evals"
   PARTITION: "gpu-ms,gpu-troja"
-  QUEUE_LIMIT: 250
+  QUEUE_LIMIT: 10
   HF_HUB_OFFLINE: "0"
+  SLURM_MEM: "32G"
+  NODES: "1"
+  NODELIST: "dll-8gpu[1-2],dll-3gpu[1-5],dll-4gpu[3-4],tdll-8gpu[1-2],tdll-3gpu[1-4],tdll-4gpu1"
 
 ci: # lambda labs
   hostname_pattern:

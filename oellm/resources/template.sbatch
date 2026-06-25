@@ -8,6 +8,7 @@
 #SBATCH --account=$ACCOUNT
 #SBATCH --error={log_dir}/%x-%A-%a.err
 #SBATCH --array=0-{array_limit}%{max_array_len}
+#SBATCH --nodes=$NODES
 #SBATCH --nodelist=$NODELIST
 
 
