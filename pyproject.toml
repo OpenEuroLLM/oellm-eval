@@ -35,6 +35,9 @@ include = ["oellm/resources/*", "oellm/resources/**/*"]
 [tool.ruff]
 line-length = 90
 target-version = "py312"
+# Vendored verbatim from QwenLM/PolyMath (eval/scripts.py); keep it byte-for-byte
+# rather than reflowing/relinting upstream code.
+extend-exclude = ["oellm/resources/custom_lm_eval_tasks/polymath/polymath_eval.py"]
 
 [tool.ruff.lint]
 select = [
