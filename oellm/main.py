@@ -120,6 +120,7 @@ def schedule_evals(
     lm_eval_include_path: str | None = None,
     local: bool = False,
     slurm_template_var: str | None = None,
+    nodes: str | None = None,
     nodelist: str | None = None,
 ) -> None:
     """
@@ -167,6 +168,8 @@ def schedule_evals(
         slurm_template_var: JSON object of template variable overrides. Use exact env var names
             (PARTITION, ACCOUNT, GPUS_PER_NODE, SLURM_MEM). "TIME" overrides the time limit.
             Example: '{"PARTITION":"dev-g","ACCOUNT":"FOO","TIME":"02:00:00","GPUS_PER_NODE":2,"SLURM_MEM":"96G"}'
+        nodes: Optional SLURM nodes to request node count, e.g., "1" or "1-2".
+            Passed through as #SBATCH --nodes. If unset, no node count constraint is added.
         nodelist: Optional SLURM nodelist to constrain the job to specific node(s),
             e.g. "tdll-3gpu4". Passed through as #SBATCH --nodelist. If unset, no
             node constraint is added.
@@ -413,6 +416,10 @@ def schedule_evals(
                 os.environ[key] = str(value)
                 logging.info(f"Using slurm_template_var override: {key}={value}")
 
+    if nodes:
+        os.environ["NODES"] = nodes
+        logging.info(f"Constraining number of nodes: {nodes}")
+
     if nodelist:
         os.environ["NODELIST"] = nodelist
         logging.info(f"Constraining job to nodelist: {nodelist}")
@@ -457,6 +464,9 @@ def schedule_evals(
 
     if not os.environ.get("ACCOUNT"):
         sbatch_script = sbatch_script.replace("#SBATCH --account=$ACCOUNT\n", "")
+
+    if not os.environ.get("NODES"):
+        sbatch_script = sbatch_script.replace("#SBATCH --nodes=$NODES\n", "")
 
     if not os.environ.get("NODELIST"):
         sbatch_script = sbatch_script.replace("#SBATCH --nodelist=$NODELIST\n", "")
