@@ -166,10 +166,8 @@ def schedule_evals(
             submitting to SLURM. Requires --venv_path. Skips cluster environment detection and
             runs all evaluations sequentially in a single process.
         slurm_template_var: JSON object of template variable overrides. Use exact env var names
-            (PARTITION, ACCOUNT, GPUS_PER_NODE, SLURM_MEM). "TIME" overrides the time limit.
-            Example: '{"PARTITION":"dev-g","ACCOUNT":"FOO","TIME":"02:00:00","GPUS_PER_NODE":2,"SLURM_MEM":"96G"}'
-        nodes: Optional SLURM nodes to request node count, e.g., "1" or "1-2".
-            Passed through as #SBATCH --nodes. If unset, no node count constraint is added.
+            (PARTITION, ACCOUNT, GPUS_PER_NODE, SLURM_MEM, NODES). "TIME" overrides the time limit.
+            Example: '{"PARTITION":"dev-g","ACCOUNT":"FOO","TIME":"02:00:00","GPUS_PER_NODE":2,"SLURM_MEM":"96G","NODES":"1"}'
         nodelist: Optional SLURM nodelist to constrain the job to specific node(s),
             e.g. "tdll-3gpu4". Passed through as #SBATCH --nodelist. If unset, no
             node constraint is added.
@@ -415,10 +413,6 @@ def schedule_evals(
             else:
                 os.environ[key] = str(value)
                 logging.info(f"Using slurm_template_var override: {key}={value}")
-
-    if nodes:
-        os.environ["NODES"] = nodes
-        logging.info(f"Constraining number of nodes: {nodes}")
 
     if nodelist:
         os.environ["NODELIST"] = nodelist
