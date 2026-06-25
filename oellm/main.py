@@ -120,7 +120,6 @@ def schedule_evals(
     lm_eval_include_path: str | None = None,
     local: bool = False,
     slurm_template_var: str | None = None,
-    nodes: str | None = None,
     nodelist: str | None = None,
 ) -> None:
     """
