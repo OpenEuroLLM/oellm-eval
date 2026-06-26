@@ -543,6 +543,7 @@ def collect_results(
     output_csv: str = "eval_results.csv",
     *,
     check: bool = False,
+    fetch_all_metrics: bool = False,
     verbose: bool = False,
 ) -> None:
     """
@@ -562,6 +563,10 @@ def collect_results(
         results_dir: Root directory to search for jobs.csv files and JSON results
         output_csv: Output CSV filename (default: eval_results.csv)
         check: Check for missing evaluations and create a missing jobs CSV
+        fetch_all_metrics: If True, include every computed metric for each task.
+            If False (default), only the single "primary" metric defined in
+            ``primary-metrics.yaml`` is kept per task.  When a task name does
+            not match any rule in that file, all metrics are kept as a fallback.
         verbose: Enable verbose logging
     """
     import json
@@ -570,58 +575,70 @@ def collect_results(
 
     _setup_logging(verbose)
 
-    task_groups_yaml = files("oellm.resources") / "task-groups.yaml"
-    with open(str(task_groups_yaml)) as _f:
-        _tg_cfg = yaml.safe_load(_f)
-    task_metrics = _tg_cfg.get("task_metrics", {})
+    # ------------------------------------------------------------------
+    # Load primary-metrics.yaml for standardised-metric filtering.
+    # The file maps task-name prefixes (ending with '*') or exact names
+    # to their canonical metric.  Rules are tested in YAML order; the
+    # first match wins.
+    # ------------------------------------------------------------------
+    _primary_metrics_raw: list[tuple[str, str]] = []
+    if not fetch_all_metrics:
+        _pm_path = files("oellm.resources") / "primary-metrics.yaml"
+        try:
+            _pm_data = yaml.safe_load(_pm_path.read_text())
+            _primary_metrics_raw = list((_pm_data.get("primary_metrics") or {}).items())
+        except Exception as exc:
+            logging.warning(
+                "Could not load primary-metrics.yaml (%s); falling back to all metrics.",
+                exc,
+            )
+            _primary_metrics_raw = []
 
-    def _resolve_metric(
-        task_name: str, result_dict: dict
-    ) -> tuple[float | None, str | None]:
-        """Return (value, metric_name) for task_name from result_dict."""
+    def _resolve_primary_metric(
+        task_name: str, metrics: list[tuple[str, float]]
+    ) -> list[tuple[str, float]]:
+        """Return only the primary metric for *task_name*, or all metrics if
+        no rule matches (option-c fallback)."""
+        task_lower = task_name.lower()
+        for pattern, metric in _primary_metrics_raw:
+            pat_lower = pattern.lower()
+            if pat_lower.endswith("*"):
+                if task_lower.startswith(pat_lower[:-1]):
+                    matched_metric = metric.lower()
+                    filtered = [(m, v) for m, v in metrics if m.lower() == matched_metric]
+                    return filtered if filtered else metrics
+            else:
+                if task_lower == pat_lower:
+                    matched_metric = metric.lower()
+                    filtered = [(m, v) for m, v in metrics if m.lower() == matched_metric]
+                    return filtered if filtered else metrics
+        # No rule matched — return everything
+        return metrics
 
-        # Skip non-metric keys; lm-eval uses suffixes like ",none" or ",remove_whitespace"
-        def _first_numeric(d: dict, *candidates: str) -> tuple[float | None, str | None]:
-            for c in candidates:
-                if c in d and isinstance(d[c], int | float):
-                    return float(d[c]), c
-            return None, None
+    def _extract_all_metrics(result_dict: dict) -> list[tuple[str, float]]:
+        """Return (metric_name, value) for every numeric entry in result_dict.
 
-        def _first_matching_prefix(
-            d: dict, prefix: str
-        ) -> tuple[float | None, str | None]:
-            for k, v in d.items():
-                if (k == prefix or k.startswith(prefix + ",")) and isinstance(
-                    v, int | float
-                ):
-                    return float(v), k
-            return None, None
+        lm-eval harness stores keys as ``{metric},{filter}`` (e.g. ``acc,none``
+        or ``acc_norm_stderr,none``).  The ``,{filter}`` suffix is stripped so
+        that the metric name in the output is clean (e.g. ``acc``,
+        ``acc_norm_stderr``).  When two raw keys collapse to the same stripped
+        name the first one encountered wins.
 
-        preferred = task_metrics.get(task_name)
-        if preferred is not None:
-            val, key = _first_numeric(result_dict, f"{preferred},none", preferred)
-            if val is not None:
-                return val, key
-            val, key = _first_matching_prefix(result_dict, preferred)
-            return val, key
-
-        for metric in [
-            "acc,none",
-            "acc",
-            "accuracy",
-            "acc_norm",
-            "f1",
-            "exact_match",
-            "chrf++",
-            "bleu",
-        ]:
-            val, key = _first_numeric(result_dict, metric)
-            if val is not None:
-                return val, key
-            val, key = _first_matching_prefix(result_dict, metric.split(",")[0])
-            if val is not None:
-                return val, key
-        return None, None
+        Both primary metrics and their ``_stderr`` counterparts are emitted as
+        separate rows.
+        """
+        seen: set[str] = set()
+        metrics: list[tuple[str, float]] = []
+        for raw_key, value in result_dict.items():
+            if not isinstance(value, (int, float)):
+                continue
+            # Strip lm-eval harness ",{filter}" suffix
+            metric_name = raw_key.split(",")[0] if "," in raw_key else raw_key
+            if metric_name in seen:
+                continue
+            seen.add(metric_name)
+            metrics.append((metric_name, float(value)))
+        return metrics
 
     def _split_task_and_nshot(name: str) -> tuple[str, int | None]:
         """Split task names of the form 'task|N' returning (task, N) or (task, None)."""
@@ -742,19 +759,22 @@ def collect_results(
             group_name, parsed_n = _split_task_and_nshot(orig_group_name)
             if n_shot == "unknown" and parsed_n is not None:
                 n_shot = parsed_n
-            performance, metric_name = _resolve_metric(group_name, group_results)
-            if performance is not None:
+            task_metric_pairs = _extract_all_metrics(group_results)
+            if not fetch_all_metrics:
+                task_metric_pairs = _resolve_primary_metric(group_name, task_metric_pairs)
+            if task_metric_pairs:
                 if check:
                     completed_jobs.add((model_name, group_name, n_shot))
-                rows.append(
-                    {
-                        "model_name": model_name,
-                        "task": group_name,
-                        "n_shot": n_shot,
-                        "performance": performance,
-                        "metric_name": metric_name if metric_name is not None else "",
-                    }
-                )
+                for metric_name, performance in task_metric_pairs:
+                    rows.append(
+                        {
+                            "model_name": model_name,
+                            "task": group_name,
+                            "n_shot": n_shot,
+                            "metric_name": metric_name,
+                            "performance": performance,
+                        }
+                    )
                 # Skip per-task iteration when groups are present
                 continue
 
@@ -818,23 +838,28 @@ def collect_results(
                 if n_shot == "unknown" and global_n_shot is not None:
                     n_shot = global_n_shot
 
-            # Get the primary metric (usually acc, acc_norm)
-            performance, metric_name = _resolve_metric(task_name, task_results)
+            # Extract all available metrics for this task
+            task_metric_pairs = _extract_all_metrics(task_results)
+            if not fetch_all_metrics:
+                task_metric_pairs = _resolve_primary_metric(
+                    task_name_clean, task_metric_pairs
+                )
 
-            if performance is not None:
-                # Track completed job for check mode
+            if task_metric_pairs:
+                # Track completed job for check mode (once per task, not per metric)
                 if check:
                     completed_jobs.add((model_name, task_name_clean, n_shot))
 
-                rows.append(
-                    {
-                        "model_name": model_name,
-                        "task": task_name_clean,
-                        "n_shot": n_shot,
-                        "performance": performance,
-                        "metric_name": metric_name if metric_name is not None else "",
-                    }
-                )
+                for metric_name, performance in task_metric_pairs:
+                    rows.append(
+                        {
+                            "model_name": model_name,
+                            "task": task_name_clean,
+                            "n_shot": n_shot,
+                            "metric_name": metric_name,
+                            "performance": performance,
+                        }
+                    )
             else:
                 # Debug: log cases where we have a task but no performance metric
                 if verbose:

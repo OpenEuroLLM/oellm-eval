@@ -1,0 +1,98 @@
+# Primary (standardised) metric per task or task-name prefix.
+#
+# Used by ``oellm-eval collect`` when --fetch-all-metrics is NOT set.
+# The first matching rule wins; rules are tested in the order they appear.
+# A trailing '*' acts as a prefix wildcard (case-insensitive match against
+# the task name as stored in the result JSON).
+#
+# If a task name does not match any rule, ALL computed metrics are kept
+# as a safe fallback (option c).
+#
+# Grouping strategy (option b): task families that share a prefix get a
+# single rule, so adding a new language variant to a task group requires
+# no change here.
+
+primary_metrics:
+  # --- Translation (lighteval FLORES-200) ---
+  flores200:*: bleu
+
+  # --- Multilingual PIQA ---
+  global_piqa_completions*: acc_norm
+  global_piqa_prompted*: exact_match
+
+  # --- ARC ---
+  arc_challenge*: acc_norm
+  arc_easy*: acc_norm
+
+  # --- HellaSwag ---
+  hellaswag*: acc_norm
+
+  # --- BoolQ ---
+  boolq*: acc
+
+  # --- PIQA (original) ---
+  piqa*: acc
+
+  # --- OpenBookQA ---
+  openbookqa*: acc_norm
+
+  # --- Winogrande ---
+  winogrande*: acc
+
+  # --- COPA / XCOPA ---
+  copa*: acc
+  xcopa*: acc
+
+  # --- CommonsenseQA ---
+  commonsense_qa*: acc
+
+  # --- LAMBADA ---
+  lambada_openai*: acc
+
+  # --- Belebele ---
+  belebele*: acc
+
+  # --- SIB-200 ---
+  sib200*: acc
+
+  # --- MMLU ---
+  global_mmlu*: acc
+  mmlu*: acc
+
+  # --- MGSM ---
+  mgsm*: exact_match
+
+  # --- GSM8k ---
+  gsm8k*: exact_match
+
+  # --- INCLUDE ---
+  include*: acc
+
+  # --- XWinograd ---
+  xwinograd*: acc
+
+  # --- XStoryCloze ---
+  xstorycloze*: acc
+
+  # --- IFEval ---
+  ifeval*: prompt_level_strict_acc
+
+  # --- MBPP ---
+  mbpp*: pass@1
+
+  # --- SQuADv2 ---
+  squadv2*: exact
+
+  # --- CoQA ---
+  coqa*: f1
+
+  # --- BigBench ---
+  bigbench*: acc
+
+  # --- AgiEval ---
+  agieval*: acc
+
+  # --- GPQA / MATH / LiveCodeBench (evalchemy) ---
+  GPQADiamond*: acc
+  MATH500*: exact_match
+  LiveCodeBench*: pass@1
