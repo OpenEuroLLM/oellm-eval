@@ -1,5 +1,10 @@
 task_metrics:
   mmlu: acc
+  mmmlu_de_de: acc
+  mmmlu_es_la: acc
+  mmmlu_fr_fr: acc
+  mmmlu_it_it: acc
+  mmmlu_pt_br: acc
   sib200_bul_Cyrl: acc_norm
   sib200_hrv_Latn: acc_norm
   sib200_ces_Latn: acc_norm
@@ -296,6 +301,23 @@ task_groups:
         subset: es
       - task: mgsm_native_cot_fr
         subset: fr
+
+  mmmlu-eu:
+    description: "MMMLU (human-translated MMLU), EU subset, 5-shot acc."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: openai/MMMLU
+    tasks:
+      - task: mmmlu_de_de
+        subset: DE_DE
+      - task: mmmlu_es_la
+        subset: ES_LA
+      - task: mmmlu_fr_fr
+        subset: FR_FR
+      - task: mmmlu_it_it
+        subset: IT_IT
+      - task: mmmlu_pt_br
+        subset: PT_BR
 
   generic-multilingual:
     description: "Generic multilingual benchmarks in Aya Expanse"

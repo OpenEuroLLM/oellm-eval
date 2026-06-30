@@ -44,6 +44,12 @@ _LANG_ALIAS = {
     "sl": "slv_Latn",
     "is": "isl_Latn",
     "nb": "nob_Latn",
+    # openai/MMMLU locale codes (lang_REGION)
+    "de_de": "deu_Latn",
+    "es_la": "spa_Latn",
+    "fr_fr": "fra_Latn",
+    "it_it": "ita_Latn",
+    "pt_br": "por_Latn",
     # full English names (include)
     "albanian": "als_Latn",
     "armenian": "hye_Armn",
