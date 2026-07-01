@@ -117,6 +117,7 @@ def test_super_group_bracket_resolves_language_subset():
         "global_mmlu_full_de",
         "include_base_44_german",
         "mgsm_native_cot_de",
+        "multiblimp_deu",
     }
     suites = {j.suite for j in jobs}
     assert "lm-eval-harness" in suites
