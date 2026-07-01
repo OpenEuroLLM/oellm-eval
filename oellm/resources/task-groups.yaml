@@ -105,6 +105,9 @@ task_metrics:
   bigbench_operators_generate_until: exact_match
   bigbench_repeat_copy_logic_generate_until: exact_match
   bigbench_cs_algorithms_generate_until: exact_match
+  xcopa:et: acc
+  xcopa:it: acc
+  xcopa:tr: acc
   global_piqa_completions_als_latn: acc_norm
   global_piqa_completions_bos_latn: acc_norm
   global_piqa_completions_bul_cyrl: acc_norm
@@ -446,6 +449,16 @@ task_groups:
         n_shots: [10]
         dataset: openeurollm/jeopardy
 
+  xcopa-eu:
+    description: "XCOPA commonsense causal reasoning (0-shot) for EU languages."
+    suite: lighteval
+    n_shots: [0]
+    dataset: cambridgeltl/xcopa
+    valid_langs: [et, it, tr]
+    tasks:
+      - task: "xcopa:{lang}"
+        subset: "{lang}"
+
   arc-challenge-mt-eu:
     description: "ARC Challenge multilingual (22 European languages)"
     suite: lm-eval-harness
@@ -519,3 +532,4 @@ super_groups:
       - task: mgsm-eu
       - task: generic-multilingual
       - task: include
+      - task: xcopa-eu
