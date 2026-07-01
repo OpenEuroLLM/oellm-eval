@@ -1,5 +1,15 @@
 task_metrics:
   mmlu: acc
+  mmlu_prox_cs: exact_match
+  mmlu_prox_de: exact_match
+  mmlu_prox_en: exact_match
+  mmlu_prox_es: exact_match
+  mmlu_prox_fr: exact_match
+  mmlu_prox_hu: exact_match
+  mmlu_prox_it: exact_match
+  mmlu_prox_pt: exact_match
+  mmlu_prox_sr: exact_match
+  mmlu_prox_uk: exact_match
   sib200_bul_Cyrl: acc_norm
   sib200_hrv_Latn: acc_norm
   sib200_ces_Latn: acc_norm
@@ -331,6 +341,15 @@ task_groups:
     valid_langs: [cs, de, el, en, es, fr, it, lt, nl, pl, pt, ro, ru, sr, sv, tr, uk, he]
     tasks:
       - task: "global_mmlu_full_{lang}"
+        subset: "{lang}"
+  mmlu-prox-eu:
+    description: "MMLU-ProX EU subset, 5-shot CoT, exact-match."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: li-lab/MMLU-ProX
+    valid_langs: [cs, de, en, es, fr, hu, it, pt, sr, uk]
+    tasks:
+      - task: "mmlu_prox_{lang}"
         subset: "{lang}"
   mgsm-eu:
     description: "EU Language GSM benchmarks in Aya Expanse"
