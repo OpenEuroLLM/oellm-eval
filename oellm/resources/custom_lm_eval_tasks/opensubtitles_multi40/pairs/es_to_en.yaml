@@ -1,0 +1,8 @@
+include: ../_opensubtitles_multi40_common.yaml
+task: opensubtitles_multi40_es_to_en
+metadata:
+  version: 1
+  dataset_dir: "Helsinki-NLP/OpenSubtitles2024-40-langs-15-movies"
+  split: "devtest"
+  src_lang: "es"
+  tgt_lang: "en"

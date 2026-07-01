@@ -44,6 +44,8 @@ _LANG_ALIAS = {
     "sl": "slv_Latn",
     "is": "isl_Latn",
     "nb": "nob_Latn",
+    "no": "nob_Latn",
+    "hr": "hrv_Latn",
     # full English names (include)
     "albanian": "als_Latn",
     "armenian": "hye_Armn",
@@ -97,15 +99,20 @@ def _canonical_language(code: str | None) -> str | None:
 def _resolve_task_languages(name: str, subset: str | None) -> list[str]:
     """Return the canonical language code(s) a task belongs to, if any.
 
-    Translation pairs (``flores200:src-tgt``) resolve to their non-English
-    side; every other task resolves via its ``subset``. Tasks with no
-    recognisable language (e.g. English-only standard benchmarks) return [].
+    Translation pairs (``flores200:src-tgt`` and
+    ``opensubtitles_multi40_src_to_tgt``) resolve to their non-English side;
+    every other task resolves via its ``subset``. Tasks with no recognisable
+    language (e.g. English-only standard benchmarks) return [].
     """
     if name.startswith("flores200:"):
         pair = name.split(":", 1)[1]
         langs = [
             _canonical_language(part) for part in pair.split("-") if part != "eng_Latn"
         ]
+        return [lang for lang in langs if lang]
+    if name.startswith("opensubtitles_multi40_"):
+        pair = name[len("opensubtitles_multi40_") :]
+        langs = [_canonical_language(part) for part in pair.split("_to_") if part != "en"]
         return [lang for lang in langs if lang]
     lang = _canonical_language(subset)
     if lang:

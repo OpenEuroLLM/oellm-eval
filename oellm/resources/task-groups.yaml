@@ -105,6 +105,56 @@ task_metrics:
   bigbench_operators_generate_until: exact_match
   bigbench_repeat_copy_logic_generate_until: exact_match
   bigbench_cs_algorithms_generate_until: exact_match
+  opensubtitles_multi40_en_to_bg: bleu
+  opensubtitles_multi40_en_to_hr: bleu
+  opensubtitles_multi40_en_to_cs: bleu
+  opensubtitles_multi40_en_to_da: bleu
+  opensubtitles_multi40_en_to_nl: bleu
+  opensubtitles_multi40_en_to_et: bleu
+  opensubtitles_multi40_en_to_fi: bleu
+  opensubtitles_multi40_en_to_fr: bleu
+  opensubtitles_multi40_en_to_de: bleu
+  opensubtitles_multi40_en_to_el: bleu
+  opensubtitles_multi40_en_to_hu: bleu
+  opensubtitles_multi40_en_to_it: bleu
+  opensubtitles_multi40_en_to_lv: bleu
+  opensubtitles_multi40_en_to_lt: bleu
+  opensubtitles_multi40_en_to_pl: bleu
+  opensubtitles_multi40_en_to_pt: bleu
+  opensubtitles_multi40_en_to_ro: bleu
+  opensubtitles_multi40_en_to_sk: bleu
+  opensubtitles_multi40_en_to_sl: bleu
+  opensubtitles_multi40_en_to_es: bleu
+  opensubtitles_multi40_en_to_sv: bleu
+  opensubtitles_multi40_en_to_sr: bleu
+  opensubtitles_multi40_en_to_tr: bleu
+  opensubtitles_multi40_en_to_uk: bleu
+  opensubtitles_multi40_en_to_no: bleu
+  opensubtitles_multi40_bg_to_en: bleu
+  opensubtitles_multi40_hr_to_en: bleu
+  opensubtitles_multi40_cs_to_en: bleu
+  opensubtitles_multi40_da_to_en: bleu
+  opensubtitles_multi40_nl_to_en: bleu
+  opensubtitles_multi40_et_to_en: bleu
+  opensubtitles_multi40_fi_to_en: bleu
+  opensubtitles_multi40_fr_to_en: bleu
+  opensubtitles_multi40_de_to_en: bleu
+  opensubtitles_multi40_el_to_en: bleu
+  opensubtitles_multi40_hu_to_en: bleu
+  opensubtitles_multi40_it_to_en: bleu
+  opensubtitles_multi40_lv_to_en: bleu
+  opensubtitles_multi40_lt_to_en: bleu
+  opensubtitles_multi40_pl_to_en: bleu
+  opensubtitles_multi40_pt_to_en: bleu
+  opensubtitles_multi40_ro_to_en: bleu
+  opensubtitles_multi40_sk_to_en: bleu
+  opensubtitles_multi40_sl_to_en: bleu
+  opensubtitles_multi40_es_to_en: bleu
+  opensubtitles_multi40_sv_to_en: bleu
+  opensubtitles_multi40_sr_to_en: bleu
+  opensubtitles_multi40_tr_to_en: bleu
+  opensubtitles_multi40_uk_to_en: bleu
+  opensubtitles_multi40_no_to_en: bleu
   global_piqa_completions_als_latn: acc_norm
   global_piqa_completions_bos_latn: acc_norm
   global_piqa_completions_bul_cyrl: acc_norm
@@ -445,6 +495,26 @@ task_groups:
       - task: jeopardy
         n_shots: [10]
         dataset: openeurollm/jeopardy
+
+  opensubtitles-eu-en-xx:
+    description: "OpenSubtitles Multi40 English->EU translation (0-shot, BLEU)."
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: Helsinki-NLP/OpenSubtitles2024-40-langs-15-movies
+    valid_langs: [bg, hr, cs, da, nl, et, fi, fr, de, el, hu, it, lv, lt, pl,
+                  pt, ro, sk, sl, es, sv, sr, tr, uk, "no"]
+    tasks:
+      - task: "opensubtitles_multi40_en_to_{lang}"
+
+  opensubtitles-eu-xx-en:
+    description: "OpenSubtitles Multi40 EU->English translation (0-shot, BLEU)."
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: Helsinki-NLP/OpenSubtitles2024-40-langs-15-movies
+    valid_langs: [bg, hr, cs, da, nl, et, fi, fr, de, el, hu, it, lv, lt, pl,
+                  pt, ro, sk, sl, es, sv, sr, tr, uk, "no"]
+    tasks:
+      - task: "opensubtitles_multi40_{lang}_to_en"
 
   arc-challenge-mt-eu:
     description: "ARC Challenge multilingual (22 European languages)"
