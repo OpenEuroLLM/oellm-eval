@@ -62,6 +62,14 @@ task_metrics:
   belebele_nob_Latn_cf: acc_norm
   belebele_eus_Latn_cf: acc_norm
   belebele_cat_Latn_cf: acc_norm
+  xcsqa_deu_Latn: acc_norm
+  xcsqa_eng_Latn: acc_norm
+  xcsqa_spa_Latn: acc_norm
+  xcsqa_fra_Latn: acc_norm
+  xcsqa_ita_Latn: acc_norm
+  xcsqa_nld_Latn: acc_norm
+  xcsqa_pol_Latn: acc_norm
+  xcsqa_por_Latn: acc_norm
   copa: acc
   lambada_openai: acc
   openbookqa: acc_norm
@@ -302,7 +310,30 @@ task_groups:
     tasks:
       - task: "belebele_{lang}_cf"
         subset: "{lang}"
-      
+
+  xcsqa-eu:
+    description: "XCSQA EU commonsense QA (0-shot MCQ, acc_norm)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: INK-USC/xcsr
+    tasks:
+      - task: xcsqa_deu_Latn
+        subset: X-CSQA-de
+      - task: xcsqa_eng_Latn
+        subset: X-CSQA-en
+      - task: xcsqa_spa_Latn
+        subset: X-CSQA-es
+      - task: xcsqa_fra_Latn
+        subset: X-CSQA-fr
+      - task: xcsqa_ita_Latn
+        subset: X-CSQA-it
+      - task: xcsqa_nld_Latn
+        subset: X-CSQA-nl
+      - task: xcsqa_pol_Latn
+        subset: X-CSQA-pl
+      - task: xcsqa_por_Latn
+        subset: X-CSQA-pt
+
   flores-200-eu-to-eng:
     description: "Flores 200 EU to English translation"
     suite: lighteval

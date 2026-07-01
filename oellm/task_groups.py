@@ -72,6 +72,16 @@ _LANG_ALIAS = {
     "spanish": "spa_Latn",
     "turkish": "tur_Latn",
     "ukrainian": "ukr_Cyrl",
+    # xcsqa: the group's `subset` is the HF config (`X-CSQA-<iso1>`, needed for
+    # pre-download), so the language is derived from that config spelling here.
+    "x-csqa-de": "deu_Latn",
+    "x-csqa-en": "eng_Latn",
+    "x-csqa-es": "spa_Latn",
+    "x-csqa-fr": "fra_Latn",
+    "x-csqa-it": "ita_Latn",
+    "x-csqa-nl": "nld_Latn",
+    "x-csqa-pl": "pol_Latn",
+    "x-csqa-pt": "por_Latn",
 }
 # Distinct individual-language codes folded into a macrolanguage code.
 _LANG_SPECIAL = {"ekk_Latn": "est_Latn"}  # global-piqa uses ekk (Standard Estonian)
