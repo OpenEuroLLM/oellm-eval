@@ -1,0 +1,3 @@
+dataset_name: X-CSQA-es
+include: _default_template_yaml
+task: xcsqa_spa_Latn
