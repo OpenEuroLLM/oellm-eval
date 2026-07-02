@@ -1,0 +1,4 @@
+"dataset_name": "el"
+"include": "_global_mgsm_template_yaml"
+"task": "global_mgsm_el"
+"test_split": "test"

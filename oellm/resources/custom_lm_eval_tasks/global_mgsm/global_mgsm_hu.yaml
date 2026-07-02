@@ -1,0 +1,4 @@
+"dataset_name": "hu"
+"include": "_global_mgsm_template_yaml"
+"task": "global_mgsm_hu"
+"test_split": "test"

@@ -1,0 +1,4 @@
+"dataset_name": "gl"
+"include": "_global_mgsm_template_yaml"
+"task": "global_mgsm_gl"
+"test_split": "test"

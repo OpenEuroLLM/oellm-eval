@@ -46,6 +46,9 @@ _LANG_ALIAS = {
     "nb": "nob_Latn",
     "no": "nob_Latn",
     "hr": "hrv_Latn",
+    "ca": "cat_Latn",
+    "eu": "eus_Latn",
+    "gl": "glg_Latn",
     # full English names (include)
     "albanian": "als_Latn",
     "armenian": "hye_Armn",

@@ -1,0 +1,4 @@
+"dataset_name": "cs"
+"include": "_global_mgsm_template_yaml"
+"task": "global_mgsm_cs"
+"test_split": "test"

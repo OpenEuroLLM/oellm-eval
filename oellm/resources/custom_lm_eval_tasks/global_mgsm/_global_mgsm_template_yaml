@@ -1,0 +1,36 @@
+# Global-MGSM (CohereLabs/global-mgsm) — multilingual grade-school math.
+# The dataset ships a localized `instruction` (asking for chain-of-thought
+# reasoning followed by the final integer on an "Answer:"-style line) and a
+# localized `answer_prefix` per example, so the prompt is uniform across
+# languages. Because the answer prefix is localized, the score uses the
+# language-agnostic flexible-extract filter (last number in the generation),
+# taken verbatim from lm-eval-harness's MGSM task, plus exact_match.
+dataset_path: CohereLabs/global-mgsm
+output_type: generate_until
+test_split: test
+doc_to_text: "{{instruction}}\n\n{{question}}"
+doc_to_target: "{{answer}}"
+generation_kwargs:
+  until:
+    - "\n\n\n"
+    - "\n\nQuestion"
+  do_sample: false
+  temperature: 0.0
+  max_gen_toks: 512
+filter_list:
+  - name: "flexible-extract"
+    filter:
+      - function: "regex"
+        group_select: -1
+        regex_pattern: "(-?[$0-9.,]{2,})|(-?[0-9]+)"
+      - function: "take_first"
+metric_list:
+  - metric: exact_match
+    aggregation: mean
+    higher_is_better: true
+    ignore_case: true
+    ignore_punctuation: true
+metadata:
+  version: 0.0
+dataset_kwargs:
+  trust_remote_code: true
