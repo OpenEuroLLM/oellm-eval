@@ -155,6 +155,77 @@ task_metrics:
   opensubtitles_multi40_tr_to_en: bleu
   opensubtitles_multi40_uk_to_en: bleu
   opensubtitles_multi40_no_to_en: bleu
+  # flores200 (lighteval) translation: chrf++ is the primary metric
+  flores200:bul_Cyrl-eng_Latn: chrf++
+  flores200:hrv_Latn-eng_Latn: chrf++
+  flores200:ces_Latn-eng_Latn: chrf++
+  flores200:dan_Latn-eng_Latn: chrf++
+  flores200:nld_Latn-eng_Latn: chrf++
+  flores200:est_Latn-eng_Latn: chrf++
+  flores200:fin_Latn-eng_Latn: chrf++
+  flores200:fra_Latn-eng_Latn: chrf++
+  flores200:deu_Latn-eng_Latn: chrf++
+  flores200:ell_Grek-eng_Latn: chrf++
+  flores200:hun_Latn-eng_Latn: chrf++
+  flores200:gle_Latn-eng_Latn: chrf++
+  flores200:ita_Latn-eng_Latn: chrf++
+  flores200:lvs_Latn-eng_Latn: chrf++
+  flores200:lit_Latn-eng_Latn: chrf++
+  flores200:mlt_Latn-eng_Latn: chrf++
+  flores200:pol_Latn-eng_Latn: chrf++
+  flores200:por_Latn-eng_Latn: chrf++
+  flores200:ron_Latn-eng_Latn: chrf++
+  flores200:slk_Latn-eng_Latn: chrf++
+  flores200:slv_Latn-eng_Latn: chrf++
+  flores200:spa_Latn-eng_Latn: chrf++
+  flores200:swe_Latn-eng_Latn: chrf++
+  flores200:cat_Latn-eng_Latn: chrf++
+  flores200:eus_Latn-eng_Latn: chrf++
+  flores200:glg_Latn-eng_Latn: chrf++
+  flores200:bos_Latn-eng_Latn: chrf++
+  flores200:kat_Geor-eng_Latn: chrf++
+  flores200:mkd_Cyrl-eng_Latn: chrf++
+  flores200:als_Latn-eng_Latn: chrf++
+  flores200:srp_Cyrl-eng_Latn: chrf++
+  flores200:tur_Latn-eng_Latn: chrf++
+  flores200:ukr_Cyrl-eng_Latn: chrf++
+  flores200:isl_Latn-eng_Latn: chrf++
+  flores200:nob_Latn-eng_Latn: chrf++
+  flores200:eng_Latn-bul_Cyrl: chrf++
+  flores200:eng_Latn-hrv_Latn: chrf++
+  flores200:eng_Latn-ces_Latn: chrf++
+  flores200:eng_Latn-dan_Latn: chrf++
+  flores200:eng_Latn-nld_Latn: chrf++
+  flores200:eng_Latn-est_Latn: chrf++
+  flores200:eng_Latn-fin_Latn: chrf++
+  flores200:eng_Latn-fra_Latn: chrf++
+  flores200:eng_Latn-deu_Latn: chrf++
+  flores200:eng_Latn-ell_Grek: chrf++
+  flores200:eng_Latn-hun_Latn: chrf++
+  flores200:eng_Latn-gle_Latn: chrf++
+  flores200:eng_Latn-ita_Latn: chrf++
+  flores200:eng_Latn-lvs_Latn: chrf++
+  flores200:eng_Latn-lit_Latn: chrf++
+  flores200:eng_Latn-mlt_Latn: chrf++
+  flores200:eng_Latn-pol_Latn: chrf++
+  flores200:eng_Latn-por_Latn: chrf++
+  flores200:eng_Latn-ron_Latn: chrf++
+  flores200:eng_Latn-slk_Latn: chrf++
+  flores200:eng_Latn-slv_Latn: chrf++
+  flores200:eng_Latn-spa_Latn: chrf++
+  flores200:eng_Latn-swe_Latn: chrf++
+  flores200:eng_Latn-cat_Latn: chrf++
+  flores200:eng_Latn-eus_Latn: chrf++
+  flores200:eng_Latn-glg_Latn: chrf++
+  flores200:eng_Latn-bos_Latn: chrf++
+  flores200:eng_Latn-kat_Geor: chrf++
+  flores200:eng_Latn-mkd_Cyrl: chrf++
+  flores200:eng_Latn-als_Latn: chrf++
+  flores200:eng_Latn-srp_Cyrl: chrf++
+  flores200:eng_Latn-tur_Latn: chrf++
+  flores200:eng_Latn-ukr_Cyrl: chrf++
+  flores200:eng_Latn-isl_Latn: chrf++
+  flores200:eng_Latn-nob_Latn: chrf++
   global_piqa_completions_als_latn: acc_norm
   global_piqa_completions_bos_latn: acc_norm
   global_piqa_completions_bul_cyrl: acc_norm
@@ -304,23 +375,29 @@ task_groups:
         subset: "{lang}"
       
   flores-200-eu-to-eng:
-    description: "Flores 200 EU to English translation"
+    description: "Flores 200 EU->English translation (0-shot, chrf++)."
     suite: lighteval
     n_shots: [0]
     dataset: facebook/flores
-    valid_langs: [bul_Cyrl, ces_Latn, dan_Latn, deu_Latn, ell_Grek, est_Latn, fin_Latn, fra_Latn,
-                  gle_Latn, hrv_Latn, hun_Latn, ita_Latn, lit_Latn, lvs_Latn, mlt_Latn, nld_Latn,
-                  pol_Latn, por_Latn, ron_Latn, slk_Latn, slv_Latn, spa_Latn, swe_Latn]
+    valid_langs: [bul_Cyrl, hrv_Latn, ces_Latn, dan_Latn, nld_Latn, est_Latn,
+                  fin_Latn, fra_Latn, deu_Latn, ell_Grek, hun_Latn, gle_Latn,
+                  ita_Latn, lvs_Latn, lit_Latn, mlt_Latn, pol_Latn, por_Latn,
+                  ron_Latn, slk_Latn, slv_Latn, spa_Latn, swe_Latn, cat_Latn,
+                  eus_Latn, glg_Latn, bos_Latn, kat_Geor, mkd_Cyrl, als_Latn,
+                  srp_Cyrl, tur_Latn, ukr_Cyrl, isl_Latn, nob_Latn]
     tasks:
       - task: "flores200:{lang}-eng_Latn"
   flores-200-eng-to-eu:
-    description: "Flores 200 English to EU translation"
+    description: "Flores 200 English->EU translation (0-shot, chrf++)."
     suite: lighteval
     n_shots: [0]
     dataset: facebook/flores
-    valid_langs: [bul_Cyrl, ces_Latn, dan_Latn, deu_Latn, ell_Grek, est_Latn, fin_Latn, fra_Latn,
-                  gle_Latn, hrv_Latn, hun_Latn, ita_Latn, lit_Latn, lvs_Latn, mlt_Latn, nld_Latn,
-                  pol_Latn, por_Latn, ron_Latn, slk_Latn, slv_Latn, spa_Latn, swe_Latn]
+    valid_langs: [bul_Cyrl, hrv_Latn, ces_Latn, dan_Latn, nld_Latn, est_Latn,
+                  fin_Latn, fra_Latn, deu_Latn, ell_Grek, hun_Latn, gle_Latn,
+                  ita_Latn, lvs_Latn, lit_Latn, mlt_Latn, pol_Latn, por_Latn,
+                  ron_Latn, slk_Latn, slv_Latn, spa_Latn, swe_Latn, cat_Latn,
+                  eus_Latn, glg_Latn, bos_Latn, kat_Geor, mkd_Cyrl, als_Latn,
+                  srp_Cyrl, tur_Latn, ukr_Cyrl, isl_Latn, nob_Latn]
     tasks:
       - task: "flores200:eng_Latn-{lang}"
   global-mmlu-eu:

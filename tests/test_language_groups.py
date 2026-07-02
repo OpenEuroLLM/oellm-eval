@@ -72,9 +72,10 @@ def test_language_codes_are_not_task_groups():
 
 
 def test_bracket_empty_intersection_hard_errors():
-    """flores-eu has no Ukrainian side -> an empty bracket match must raise."""
+    """flores-eu-to-eng resolves each task to its non-English side, so no task
+    ever resolves to English -> an empty bracket match must raise."""
     with pytest.raises(ValueError, match="No tasks in task group 'flores"):
-        _expand_task_groups(["flores-200-eu-to-eng[ukr_Cyrl]"])
+        _expand_task_groups(["flores-200-eu-to-eng[eng_Latn]"])
 
 
 def test_empty_bracket_rejected():
