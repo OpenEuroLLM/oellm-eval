@@ -160,9 +160,9 @@ class TestExpandTaskGroupsWithTemplates:
         assert "arc_challenge_mt_is" in task_names
         assert "arc_challenge_mt_bg" in task_names
 
-    def test_flores_eu_to_eng_expands_to_23_tasks(self):
+    def test_flores_eu_to_eng_expands_to_35_tasks(self):
         results = _expand_task_groups(["flores-200-eu-to-eng"])
-        assert len(results) == 23
+        assert len(results) == 35
 
     def test_global_mmlu_expands_to_18_tasks(self):
         results = _expand_task_groups(["global-mmlu-eu"])
