@@ -1,0 +1,4 @@
+"dataset_name": "eu"
+"include": "_global_mgsm_template_yaml"
+"task": "global_mgsm_eu"
+"test_split": "test"

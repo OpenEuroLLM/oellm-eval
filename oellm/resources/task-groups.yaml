@@ -92,6 +92,18 @@ task_metrics:
   arc_challenge_mt_nb: acc_norm
   boolq: acc
   commonsense_qa: acc
+  # global-mgsm (CohereLabs/global-mgsm): flexible-extract exact_match
+  global_mgsm_ca: exact_match
+  global_mgsm_cs: exact_match
+  global_mgsm_de: exact_match
+  global_mgsm_el: exact_match
+  global_mgsm_en: exact_match
+  global_mgsm_es: exact_match
+  global_mgsm_eu: exact_match
+  global_mgsm_fr: exact_match
+  global_mgsm_gl: exact_match
+  global_mgsm_hu: exact_match
+  global_mgsm_sr: exact_match
   hellaswag: acc_norm
   piqa: acc_norm
   social_iqa: acc
@@ -346,6 +358,16 @@ task_groups:
         subset: es
       - task: mgsm_native_cot_fr
         subset: fr
+
+  global-mgsm-eu:
+    description: "Global-MGSM EU grade-school math (0-shot, exact_match)."
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: CohereLabs/global-mgsm
+    valid_langs: [de, fr, es, el, cs, hu, en, ca, eu, gl, sr]
+    tasks:
+      - task: "global_mgsm_{lang}"
+        subset: "{lang}"
 
   generic-multilingual:
     description: "Generic multilingual benchmarks in Aya Expanse"

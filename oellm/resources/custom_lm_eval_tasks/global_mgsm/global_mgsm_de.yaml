@@ -1,0 +1,4 @@
+"dataset_name": "de"
+"include": "_global_mgsm_template_yaml"
+"task": "global_mgsm_de"
+"test_split": "test"

@@ -1,0 +1,4 @@
+"dataset_name": "ca"
+"include": "_global_mgsm_template_yaml"
+"task": "global_mgsm_ca"
+"test_split": "test"
