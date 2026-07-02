@@ -93,6 +93,23 @@ task_metrics:
   boolq: acc
   commonsense_qa: acc
   hellaswag: acc_norm
+  # okapi/hellaswag_multilingual (lm-eval): machine-translated HellaSwag
+  hellaswag_da: acc_norm
+  hellaswag_nl: acc_norm
+  hellaswag_fr: acc_norm
+  hellaswag_de: acc_norm
+  hellaswag_hu: acc_norm
+  hellaswag_it: acc_norm
+  hellaswag_pt: acc_norm
+  hellaswag_ro: acc_norm
+  hellaswag_sk: acc_norm
+  hellaswag_es: acc_norm
+  hellaswag_sv: acc_norm
+  hellaswag_hr: acc_norm
+  hellaswag_ca: acc_norm
+  hellaswag_eu: acc_norm
+  hellaswag_sr: acc_norm
+  hellaswag_uk: acc_norm
   piqa: acc_norm
   social_iqa: acc
   agieval_lsat_ar: acc
@@ -526,6 +543,17 @@ task_groups:
       - task: "arc_challenge_mt_{lang}"
         subset: "{lang}"
       - task: arc_challenge_mt_is  # no subset in the source dataset
+
+  hellaswag-eu:
+    description: "Okapi HellaSwag multilingual (16 EU languages, 0-shot)."
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: alexandrainst/m_hellaswag
+    valid_langs: [da, nl, fr, de, hu, it, pt, ro, sk, es, sv, hr,
+                  ca, eu, sr, uk]
+    tasks:
+      - task: "hellaswag_{lang}"
+        subset: "{lang}"
 
   reasoning:
     description: "Reasoning tasks: GSM8k (4-shot), IFEval (0-shot), MBPP (3-shot), GPQA-Diamond (0-shot), MATH500 (0-shot), LiveCodeBench (0-shot)"
