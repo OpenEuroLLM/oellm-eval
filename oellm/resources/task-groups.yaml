@@ -1,4 +1,5 @@
 task_metrics:
+  function_calling: function_name_acc
   mmlu: acc
   mmlu_prox_cs: exact_match
   mmlu_prox_de: exact_match
@@ -849,6 +850,14 @@ task_groups:
     tasks:
       - task: "polymath_{lang}_top"
         subset: "{lang}"
+
+  function-calling:
+    description: "Function calling benchmark (0-shot) — Gorilla OpenFunctions v2. Metrics: function_name_acc (lenient, checks function name) and exact_match (strict, full call)."
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: gorilla-llm/gorilla-openfunctions-v2
+    tasks:
+      - task: function_calling
 
 super_groups:
   oellm-multilingual:
