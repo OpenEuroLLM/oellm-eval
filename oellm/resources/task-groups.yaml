@@ -145,6 +145,89 @@ task_metrics:
   bigbench_operators_generate_until: exact_match
   bigbench_repeat_copy_logic_generate_until: exact_match
   bigbench_cs_algorithms_generate_until: exact_match
+  # lmms-eval image benchmark metrics.
+  # NOTE: `exact_match` for vqav2/textvqa is a lmms-eval misnomer — it's
+  # the soft VQA accuracy `min(matching/3, 1)`, not strict equality.
+  vqav2_val: exact_match
+  mme: mme_cognition_score
+  mmbench_en_dev: gpt_eval_score
+  mmmu_val: mmmu_acc
+  chartqa: relaxed_overall
+  docvqa_val: anls
+  textvqa_val: exact_match
+  ocrbench: ocrbench_accuracy
+  # MathVista: schedule the 3 leaves (cot / format / solution), not the group.
+  mathvista_testmini_cot: llm_as_judge_eval
+  mathvista_testmini_format: llm_as_judge_eval
+  mathvista_testmini_solution: llm_as_judge_eval
+  # Additional lmms-eval image benchmarks (rule-based, air-gap safe).
+  ocrbench_v2: ocrbench_v2_accuracy
+  realworldqa: exact_match
+  mmerealworld: mme_realworld_score
+  mmstar: average
+  ai2d: exact_match
+  mathvision_test: mathvision_standard_eval
+  seedbench: seed_image
+  # lmms-eval video benchmark metrics. `video_mmmu` is a group of 3 leaves.
+  video_mmmu_perception: mmmu_acc
+  video_mmmu_comprehension: mmmu_acc
+  video_mmmu_adaptation: mmmu_acc
+  # EgoSchema: use `egoschema_subset` (val split with ground truth).
+  # The bare `egoschema` task is Kaggle-submission-only.
+  egoschema_subset: score
+  # MVBench: `mvbench` is a group of 20 subtasks; collect_results
+  # aggregates per-subtask `mvbench_accuracy` into a synthetic row.
+  mvbench: mvbench_accuracy
+  # `videomme_perception_score` IS the overall accuracy despite the name.
+  videomme: videomme_perception_score
+  # ActivityNet-QA requires GPT API access for evaluation (LLM-as-judge)
+  activitynetqa: gpt_eval_accuracy
+  longvideobench_val_v: lvb_acc
+  librispeech_dev_clean: wer
+  librispeech_dev_other: wer
+  librispeech_test_clean: wer
+  librispeech_test_other: wer
+  common_voice_15_en: wer
+  common_voice_15_fr: wer
+  common_voice_15_zh-CN: wer
+  gigaspeech_test: wer
+  tedlium_dev_test: wer
+  people_speech_val: wer
+  voxpopuli_en: wer
+  ami_test: wer
+  wenet_speech_test_meeting: mer
+  wenet_speech_test_net: mer
+  covost2_en_zh_test: bleu
+  fleurs_en: wer
+  fleurs_cmn_hans_cn: wer
+  fleurs_yue_hant_hk: wer
+  alpaca_audio: gpt_eval
+  clotho_aqa_test: exact_match
+  openhermes: gpt_eval
+  wavcaps: gpt_eval
+  air_bench_chat_sound: gpt_eval
+  air_bench_chat_music: gpt_eval
+  air_bench_chat_speech: gpt_eval
+  air_bench_chat_mixed: gpt_eval
+  air_bench_foundation_sound: accuracy
+  air_bench_foundation_music: accuracy
+  air_bench_foundation_speech: accuracy
+  muchomusic: accuracy
+  vocalsound_test: accuracy
+  step2_audio_paralinguistic_age: semantic_match
+  step2_audio_paralinguistic_emotions: semantic_match
+  step2_audio_paralinguistic_event: semantic_match
+  step2_audio_paralinguistic_gender: semantic_match
+  step2_audio_paralinguistic_pitch: semantic_match
+  step2_audio_paralinguistic_rhythm: semantic_match
+  step2_audio_paralinguistic_scene: semantic_match
+  step2_audio_paralinguistic_speed: semantic_match
+  step2_audio_paralinguistic_vocalsound: semantic_match
+  step2_audio_paralinguistic_voice_styles: semantic_match
+  step2_audio_paralinguistic_voice_tone: semantic_match
+  cn_college_listen_mcq_test: accuracy
+  dream_tts_mcq_test: accuracy
+  voicebench_commoneval: llm_as_judge_eval
   opensubtitles_multi40_en_to_bg: bleu
   opensubtitles_multi40_en_to_hr: bleu
   opensubtitles_multi40_en_to_cs: bleu
@@ -355,6 +438,111 @@ task_metrics:
   polymath_pt_high: exact_match
   polymath_pt_top: exact_match
 
+  # Explicit headline-metric picks for groups that would otherwise ride the
+  # METRIC_FALLBACK_KEYS chain:
+  #  * belebele (plain): acc — the paper convention; the _cf variants stay
+  #    acc_norm.
+  #  * mgsm: exact_match under the flexible-extract filter — CoT output
+  #    formats vary across languages, and strict-match scores differ by
+  #    several points.
+  #  * gsm8k: exact_match under strict-match — the benchmark's original
+  #    strict answer extraction; English output is format-stable, unlike
+  #    multilingual mgsm above.
+  #  * ifeval: prompt_level_strict_acc — the usual single-number pick.
+  #  * The evalchemy-routed `reasoning` tasks (GPQADiamond, MATH500,
+  #    LiveCodeBench, HumanEval, AIME24/25, AMC23) stay unmapped: output
+  #    key shape unverified. The scheduler warns about unmapped tasks.
+  gsm8k: exact_match,strict-match
+  ifeval: prompt_level_strict_acc
+  mbpp: pass_at_1
+  jeopardy: exact_match
+  # belebele-eu-5-shot (24 tasks)
+  belebele_bul_Cyrl: acc
+  belebele_ces_Latn: acc
+  belebele_dan_Latn: acc
+  belebele_deu_Latn: acc
+  belebele_ell_Grek: acc
+  belebele_eng_Latn: acc
+  belebele_est_Latn: acc
+  belebele_fin_Latn: acc
+  belebele_fra_Latn: acc
+  belebele_hrv_Latn: acc
+  belebele_hun_Latn: acc
+  belebele_ita_Latn: acc
+  belebele_lit_Latn: acc
+  belebele_lvs_Latn: acc
+  belebele_mlt_Latn: acc
+  belebele_nld_Latn: acc
+  belebele_nob_Latn: acc
+  belebele_pol_Latn: acc
+  belebele_por_Latn: acc
+  belebele_ron_Latn: acc
+  belebele_slk_Latn: acc
+  belebele_slv_Latn: acc
+  belebele_spa_Latn: acc
+  belebele_swe_Latn: acc
+  # flores-200-eu-to-eng (23 tasks)
+  # flores-200-eng-to-eu (23 tasks)
+  # global-mmlu-eu (18 tasks)
+  global_mmlu_full_cs: acc
+  global_mmlu_full_de: acc
+  global_mmlu_full_el: acc
+  global_mmlu_full_en: acc
+  global_mmlu_full_es: acc
+  global_mmlu_full_fr: acc
+  global_mmlu_full_he: acc
+  global_mmlu_full_it: acc
+  global_mmlu_full_lt: acc
+  global_mmlu_full_nl: acc
+  global_mmlu_full_pl: acc
+  global_mmlu_full_pt: acc
+  global_mmlu_full_ro: acc
+  global_mmlu_full_ru: acc
+  global_mmlu_full_sr: acc
+  global_mmlu_full_sv: acc
+  global_mmlu_full_tr: acc
+  global_mmlu_full_uk: acc
+  # include (25 tasks)
+  include_base_44_albanian: acc
+  include_base_44_armenian: acc
+  include_base_44_azerbaijani: acc
+  include_base_44_basque: acc
+  include_base_44_belarusian: acc
+  include_base_44_bulgarian: acc
+  include_base_44_croatian: acc
+  include_base_44_dutch: acc
+  include_base_44_estonian: acc
+  include_base_44_finnish: acc
+  include_base_44_french: acc
+  include_base_44_georgian: acc
+  include_base_44_german: acc
+  include_base_44_greek: acc
+  include_base_44_hungarian: acc
+  include_base_44_italian: acc
+  include_base_44_lithuanian: acc
+  include_base_44_north macedonian: acc
+  include_base_44_polish: acc
+  include_base_44_portuguese: acc
+  include_base_44_russian: acc
+  include_base_44_serbian: acc
+  include_base_44_spanish: acc
+  include_base_44_turkish: acc
+  include_base_44_ukrainian: acc
+  # generic-multilingual (3 tasks)
+  xcopa: acc
+  xstorycloze: acc
+  xwinograd: acc
+  # mgsm-eu (4 tasks)
+  mgsm_native_cot_de: exact_match,flexible-extract
+  mgsm_native_cot_en: exact_match,flexible-extract
+  mgsm_native_cot_es: exact_match,flexible-extract
+  mgsm_native_cot_fr: exact_match,flexible-extract
+
+  # Custom lm-eval task — definition in custom_lm_eval_tasks/tabfact/.
+  tabfact: acc
+  # Custom lm-eval task — definition in custom_lm_eval_tasks/timeseriesexam/.
+  timeseriesexam: acc
+
 task_groups:
   sib200-eu:
     description: "SIB-200 European language topic classification tasks (0-shot)"
@@ -543,7 +731,7 @@ task_groups:
     description: "EU Language GSM benchmarks in Aya Expanse"
     suite: lm-eval-harness
     n_shots: [5]
-    dataset: jbross-ibm-research/mgsm
+    dataset: juletxara/mgsm
     tasks:
       - task: mgsm_native_cot_en
         subset: en
@@ -632,6 +820,478 @@ task_groups:
         subset: Turkish
       - task: include_base_44_ukrainian
         subset: Ukrainian
+
+  # ── Image Modality (lmms-eval) ────────────────────────────────────────────
+  image-vqa:
+    description: "Image VQA benchmarks via lmms-eval (VQAv2, MMBench, MMMU, ChartQA, DocVQA, TextVQA, OCRBench, MathVista)"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: vqav2_val
+        dataset: lmms-lab/VQAv2
+      - task: mmbench_en_dev
+        dataset: lmms-lab/MMBench
+      - task: mmmu_val
+        dataset: MMMU/MMMU
+      - task: chartqa
+        dataset: lmms-lab/ChartQA
+      - task: docvqa_val
+        dataset: lmms-lab/DocVQA
+        subset: DocVQA
+      - task: textvqa_val
+        dataset: lmms-lab/textvqa
+      - task: ocrbench
+        dataset: echo840/OCRBench
+      - task: mathvista_testmini_cot
+        dataset: AI4Math/MathVista
+      - task: mathvista_testmini_format
+        dataset: AI4Math/MathVista
+      - task: mathvista_testmini_solution
+        dataset: AI4Math/MathVista
+
+  # ── Individual Image Benchmarks (single-task groups for targeted runs) ──────
+  image-vqav2:
+    description: "VQAv2 visual question answering via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: vqav2_val
+        dataset: lmms-lab/VQAv2
+
+  image-mmbench:
+    description: "MMBench multi-modal benchmark via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: mmbench_en_dev
+        dataset: lmms-lab/MMBench
+
+  image-mmmu:
+    description: "MMMU massive multi-discipline multimodal understanding via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: mmmu_val
+        dataset: MMMU/MMMU
+
+  image-chartqa:
+    description: "ChartQA chart question answering via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: chartqa
+        dataset: lmms-lab/ChartQA
+
+  image-docvqa:
+    description: "DocVQA document visual question answering via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: docvqa_val
+        dataset: lmms-lab/DocVQA
+        subset: DocVQA
+
+  image-textvqa:
+    description: "TextVQA text-based visual question answering via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: textvqa_val
+        dataset: lmms-lab/textvqa
+
+  image-ocrbench:
+    description: "OCRBench optical character recognition benchmark via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: ocrbench
+        dataset: echo840/OCRBench
+
+  image-mme:
+    description: "MME multimodal evaluation benchmark via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: mme
+        dataset: lmms-lab/MME
+
+  image-mathvista:
+    description: "MathVista mathematical reasoning in visual contexts via lmms-eval (testmini CoT/format/solution leaves)"
+    suite: lmms_eval
+    n_shots: [0]
+    dataset: AI4Math/MathVista
+    tasks:
+      - task: mathvista_testmini_cot
+      - task: mathvista_testmini_format
+      - task: mathvista_testmini_solution
+
+  # ── Image Modality: additional benchmarks (lmms-eval, rule-based) ─────────
+  image-ocrbench-v2:
+    description: "OCRBench v2 OCR benchmark (rule-based) via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: ocrbench_v2
+        dataset: ling99/OCRBench_v2
+
+  image-realworldqa:
+    description: "RealWorldQA real-world spatial/visual understanding via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: realworldqa
+        dataset: lmms-lab/RealWorldQA
+
+  image-mme-realworld:
+    description: "MME-RealWorld (EN) high-resolution real-world MCQ via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: mmerealworld
+        dataset: yifanzhang114/MME-RealWorld-Lmms-eval
+
+  image-mmstar:
+    description: "MMStar elite vision-indispensable multimodal benchmark via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: mmstar
+        dataset: Lin-Chen/MMStar
+
+  image-ai2d:
+    description: "AI2D diagram multiple-choice VQA via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: ai2d
+        dataset: lmms-lab/ai2d
+
+  image-mathvision:
+    description: "MathVision math reasoning over images (test split, rule-based) via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: mathvision_test
+        dataset: MathLLMs/MathVision
+
+  image-seedbench:
+    description: "SEED-Bench image multiple-choice (seed_image submetric) via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: seedbench
+        dataset: lmms-lab/SEED-Bench
+
+  # ── Video Modality (lmms-eval) ────────────────────────────────────────────
+  video-understanding:
+    description: "Video understanding benchmarks via lmms-eval (VideoMMMU, MVBench, EgoSchema-subset, VideoMME, ActivityNet-QA, LongVideoBench)"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: video_mmmu_perception
+        dataset: lmms-lab/VideoMMMU
+      - task: video_mmmu_comprehension
+        dataset: lmms-lab/VideoMMMU
+      - task: video_mmmu_adaptation
+        dataset: lmms-lab/VideoMMMU
+      - task: mvbench
+        dataset: OpenGVLab/MVBench
+        # MVBench parquet on `main`, .mp4 files on `video` — fetch both.
+        revisions: [main, video]
+      - task: egoschema_subset
+        dataset: lmms-lab/egoschema
+      - task: videomme
+        dataset: lmms-lab/Video-MME
+      - task: activitynetqa
+        dataset: lmms-lab/ActivityNetQA
+      - task: longvideobench_val_v
+        dataset: longvideobench/LongVideoBench
+
+  # ── Individual Video Benchmarks (single-task groups for targeted runs) ────
+  video-videommmu:
+    description: "VideoMMMU multi-discipline video understanding via lmms-eval (perception / comprehension / adaptation leaves)"
+    suite: lmms_eval
+    n_shots: [0]
+    dataset: lmms-lab/VideoMMMU
+    tasks:
+      - task: video_mmmu_perception
+      - task: video_mmmu_comprehension
+      - task: video_mmmu_adaptation
+
+  video-mvbench:
+    description: "MVBench short-clip temporal video understanding via lmms-eval (group of 20 subtasks; mean accuracy)"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: mvbench
+        dataset: OpenGVLab/MVBench
+        # MVBench parquet on `main`, .mp4 files on `video` — fetch both.
+        revisions: [main, video]
+
+  video-egoschema:
+    description: "EgoSchema long-form egocentric video QA via lmms-eval (500-q validation subset with ground truth)"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: egoschema_subset
+        dataset: lmms-lab/egoschema
+
+  video-videomme:
+    description: "Video-MME full-spectrum video understanding (11s-1h) via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: videomme
+        dataset: lmms-lab/Video-MME
+
+  video-activitynet-qa:
+    description: "ActivityNet-QA open-ended activity video QA via lmms-eval (requires GPT API for scoring)"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: activitynetqa
+        dataset: lmms-lab/ActivityNetQA
+
+  video-longvideobench:
+    description: "LongVideoBench long-video cross-segment reasoning via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: longvideobench_val_v
+        dataset: longvideobench/LongVideoBench
+
+  # Every task below MUST be a leaf (metric-emitting) task. Group names like
+  # air_bench_chat / common_voice_15 / fleurs expand to subtask keys at runtime,
+  # breaking the jobs.csv ↔ results.json match in _resolve_metric. Judge-model
+  # benchmarks live in individual audio-* groups and need OPENAI_API_KEY.
+  audio-understanding:
+    description: "Curated audio benchmark suite via lmms-eval — ASR (LibriSpeech, FLEURS en, GigaSpeech, TED-LIUM, WenetSpeech meeting), speech translation (CoVoST2 en→zh), audio classification (VocalSound) and music understanding (MuChoMusic). No judge-model dependency."
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: librispeech_test_clean
+        dataset: lmms-lab/librispeech
+      - task: fleurs_en
+        dataset: lmms-lab/fleurs
+      - task: gigaspeech_test
+        dataset: lmms-lab/gigaspeech
+      - task: tedlium_dev_test
+        dataset: lmms-lab/tedlium
+      - task: wenet_speech_test_meeting
+        dataset: lmms-lab/WenetSpeech
+      - task: covost2_en_zh_test
+        dataset: lmms-lab/covost2_en-zh
+      - task: vocalsound_test
+        dataset: lmms-lab/vocalsound
+      - task: muchomusic
+        dataset: lmms-lab/muchomusic
+
+  audio-librispeech:
+    description: "LibriSpeech ASR benchmark via lmms-eval (WER on test-clean)"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: librispeech_test_clean
+        dataset: lmms-lab/librispeech
+
+  audio-librispeech-all:
+    description: "LibriSpeech all four splits (dev-clean, dev-other, test-clean, test-other) via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    dataset: lmms-lab/librispeech
+    tasks:
+      - task: librispeech_dev_clean
+      - task: librispeech_dev_other
+      - task: librispeech_test_clean
+      - task: librispeech_test_other
+
+  audio-common-voice-15:
+    description: "Common Voice 15 multilingual ASR via lmms-eval (en, fr, zh-CN leaf subtasks)"
+    suite: lmms_eval
+    n_shots: [0]
+    dataset: lmms-lab/common_voice_15
+    tasks:
+      - task: common_voice_15_en
+      - task: common_voice_15_fr
+      - task: common_voice_15_zh-CN
+
+  audio-gigaspeech:
+    description: "GigaSpeech large-scale ASR via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: gigaspeech_test
+        dataset: lmms-lab/gigaspeech
+
+  audio-tedlium:
+    description: "TED-LIUM v3 ASR via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: tedlium_dev_test
+        dataset: lmms-lab/tedlium
+
+  audio-people-speech:
+    description: "People's Speech ASR via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: people_speech_val
+        dataset: lmms-lab/peoples_speech
+
+  audio-voxpopuli:
+    description: "VoxPopuli multilingual ASR via lmms-eval (English split)"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: voxpopuli_en
+        dataset: facebook/voxpopuli
+
+  audio-ami:
+    description: "AMI meeting-corpus ASR via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: ami_test
+        dataset: edinburghcstr/ami
+
+  audio-wenet-speech:
+    description: "WenetSpeech Chinese ASR via lmms-eval (MER on test_meeting / test_net)"
+    suite: lmms_eval
+    n_shots: [0]
+    dataset: lmms-lab/WenetSpeech
+    tasks:
+      - task: wenet_speech_test_meeting
+      - task: wenet_speech_test_net
+
+  audio-covost2:
+    description: "CoVoST2 English-Chinese speech translation via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: covost2_en_zh_test
+        dataset: lmms-lab/covost2_en-zh
+
+  audio-fleurs:
+    description: "FLEURS multilingual speech benchmark via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    dataset: lmms-lab/fleurs
+    tasks:
+      - task: fleurs_en
+      - task: fleurs_cmn_hans_cn
+      - task: fleurs_yue_hant_hk
+
+  audio-alpaca-audio:
+    description: "Alpaca-Audio spoken instruction following via lmms-eval (uses GPT-4 judge)"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: alpaca_audio
+        dataset: lmms-lab/alpaca_audio
+
+  audio-clotho-aqa:
+    description: "Clotho-AQA audio question answering via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: clotho_aqa_test
+        dataset: lmms-lab/ClothoAQA
+
+  audio-openhermes:
+    description: "OpenHermes-Audio instruction following via lmms-eval (uses GPT-4 judge)"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: openhermes
+        dataset: lmms-lab/openhermes_instruction
+
+  audio-wavcaps:
+    description: "WavCaps audio captioning via lmms-eval (uses GPT-4 judge)"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: wavcaps
+        dataset: AudioLLMs/wavcaps_test
+
+  audio-air-bench-chat:
+    description: "AIR-Bench chat: all four subsets (sound, music, speech, mixed) via lmms-eval — uses GPT-4 judge"
+    suite: lmms_eval
+    n_shots: [0]
+    dataset: lmms-lab/AIR_Bench
+    tasks:
+      - task: air_bench_chat_sound
+      - task: air_bench_chat_music
+      - task: air_bench_chat_speech
+      - task: air_bench_chat_mixed
+
+  audio-air-bench-foundation:
+    description: "AIR-Bench foundation MCQ (sound, music, speech) via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    dataset: lmms-lab/AIR_Bench
+    tasks:
+      - task: air_bench_foundation_sound
+      - task: air_bench_foundation_music
+      - task: air_bench_foundation_speech
+
+  audio-muchomusic:
+    description: "MuChoMusic music understanding MCQ via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: muchomusic
+        dataset: lmms-lab/muchomusic
+
+  audio-vocalsound:
+    description: "VocalSound non-speech vocalisation classification via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: vocalsound_test
+        dataset: lmms-lab/vocalsound
+
+  audio-step2-paralinguistic:
+    description: "Step2 audio paralinguistic probes (age, emotion, event, gender, pitch, rhythm, scene, speed, vocalsound, voice-styles, voice-tone) via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    dataset: lmms-lab/StepEval-Audio-Paralinguistic
+    tasks:
+      - task: step2_audio_paralinguistic_age
+      - task: step2_audio_paralinguistic_emotions
+      - task: step2_audio_paralinguistic_event
+      - task: step2_audio_paralinguistic_gender
+      - task: step2_audio_paralinguistic_pitch
+      - task: step2_audio_paralinguistic_rhythm
+      - task: step2_audio_paralinguistic_scene
+      - task: step2_audio_paralinguistic_speed
+      - task: step2_audio_paralinguistic_vocalsound
+      - task: step2_audio_paralinguistic_voice_styles
+      - task: step2_audio_paralinguistic_voice_tone
+
+  audio-cn-college-listen-mcq:
+    description: "Chinese college listening comprehension MCQ via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: cn_college_listen_mcq_test
+        dataset: AudioLLMs/cn_college_listen_mcq_test
+
+  audio-dream-tts-mcq:
+    description: "DREAM TTS MCQ listening comprehension via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: dream_tts_mcq_test
+        dataset: AudioLLMs/dream_tts_mcq_test
+
+  audio-voicebench:
+    description: "VoiceBench voice-assistant benchmark (commoneval subset) via lmms-eval"
+    suite: lmms_eval
+    n_shots: [0]
+    tasks:
+      - task: voicebench_commoneval
+        dataset: lmms-lab/voicebench
 
   dclm-core-22:
     description: "DCLM core 22 evaluation tasks (lm-eval-harness, matching LLM Foundry task types)"
@@ -849,6 +1509,22 @@ task_groups:
     tasks:
       - task: "polymath_{lang}_top"
         subset: "{lang}"
+  tabular-tabfact:
+    description: "TabFact: is a statement entailed or refuted by a Wikipedia table. Few-shot drawn from the train split."
+    suite: lm-eval-harness
+    n_shots: [0]
+    tasks:
+      - task: tabfact
+        dataset: wenhu/tab_fact
+        subset: tab_fact
+
+  timeseries-tsexam:
+    description: "TimeSeriesExam (AutonLab, arXiv 2410.14752): MCQ time-series understanding for LLMs — trend, seasonality, anomalies, causality. Strictly 0-shot (test split only); series subsampled to 128 points."
+    suite: lm-eval-harness
+    n_shots: [0]
+    tasks:
+      - task: timeseriesexam
+        dataset: AutonLab/TimeSeriesExam1
 
 super_groups:
   oellm-multilingual:

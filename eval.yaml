@@ -1,0 +1,17 @@
+# ELLIOT evaluation config — copy and edit this file for your run.
+
+models:
+  - "EleutherAI/pythia-70m"
+
+task_groups:
+  - "open-sci-0.01"
+  # - "image-vqa"          # P0 image benchmarks (VQAv2, MMBench, MMMU, …)
+  # - "dclm-core-22"
+  # - "belebele-eu-5-shot"
+
+slurm:
+  time_limit: "12:00:00"
+  max_array_len: 128
+  # partition: "boost_usr_prod"
+  # account: "OELLM_prod2026"
+  # gpus_per_node: 4

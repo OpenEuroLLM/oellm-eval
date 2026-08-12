@@ -1,0 +1,24 @@
+# TabFact — table fact verification (wenhu/tab_fact, CC-BY-4.0, ungated).
+# Reference custom lm-eval task: is a statement entailed or refuted
+# by a Wikipedia table? MCQ loglikelihood over the two verdicts; few-shot
+# demonstrations come from the TRAIN split (clean split hygiene). Label
+# mapping: 0 = refuted, 1 = entailed — matches doc_to_choice order.
+task: tabfact
+dataset_path: wenhu/tab_fact
+dataset_name: tab_fact
+dataset_kwargs:
+  trust_remote_code: true
+output_type: multiple_choice
+training_split: train
+validation_split: validation
+test_split: test
+fewshot_split: train
+doc_to_text: !function utils.doc_to_text
+doc_to_choice: ["refuted", "entailed"]
+doc_to_target: label
+metric_list:
+  - metric: acc
+    aggregation: mean
+    higher_is_better: true
+metadata:
+  version: 1.0

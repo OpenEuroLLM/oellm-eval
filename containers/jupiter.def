@@ -13,7 +13,8 @@ From: nvcr.io/nvidia/pytorch:25.06-py3
     export UV_TOOL_BIN_DIR=/usr/local/bin
     uv --version
 
-    uv pip install --system --break-system-packages lm-eval \
+    uv pip install --system --break-system-packages lm-eval==0.4.12 \
+        latex2sympy2_extended \
         wandb sentencepiece tiktoken accelerate
 
     # lighteval as isolated tool (avoids dependency conflicts)
@@ -23,7 +24,7 @@ From: nvcr.io/nvidia/pytorch:25.06-py3
     uv tool install --python 3.12 \
         --with "pillow" \
         --with "torch<2.9" \
-        "lighteval @ git+https://github.com/huggingface/lighteval.git"
+        "lighteval @ git+https://github.com/huggingface/lighteval.git@64f4f5ae173626509fad6e477ca4ee56ebb26129"
     uv pip install --system --break-system-packages "spacy>=3.0.0,<4.0.0" jieba "underthesea>=6.0.0"
     uv pip install --system --break-system-packages nltk
 

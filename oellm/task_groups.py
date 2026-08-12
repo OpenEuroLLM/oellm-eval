@@ -7,6 +7,22 @@ from importlib.resources import files
 
 import yaml
 
+# Datasets that store media as external URLs (not embedded bytes). A bare
+# snapshot_download only fetches the URLs, not the media — they MUST go through
+# load_dataset()+_materialize_external_urls() so the per-row HTTP fetch runs on
+# the (online) login node. Excluded from the snapshot-only fast path below.
+# Currently empty: every in-tree dataset embeds its media (e.g. lmms-lab/textvqa
+# ships image bytes in its parquet). Add a repo id here only if it genuinely
+# stores external media URLs.
+_URL_BASED_DATASETS: set[str] = set()
+
+# Eval suites whose datasets are large media (image/audio/video). Their specs
+# are staged with snapshot_download (raw files; the compute node builds the
+# dataset at runtime) to avoid OOM-prone load_dataset() builds on the memory-
+# capped login node. ``lmms_eval`` = core image/audio/video; ``audiobench`` =
+# the audio contrib plugin (suite != lmms_eval but still large audio data).
+_SNAPSHOT_SUITES = {"lmms_eval", "audiobench"}
+
 # --- Language normalisation -------------------------------------------------
 # Tasks encode their language in several incompatible ways across benchmarks
 # (e.g. German is ``deu_Latn``, ``de``, ``German`` and ``deu_latn``). These
@@ -145,6 +161,10 @@ def _resolve_task_languages(name: str, subset: str | None) -> list[str]:
 class DatasetSpec:
     repo_id: str
     subset: str | None = None
+    needs_snapshot_download: bool = False
+    # HF dataset revisions to pre-fetch. Most datasets only need `main`;
+    # OpenGVLab/MVBench keeps videos on a separate `video` branch.
+    revisions: list[str] = field(default_factory=lambda: ["main"])
 
 
 @dataclass
@@ -155,6 +175,9 @@ class _Task:
     subset: str | None = None
     suite: str | None = None
     languages: list[str] = field(default_factory=list)
+    revisions: list[str] = field(default_factory=lambda: ["main"])
+    hf_models: list[str] | None = None
+    hf_dataset_files: list[dict] | None = None
 
 
 @dataclass
@@ -193,6 +216,9 @@ class TaskGroup:
                     subset=task_subset,
                     suite=task_data.get("suite"),
                     languages=_resolve_task_languages(task_name, task_subset),
+                    revisions=task_data.get("revisions") or ["main"],
+                    hf_models=task_data.get("hf_models"),
+                    hf_dataset_files=task_data.get("hf_dataset_files"),
                 )
             )
 
@@ -274,10 +300,25 @@ def _expand_lang_templates(data: dict) -> dict:
 
 
 def _load_task_groups_data() -> dict:
-    """Load and pre-process the task-groups YAML, expanding any ``{lang}`` templates."""
+    """Load and pre-process the task-groups YAML, expanding any ``{lang}`` templates.
+
+    Core YAML task groups are merged with contrib-plugin task groups from the
+    registry, so both schedule through the same code paths. Merging happens
+    before ``{lang}`` expansion so contrib groups may also use templates.
+    """
     raw = (
         yaml.safe_load((files("oellm.resources") / "task-groups.yaml").read_text()) or {}
     )
+
+    from oellm.registry import (
+        get_all_task_groups as _contrib_task_groups,  # noqa: PLC0415
+    )
+
+    _contrib = _contrib_task_groups()
+    raw.setdefault("task_metrics", {}).update(_contrib.get("task_metrics", {}))
+    raw.setdefault("task_groups", {}).update(_contrib.get("task_groups", {}))
+    raw.setdefault("super_groups", {}).update(_contrib.get("super_groups", {}))
+
     return _expand_lang_templates(raw)
 
 
@@ -527,25 +568,99 @@ def _extract_flores_subsets(task_name: str) -> list[str]:
 
 
 def _collect_dataset_specs(group_names: Iterable[str]) -> list[DatasetSpec]:
-    specs: list[DatasetSpec] = []
-    seen: set[tuple[str, str | None]] = set()
+    # Merge specs sharing (repo_id, subset): union their revisions and OR their
+    # snapshot flag. A task whose resolved suite is a media suite (see
+    # _SNAPSHOT_SUITES) is staged via snapshot_download rather than an
+    # OOM-prone load_dataset() build on the memory-capped login node.
+    by_key: dict[tuple[str, str | None], DatasetSpec] = {}
+    order: list[tuple[str, str | None]] = []
 
-    def add_spec(dataset: str | None, subset: str | None):
+    def add_spec(
+        dataset: str | None,
+        subset: str | None,
+        needs_snapshot_download: bool = False,
+        revisions: list[str] | None = None,
+    ):
         if dataset is None:
             return
+        revs = list(revisions) if revisions else ["main"]
         key = (dataset, subset)
-        if key not in seen:
-            seen.add(key)
-            specs.append(DatasetSpec(repo_id=dataset, subset=subset))
+        existing = by_key.get(key)
+        if existing is None:
+            by_key[key] = DatasetSpec(
+                repo_id=dataset,
+                subset=subset,
+                needs_snapshot_download=needs_snapshot_download,
+                revisions=revs,
+            )
+            order.append(key)
+        else:
+            for r in revs:
+                if r not in existing.revisions:
+                    existing.revisions.append(r)
+            if needs_snapshot_download and not existing.needs_snapshot_download:
+                existing.needs_snapshot_download = True
 
-    for _suite, t in _select_tasks(group_names):
+    for suite, t in _select_tasks(group_names):
+        needs_snapshot = suite in _SNAPSHOT_SUITES
+        if t.dataset in _URL_BASED_DATASETS:
+            # URL-based dataset: a snapshot would grab only links. Force the
+            # load_dataset()+materialize path so the media is actually fetched.
+            needs_snapshot = False
+
         if t.dataset == "facebook/flores" and not t.subset:
             for lang in _extract_flores_subsets(t.name):
-                add_spec(t.dataset, lang)
+                add_spec(t.dataset, lang, revisions=t.revisions)
         else:
-            add_spec(t.dataset, t.subset)
+            add_spec(
+                t.dataset,
+                t.subset,
+                needs_snapshot_download=needs_snapshot,
+                revisions=t.revisions,
+            )
 
-    return specs
+    return [by_key[k] for k in order]
+
+
+def _collect_hf_model_repos(group_names: Iterable[str]) -> list[str]:
+    """Return deduplicated HF model repo IDs declared in task ``hf_models`` fields."""
+    repos: list[str] = []
+    seen: set[str] = set()
+    for _suite, t in _select_tasks(group_names):
+        for repo_id in t.hf_models or []:
+            if repo_id not in seen:
+                seen.add(repo_id)
+                repos.append(repo_id)
+    return repos
+
+
+def _collect_hf_dataset_files(group_names: Iterable[str]) -> list[dict]:
+    """Return deduplicated HF dataset file specs declared in task ``hf_dataset_files`` fields."""
+    # Merge patterns from all tasks that share the same (repo_id, revision)
+    # so that a single snapshot_download fetches everything needed.
+    merged: dict[tuple[str, str | None], list[str]] = {}
+    for _suite, t in _select_tasks(group_names):
+        for spec in t.hf_dataset_files or []:
+            repo_id = spec.get("repo_id", "")
+            if not repo_id:
+                continue
+            revision = spec.get("revision")
+            patterns = spec.get("patterns") or []
+            key = (repo_id, revision)
+            if key not in merged:
+                merged[key] = list(patterns)
+            else:
+                for p in patterns:
+                    if p not in merged[key]:
+                        merged[key].append(p)
+
+    result = []
+    for (rid, rev), pats in merged.items():
+        entry: dict = {"repo_id": rid, "patterns": pats}
+        if rev:
+            entry["revision"] = rev
+        result.append(entry)
+    return result
 
 
 def _build_task_dataset_map() -> dict[str, list[DatasetSpec]]:
@@ -559,16 +674,25 @@ def _build_task_dataset_map() -> dict[str, list[DatasetSpec]]:
 
     for _, group in parsed.items():
         if isinstance(group, TaskGroup):
+            needs_snapshot = group.suite in _SNAPSHOT_SUITES
             for t in group.tasks:
                 if t.dataset and t.name not in task_map:
+                    snap = needs_snapshot and t.dataset not in _URL_BASED_DATASETS
                     if t.dataset == "facebook/flores" and not t.subset:
                         task_map[t.name] = [
-                            DatasetSpec(repo_id=t.dataset, subset=lang)
+                            DatasetSpec(
+                                repo_id=t.dataset, subset=lang, revisions=t.revisions
+                            )
                             for lang in _extract_flores_subsets(t.name)
                         ]
                     else:
                         task_map[t.name] = [
-                            DatasetSpec(repo_id=t.dataset, subset=t.subset)
+                            DatasetSpec(
+                                repo_id=t.dataset,
+                                subset=t.subset,
+                                needs_snapshot_download=snap,
+                                revisions=t.revisions,
+                            )
                         ]
 
     return task_map
@@ -593,6 +717,63 @@ def _lookup_dataset_specs_for_tasks(task_names: Iterable[str]) -> list[DatasetSp
                 specs.append(spec)
 
     return specs
+
+
+def _build_task_aux_map() -> dict[str, tuple[list[str], list[dict]]]:
+    """Map task name → (hf_models, hf_dataset_files) from all task groups."""
+    data = _load_task_groups_data()
+    parsed = _parse_task_groups(list(data.get("task_groups", {}).keys()))
+    aux: dict[str, tuple[list[str], list[dict]]] = {}
+    for _, group in parsed.items():
+        if isinstance(group, TaskGroup):
+            for t in group.tasks:
+                if t.name not in aux and (t.hf_models or t.hf_dataset_files):
+                    aux[t.name] = (t.hf_models or [], t.hf_dataset_files or [])
+    return aux
+
+
+def _lookup_hf_model_repos_for_tasks(task_names: Iterable[str]) -> list[str]:
+    """``hf_models`` pre-download repos for individual task names.
+
+    Mirrors :func:`_collect_hf_model_repos` for tasks scheduled without a
+    task group (bare ``--tasks`` or a ``--check`` re-schedule CSV) — those
+    paths previously skipped auxiliary-model staging entirely, so contrib
+    rows failed on the air-gapped compute node.
+    """
+    aux = _build_task_aux_map()
+    repos: list[str] = []
+    seen: set[str] = set()
+    for name in task_names:
+        models, _files = aux.get(str(name).strip(), ([], []))
+        for repo_id in models:
+            if repo_id not in seen:
+                seen.add(repo_id)
+                repos.append(repo_id)
+    return repos
+
+
+def _lookup_hf_dataset_files_for_tasks(task_names: Iterable[str]) -> list[dict]:
+    """``hf_dataset_files`` specs for individual task names, merged per
+    (repo_id, revision) like :func:`_collect_hf_dataset_files`."""
+    aux = _build_task_aux_map()
+    merged: dict[tuple[str, str | None], list[str]] = {}
+    for name in task_names:
+        _models, file_specs = aux.get(str(name).strip(), ([], []))
+        for spec in file_specs:
+            repo_id = spec.get("repo_id", "")
+            if not repo_id:
+                continue
+            pats = merged.setdefault((repo_id, spec.get("revision")), [])
+            for p in spec.get("patterns") or []:
+                if p not in pats:
+                    pats.append(p)
+    result = []
+    for (rid, rev), pats in merged.items():
+        entry: dict = {"repo_id": rid, "patterns": pats}
+        if rev:
+            entry["revision"] = rev
+        result.append(entry)
+    return result
 
 
 def _build_task_suite_map() -> dict[str, str]:

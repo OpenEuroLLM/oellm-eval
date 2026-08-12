@@ -75,17 +75,17 @@ def run_schedule_eval(
         "schedule",
         "--models",
         "HuggingFaceTB/SmolLM2-135M-Instruct",
-        "--task_groups",
+        "--task-groups",
         task_groups,
         "--limit",
         str(limit),
     ]
     if venv_path:
-        cmd.extend(["--venv_path", venv_path])
+        cmd.extend(["--venv-path", venv_path])
     if dry_run:
-        cmd.extend(["--dry_run", "true"])
+        cmd.extend(["--dry-run"])
     if skip_checks:
-        cmd.extend(["--skip_checks", "true"])
+        cmd.extend(["--skip-checks"])
 
     return subprocess.run(cmd, capture_output=True, text=True)
 
@@ -102,17 +102,17 @@ def run_schedule_eval_with_csv(
         "run",
         "oellm-eval",
         "schedule",
-        "--eval_csv_path",
+        "--eval-csv-path",
         csv_path,
         "--limit",
         str(limit),
     ]
     if venv_path:
-        cmd.extend(["--venv_path", venv_path])
+        cmd.extend(["--venv-path", venv_path])
     if dry_run:
-        cmd.extend(["--dry_run", "true"])
+        cmd.extend(["--dry-run"])
     if skip_checks:
-        cmd.extend(["--skip_checks", "true"])
+        cmd.extend(["--skip-checks"])
 
     return subprocess.run(cmd, capture_output=True, text=True)
 

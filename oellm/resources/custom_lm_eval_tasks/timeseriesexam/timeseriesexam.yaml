@@ -1,0 +1,21 @@
+# TimeSeriesExam (AutonLab/TimeSeriesExam1, arXiv 2410.14752) — MCQ time
+# series *understanding* for LLMs: trend, seasonality, anomalies, causality.
+# Evaluates existing text models on time-series understanding; benchmarks
+# for dedicated forecasting models (fev/GIFT-Eval) are a separate, future
+# engine decision.
+# Dataset is parquet-native and ungated; test split only → strictly 0-shot.
+# Series are uniformly subsampled to 128 points (see utils.py — fixed policy,
+# identical for all models).
+task: timeseriesexam
+dataset_path: AutonLab/TimeSeriesExam1
+test_split: test
+output_type: multiple_choice
+doc_to_text: !function utils.doc_to_text
+doc_to_choice: !function utils.doc_to_choice
+doc_to_target: !function utils.doc_to_target
+metric_list:
+  - metric: acc
+    aggregation: mean
+    higher_is_better: true
+metadata:
+  version: 1.0

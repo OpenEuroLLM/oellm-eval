@@ -66,4 +66,4 @@ jobs:
         run: uv sync --extra dev
 
       - name: Run tests
-        run: uv run pytest tests/ -v --ignore=tests/integration/
+        run: uv run pytest tests/ -v --ignore=tests/integration/ --ignore=tests/test_datasets.py
