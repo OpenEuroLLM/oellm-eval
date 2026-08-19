@@ -18,6 +18,7 @@ TOTAL_EVALS={total_evals}
 LIMIT="{limit}"
 VENV_PATH="{venv_path}"
 LM_EVAL_INCLUDE_PATH="{lm_eval_include_path}"
+TASKS_PER_JOB={tasks_per_job}
 
 # avoiding crashes due to compute nodes not having access to the internet
 export HF_HOME=$HF_HOME
@@ -62,8 +63,33 @@ fi
 
 # Use `tail` and `head` to slice the CSV file for the tasks assigned to this job.
 # The +1 on START_INDEX accounts for the header row.
+# Collapse adjacent rows that share a model, shot count and lm_eval suite into
+# a single row whose task field is a comma-separated list. lm_eval loads the
+# model once per invocation, so evaluating N tasks in one call replaces N model
+# loads with one. TASKS_PER_JOB caps how many tasks share a call: lm_eval aborts
+# the whole invocation if one task raises, so the cap bounds what a single
+# failure takes down. Suites other than lm_eval pass through one row at a time.
+# The output is tab-separated because a joined task list contains commas.
 tail -n +$((START_INDEX + 1)) "$CSV_PATH" | head -n $((END_INDEX - START_INDEX + 1)) | \
-while IFS=, read -r model_path task_path n_shot eval_suite
+awk -F, -v max_tasks="$TASKS_PER_JOB" -v OFS='\t' '
+    function flush() {{ if (tasks != "") print model, tasks, shots, suite }}
+    {{
+        gsub(/\r/, "")
+        if ($1 == "") next
+        row_suite = ($4 == "" ? "lm_eval" : $4)
+        lowered = tolower(row_suite)
+        batchable = (lowered == "lm_eval" || lowered == "lm-eval" || lowered == "lm-eval-harness")
+        row_key = batchable ? ($1 SUBSEP $3 SUBSEP lowered) : ("unbatched" SUBSEP NR)
+        if (row_key != key || count >= max_tasks) {{
+            flush()
+            key = row_key; model = $1; shots = $3; suite = row_suite; tasks = $2; count = 1
+        }} else {{
+            tasks = tasks "," $2; count++
+        }}
+    }}
+    END {{ flush() }}
+' | \
+while IFS=$'\t' read -r model_path task_path n_shot eval_suite
 do
     # Remove trailing carriage returns if script is edited on Windows
     model_path=$(echo "$model_path" | tr -d '\r')
