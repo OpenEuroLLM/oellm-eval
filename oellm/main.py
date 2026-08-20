@@ -110,6 +110,7 @@ def schedule_evals(
     eval_csv_path: str | None = None,
     *,
     max_array_len: int = 128,
+    tasks_per_job: int = 8,
     limit: int | None = None,
     verbose: bool = False,
     download_only: bool = False,
@@ -149,6 +150,11 @@ def schedule_evals(
             Warning: exclusive argument. Cannot specify `models`, `tasks`, `task_groups`, or `n_shot` when `eval_csv_path` is provided.
         max_array_len: The maximum number of jobs to schedule to run concurrently.
             Warning: this is not the number of jobs in the array job. This is determined by the environment variable `QUEUE_LIMIT`.
+        tasks_per_job: The maximum number of lm-eval-harness tasks evaluated by a single
+            `lm_eval` invocation. Tasks that share a model and shot count are evaluated
+            together so the model is loaded once instead of once per task. `lm_eval`
+            fails the whole invocation if one task raises, so this caps how many tasks
+            a single failure takes down; 1 restores one invocation per task.
         limit: If set, limit the number of samples per task (useful for quick testing).
             Passes --limit to lm_eval and --max_samples to lighteval.
         download_only: If True, only download the datasets and models and exit.
@@ -361,8 +367,26 @@ def schedule_evals(
     slurm_logs_dir.mkdir(parents=True, exist_ok=True)
     csv_path = evals_dir / "jobs.csv"
 
-    # Shuffle the dataframe to distribute fast/slow evaluations evenly across array jobs
-    df = df.sample(frac=1, random_state=42).reset_index(drop=True)
+    # Shuffle to distribute fast/slow evaluations evenly across array jobs, but
+    # shuffle *groups* of evaluations that share a model, shot count and suite
+    # rather than individual rows. The sbatch template collapses each such run
+    # of adjacent rows into a single lm_eval invocation, so keeping them
+    # adjacent is what lets the model be loaded once instead of once per task.
+    batch_key = ["model_path", "n_shot", "eval_suite"]
+    group_order = (
+        df[batch_key]
+        .drop_duplicates()
+        .sample(frac=1, random_state=42)
+        .reset_index(drop=True)
+        .reset_index()
+        .rename(columns={"index": "_group_rank"})
+    )
+    df = (
+        df.merge(group_order, on=batch_key, how="left")
+        .sort_values("_group_rank", kind="stable")
+        .drop(columns="_group_rank")
+        .reset_index(drop=True)
+    )
     logging.info(
         "Shuffled evaluation jobs for even load distribution across array workers"
     )
@@ -439,6 +463,7 @@ def schedule_evals(
     sbatch_script = sbatch_template.format(
         csv_path=csv_path,
         max_array_len=max_array_len,
+        tasks_per_job=max(1, tasks_per_job),
         array_limit=actual_array_size - 1,  # Array is 0-indexed
         num_jobs=actual_array_size,  # This is the number of array jobs, not total evals
         total_evals=len(df),  # Pass the total number of evaluations
