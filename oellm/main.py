@@ -729,12 +729,15 @@ def collect_results(
             for _s in _subs:
                 group_subtask_names.add(_s)
 
-        # Prefer only the first aggregate metric from groups (simplified)
-        if groups_map:
-            group_name, group_results = next(iter(groups_map.items()))
+        # Record every top-level aggregate. A group listed as another group's
+        # subtask (e.g. `mmlu_humanities` under `mmlu`) is an intermediate
+        # aggregate and is left to its parent, so a grouped run reports the
+        # aggregate the job actually asked for.
+        for orig_group_name, group_results in groups_map.items():
+            if orig_group_name in group_subtask_names:
+                continue
             # Prefer original extraction from n_shot_data and subtasks, then
             # global_n_shot; only fall back to parsing the group name.
-            orig_group_name = group_name
             n_shot = n_shot_data.get(orig_group_name, "unknown")
             if n_shot == "unknown":
                 for subtask_name in group_subtasks_map.get(orig_group_name, []):
@@ -760,8 +763,6 @@ def collect_results(
                         "metric_name": metric_name if metric_name is not None else "",
                     }
                 )
-                # Skip per-task iteration when groups are present
-                continue
 
         for task_name, task_results in results.items():
             # Skip entries already added from groups
