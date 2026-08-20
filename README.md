@@ -191,6 +191,26 @@ MODEL_ARGS='batch_size=8' oellm-eval schedule \
   --models "model-name" --task_groups "belebele-eu-cf" --venv_path .venv
 ```
 
+### Workaround for `acc_norm` tasks
+
+> [!WARNING]
+> There is currently an upstream `lighteval` issue affecting tasks that use the
+> `acc_norm` metric. `LogProbTokenNorm` may raise an `IndexError` when
+> `choices_tokens` is shorter than `choices_logprob`.
+>
+> Until the upstream fix is available, manually apply the change proposed in
+> [huggingface/lighteval#1171](https://github.com/huggingface/lighteval/pull/1171)
+> to `src/lighteval/metrics/normalizations.py` in your local `lighteval`
+> installation.
+>
+> When using the patched local installation, pass `--venv_path .venv` (or the
+> path to your patched virtual environment) so that the modified `lighteval`
+> installation is used.
+>
+> See [huggingface/lighteval#1170](https://github.com/huggingface/lighteval/issues/1170)
+> for details about the bug and [OpenEuroLLM/oellm-eval#60](https://github.com/OpenEuroLLM/oellm-eval/pull/60)
+> for the previously documented workaround.
+
 ## ⚠️ Dataset Pre-Download Warning
 
 **Datasets are only automatically pre-downloaded for tasks defined in [`task-groups.yaml`](oellm/resources/task-groups.yaml).**
