@@ -509,9 +509,9 @@ task_groups:
     tasks:
       - task: "flores200:{lang}-eng_Latn"
   flores-200-eng-to-eu:
-    description: "Flores 200 English->EU translation (0-shot, chrf++)."
+    description: "Flores 200 English->EU translation (4-shot, chrf++)."
     suite: lighteval
-    n_shots: [0]
+    n_shots: [4]
     dataset: facebook/flores
     valid_langs: [bul_Cyrl, hrv_Latn, ces_Latn, dan_Latn, nld_Latn, est_Latn,
                   fin_Latn, fra_Latn, deu_Latn, ell_Grek, hun_Latn, gle_Latn,
