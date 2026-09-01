@@ -1,4 +1,6 @@
 task_metrics:
+  bbq: accuracy
+  crows_pairs_english: pct_stereotype
   mmlu: acc
   mmlu_prox_cs: exact_match
   mmlu_prox_de: exact_match
@@ -780,6 +782,15 @@ task_groups:
       - task: AMC23
         n_shots: [0]
         suite: evalchemy
+
+  crows-pairs:
+    description: "CrowS-Pairs social bias benchmark (English, 0-shot)."
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: jannalu/crows_pairs_multilingual
+    subset: english
+    tasks:
+      - task: crows_pairs_english
 
   global-piqa-eu-completions:
     description: "Global PIQA European languages — multiple-choice completions (0-shot, mrlbenchmarks/global-piqa-nonparallel)"
