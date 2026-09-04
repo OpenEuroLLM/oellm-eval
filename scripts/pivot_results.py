@@ -30,14 +30,14 @@ def main() -> None:
 
     df = pd.concat(frames, ignore_index=True)
 
-    required = {"model_name", "task", "n_shot", "performance"}
+    required = {"model_name", "task", "n_shot", "metric_name", "performance"}
     if not required.issubset(df.columns):
         missing = required - set(df.columns)
         print(f"Error: input CSVs missing columns: {missing}", file=sys.stderr)
         sys.exit(1)
 
     df["task_label"] = df.apply(
-        lambda r: f"{r['task']} ({int(r['n_shot'])}-shot)", axis=1
+        lambda r: f"{r['task']} ({int(r['n_shot'])}-shot) [{r['metric_name']}]", axis=1
     )
     df = df.drop_duplicates(subset=["model_name", "task_label"], keep="last")
 
