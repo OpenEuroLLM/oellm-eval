@@ -583,7 +583,7 @@ task_groups:
     suite: lm-eval-harness
     n_shots: [5]
     dataset: CohereForAI/Global-MMLU
-    valid_langs: [cs, de, el, en, es, fr, it, lt, nl, pl, pt, ro, ru, sr, sv, tr, uk, he]
+    valid_langs: [cs, de, el, en, es, fr, it, lt, nl, pl, pt, ro, sr, sv, tr, uk]
     tasks:
       - task: "global_mmlu_full_{lang}"
         subset: "{lang}"
@@ -658,14 +658,8 @@ task_groups:
     tasks:
       - task: include_base_44_albanian
         subset: Albanian
-      - task: include_base_44_armenian
-        subset: Armenian
-      - task: include_base_44_azerbaijani
-        subset: Azerbaijani
       - task: include_base_44_basque
         subset: Basque
-      - task: include_base_44_belarusian
-        subset: Belarusian
       - task: include_base_44_bulgarian
         subset: Bulgarian
       - task: include_base_44_croatian
@@ -696,8 +690,6 @@ task_groups:
         subset: Polish
       - task: include_base_44_portuguese
         subset: Portuguese
-      - task: include_base_44_russian
-        subset: Russian
       - task: include_base_44_serbian
         subset: Serbian
       - task: include_base_44_spanish
@@ -970,3 +962,32 @@ super_groups:
       - task: include
       - task: multiblimp-eu
       - task: xcopa-eu
+
+  multilingual-oellm-eu:
+    description: >-
+      Every multilingual benchmark in the OpenEuroLLM evaluation suite, in the
+      36 prioritised target languages: the 24 official EU languages,
+      Catalan/Basque/Galician, the candidate-member languages, and
+      Icelandic/Norwegian.
+    task_groups:
+      - task: arc-challenge-mt-eu
+      - task: belebele-eu-5-shot
+      - task: flores-200-eng-to-eu
+      - task: flores-200-eu-to-eng
+      - task: global-mgsm-eu
+      - task: global-mmlu-eu
+      - task: global-piqa-eu-completions
+      - task: global-piqa-eu-prompted
+      - task: hellaswag-eu
+      - task: include
+      - task: mgsm-eu
+      - task: multiblimp-eu
+      - task: opensubtitles-eu-en-xx
+      - task: opensubtitles-eu-xx-en
+      - task: polymath-eu-high
+      - task: polymath-eu-low
+      - task: polymath-eu-medium
+      - task: polymath-eu-top
+      - task: sib200-eu
+      - task: xcopa-eu
+      - task: xcsqa-eu
