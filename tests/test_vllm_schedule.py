@@ -12,7 +12,7 @@ from oellm.utils import _ensure_singularity_image
 
 
 def render(tmp_path, monkeypatch, *, suite="lm_eval", container=False, internal_evalchemy=False, **options):
-    for key in ("WORLD_SIZE", "LMEVAL_DP", "NODES", "GPUS_PER_NODE", "CPUS_PER_TASK"):
+    for key in ("WORLD_SIZE", "LMEVAL_DP", "NODES", "GPUS_PER_NODE", "CPUS_PER_TASK", "THREADS_PER_CORE"):
         monkeypatch.delenv(key, raising=False)
     env = {
         "EVAL_OUTPUT_DIR": str(tmp_path / "output"),
@@ -51,16 +51,18 @@ def render(tmp_path, monkeypatch, *, suite="lm_eval", container=False, internal_
 
 @pytest.mark.parametrize("suite", ["lm_eval", "evalchemy"])
 @pytest.mark.parametrize("container", [False, True])
+@pytest.mark.parametrize("cpus,threads", [(288, 1), (96, 2)])
 @pytest.mark.parametrize("dp_backend", ["mp", "ray"])
 @pytest.mark.parametrize("dp,tp", [(1, 1), (4, 1), (2, 2)])
-def test_native_launch(tmp_path, monkeypatch, suite, container, dp, tp, dp_backend):
+def test_native_launch(tmp_path, monkeypatch, suite, container, dp, tp, dp_backend, cpus, threads):
     script = render(tmp_path, monkeypatch, suite=suite, container=container,
                     model_backend="vllm", data_parallel_size=dp, tensor_parallel_size=tp,
                     model_args="dtype=bfloat16", log_samples=True, data_parallel_backend=dp_backend,
-                    slurm_template_var=json.dumps({"CPUS_PER_TASK":288}))
+                    slurm_template_var=json.dumps({"CPUS_PER_TASK":cpus, "THREADS_PER_CORE":threads}))
     assert f"#SBATCH --gres=gpu:{dp * tp}" in script.read_text()
     assert "#SBATCH --ntasks=1" in script.read_text()
-    assert "#SBATCH --cpus-per-task=288" in script.read_text()
+    assert f"#SBATCH --cpus-per-task={cpus}" in script.read_text()
+    assert f"#SBATCH --threads-per-core={threads}" in script.read_text()
     assert "RAY_num_cpus" not in script.read_text()
     assert "#SBATCH --nodes=1" in script.read_text()
     subprocess.run(["bash", "-n", str(script)], check=True)

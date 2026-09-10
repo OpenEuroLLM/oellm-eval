@@ -70,3 +70,5 @@ The bundled harness patch adds `data_parallel_backend=mp` (the default) using in
 Slurm requests one launcher with the machine's configured `CPUS_PER_TASK`: 288 on JUPITER and 96 logical CPUs on JUWELS Booster. Override this through `--slurm_template_var` if needed. This allocation is independent of the DP replica count and Ray logical resources.
 
 Two earlier JUPITER Ray jobs failed before engine startup. Both a capped repeat and an uncapped repeat subsequently passed full PIQA; the uncapped control advertised all 288 CPUs to Ray. A CPU cap is therefore not recommended as a demonstrated fix. For Ray diagnostics, preserve logs using a bind to a short path such as `/tmp/ray_eval`; long GPFS paths can exceed Unix-socket limits.
+
+JUWELS Booster has 48 physical cores and 96 hardware threads. The machine profile requests `CPUS_PER_TASK=96` together with `THREADS_PER_CORE=2`; JSC requires the latter explicitly to enable SMT. JUPITER uses 288 CPUs and one thread per core. Both variables can be overridden through `--slurm_template_var`, independently of DP/TP and Ray. [JSC batch-system documentation](https://apps.fz-juelich.de/jsc/hps/juwels/batchsystem.html).

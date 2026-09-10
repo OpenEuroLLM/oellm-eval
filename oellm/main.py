@@ -173,7 +173,7 @@ def schedule_evals(
             submitting to SLURM. Requires --venv_path. Skips cluster environment detection and
             runs all evaluations sequentially in a single process.
         slurm_template_var: JSON object of template variable overrides. Use exact env var names
-            (PARTITION, ACCOUNT, GPUS_PER_NODE, SLURM_MEM, NODES). "TIME" overrides the time limit.
+            (PARTITION, ACCOUNT, GPUS_PER_NODE, SLURM_MEM, NODES, CPUS_PER_TASK, THREADS_PER_CORE). "TIME" overrides the time limit.
             Example: '{"PARTITION":"dev-g","ACCOUNT":"FOO","TIME":"02:00:00","GPUS_PER_NODE":2,"SLURM_MEM":"96G","NODES":"1"}'
         nodelist: Optional SLURM nodelist to constrain the job to specific node(s),
             e.g. "tdll-3gpu4". Passed through as #SBATCH --nodelist. If unset, no
@@ -483,11 +483,13 @@ def schedule_evals(
     launcher_resources = ""
     if model_backend == "vllm":
         launcher_resources = "#SBATCH --ntasks=1\n"
-        cpus = os.environ.get("CPUS_PER_TASK")
-        if cpus is not None:
-            if not cpus.isdecimal() or int(cpus) < 1:
-                raise ValueError("CPUS_PER_TASK must be a positive integer")
-            launcher_resources += f"#SBATCH --cpus-per-task={cpus}\n"
+        for variable, flag in (("CPUS_PER_TASK", "cpus-per-task"),
+                               ("THREADS_PER_CORE", "threads-per-core")):
+            value = os.environ.get(variable)
+            if value is not None:
+                if not value.isdecimal() or int(value) < 1:
+                    raise ValueError(f"{variable} must be a positive integer")
+                launcher_resources += f"#SBATCH --{flag}={value}\n"
 
     sbatch_script = sbatch_template.format(
         launcher_resources=launcher_resources,
