@@ -1,0 +1,20 @@
+{
+  "jupiter": {
+    "architecture": "aarch64",
+    "base_filename": "vllm-v0.28.0-ray2.48.0-arm64.sif",
+    "base_bytes": 8307249152,
+    "base_sha256": "ae9afdbb3ba6f25f00f87ad0fc18ebf017b9e2c26bd11311d8517e277e4781b2",
+    "vllm": "0.28.0",
+    "ray": "2.48.0",
+    "source": "model-deployment/workflows/model_campaign/vllm_ray_image.py"
+  },
+  "juwels_booster": {
+    "architecture": "x86_64",
+    "base_filename": "vllm-0.28.0-sm80-sparse-ray256-metadata-pp-sync-amd64.sif",
+    "base_bytes": 7996768256,
+    "base_sha256": "f9a8ea68109e5da9af371a9fa98fe7f77e079ee102bf1903aef0f063b49673e7",
+    "vllm": "0.28.0",
+    "ray": "2.56.1",
+    "source": "model-deployment/workflows/juwels_booster/sm80_sparse_image.py"
+  }
+}

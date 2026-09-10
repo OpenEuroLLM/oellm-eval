@@ -23,6 +23,8 @@ Do not launch this command with Accelerate or torchrun, or keep an external `LME
 
 ## Runtime compatibility
 
+For collaborator-ready JUPITER and JUWELS images, follow [portable image preparation](../containers/VLLM.md). It reconstructs the exact patched public sources, creates an isolated evaluation runtime inside a pinned engine image, and packages it under `/opt` with provenance. Agent/control environments are never used to run inference.
+
 The environment must contain a mutually compatible vLLM and lm-eval adapter. The older EtashGuha harness pinned by `requirements-venv-evalchemy.txt` predates the current vLLM engine API; installing vLLM into that environment alone is insufficient. The Evalchemy pin also accesses a parent-process engine to find the context limit, which is absent with DP. Use `model.max_length` in its normalization code. Preserve the existing per-example context cap and safety buffer.
 
 The JUPITER validation uses the operator-provided `evalchemy_arm.sif`, its native adapter, the pinned Evalchemy benchmark code and a compatibility patch under `patches/`. That patch preserves the pinned CLI parser with newer harness layouts, imports lazily registered model modules explicitly, replaces removed logger access and reads the public context-limit property. It does not change benchmark definitions or generation/scoring settings. This is a runtime compatibility path; it does not update the default dependency pins automatically.
