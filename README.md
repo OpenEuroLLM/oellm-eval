@@ -12,6 +12,8 @@ A lightweight CLI for scheduling LLM evaluations across multiple HPC clusters us
 
 ## Quick Start
 
+For a new JUPITER installation, follow the [complete from-scratch guide](docs/machines/jupiter/from-scratch.md), including public container inputs, dedicated environments, fresh dataset preparation and GPU validation.
+
 **Prerequisites:**
 - Install [uv](https://docs.astral.sh/uv/#installation)
 - Set the `HF_HOME` environment variable to point to your HuggingFace cache directory (e.g. `export HF_HOME="/path/to/your/hf_home"`, on LUMI use the path `/scratch/project_462000963/cache/huggingface`). This is where models and datasets will be cached. Compute nodes typically have no internet access, so all assets must be pre-downloaded into this directory.

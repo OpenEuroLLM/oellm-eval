@@ -4,6 +4,8 @@ The evaluation runtime is separate from the agent/control environment. Each imag
 
 Use an activated control environment for the Python builders below. Runtime package installation happens only through `apptainer exec` into a newly created evaluation venv. Never point preparation at an agent environment or an existing production runtime. These commands do not compile CUDA; native task dependencies must have wheels. Keep longer preparation/build commands in your named tmux session.
 
+For JUPITER collaborators without an existing base SIF, use the [from-scratch installation guide](../docs/machines/jupiter/from-scratch.md). Its public-input bootstrap generates a profile for the newly built base; `build_vllm_image.py --profiles PATH` consumes it without changing the shared historical profiles.
+
 ## Prepare sources and runtime
 
 Choose a scratch directory visible inside Apptainer, a local `/tmp` build directory, and the matching existing vLLM+Ray base SIF. The `base_filename` in the profile identifies the available artifact, while the SHA-256 and byte count define its identity. Collaborators can place the same artifact elsewhere. The base images originate in the model-deployment workspace; these tools do not download multi-gigabyte engine images automatically.
