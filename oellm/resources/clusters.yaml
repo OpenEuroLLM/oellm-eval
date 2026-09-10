@@ -25,8 +25,8 @@ jureca:
   SINGULARITY_ARGS: "--nv"
 
 juwels:
-  CPUS_PER_TASK: 96  # Whole Booster node, independent of vLLM DP/TP and Ray
-  THREADS_PER_CORE: 2  # JUWELS requires explicit SMT for more than 48 CPUs
+  CPUS_PER_TASK: 48  # All physical Booster cores, independent of DP/TP and Ray
+  THREADS_PER_CORE: 1  # SMT is an explicit operator override, not the default
   hostname_pattern:
     - "*.juwels"
     - "jwlogin*"

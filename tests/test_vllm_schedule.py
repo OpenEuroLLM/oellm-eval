@@ -51,7 +51,7 @@ def render(tmp_path, monkeypatch, *, suite="lm_eval", container=False, internal_
 
 @pytest.mark.parametrize("suite", ["lm_eval", "evalchemy"])
 @pytest.mark.parametrize("container", [False, True])
-@pytest.mark.parametrize("cpus,threads", [(288, 1), (96, 2)])
+@pytest.mark.parametrize("cpus,threads", [(288, 1), (48, 1), (96, 2)])
 @pytest.mark.parametrize("dp_backend", ["mp", "ray"])
 @pytest.mark.parametrize("dp,tp", [(1, 1), (4, 1), (2, 2)])
 def test_native_launch(tmp_path, monkeypatch, suite, container, dp, tp, dp_backend, cpus, threads):
