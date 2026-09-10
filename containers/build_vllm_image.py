@@ -16,7 +16,7 @@ import tarfile
 
 REVISIONS = {
     # Reconstructed upstream-plus-patches identity, not an upstream commit SHA.
-    "harness": "6d642546f4688648fced259eb3302efd36ece5af+tree.c4a3f4235cb852bb7fe4ce4570778a13a1328612",
+    "harness": "6d642546f4688648fced259eb3302efd36ece5af+tree.445cac369f9989a227810560114be2aea498851d",
     "evalchemy": "b321416135050aa6919b430dbadbd4cc43cc8c15",
     "human-eval": "6d43fb980f9fee3c892a914eda09951f772ad10d",
 }

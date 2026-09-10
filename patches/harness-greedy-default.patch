@@ -1,0 +1,16 @@
+diff --git a/lm_eval/models/vllm_causallms.py b/lm_eval/models/vllm_causallms.py
+index 429853c..2d4a2d6 100644
+--- a/lm_eval/models/vllm_causallms.py
++++ b/lm_eval/models/vllm_causallms.py
+@@ -843,7 +843,10 @@ class VLLM(TemplateLM):
+         max_gen_toks = int(_gen_kwargs.pop("max_gen_toks", default_max_gen_toks))
+ 
+         # do_sample and temperature normalization is handled by `normalize_gen_kwargs` utility
+-        _gen_kwargs.pop("do_sample", None)
++        # normalize_gen_kwargs may infer do_sample=False without materializing
++        # temperature. SamplingParams otherwise defaults to temperature=1.
++        if _gen_kwargs.pop("do_sample", None) is False:
++            _gen_kwargs["temperature"] = 0.0
+         # HF defaults
+         _gen_kwargs = {
+             "skip_special_tokens": False,

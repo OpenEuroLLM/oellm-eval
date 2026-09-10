@@ -11,6 +11,7 @@ BASE_HASHES = {
     "kv_cache_manager.py": "2d20c3d98845cfd8d88a2f66b8fc6402ea1fcfbee16879d2364a4a9e45b8fa47",
     "vllm_causallms.py": "589d7986d617d3227809f6066846be40df777bebd2ab41060d8eda9b82e206e2",
 }
+GREEDY_ADAPTER_SHA = "1eb9e0087e3b41371888cae631afc842301a091883c1652ea3509cb39e17c58a"
 ENGINE = "/usr/local/lib/python3.12/dist-packages/vllm"
 HARNESS = "/opt/oellm-eval/lib/python3.12/site-packages/lm_eval/models"
 TARGETS = {
@@ -38,7 +39,8 @@ def prepare(engine_source, harness_source, out, profile_base=None, profile_out=N
     sources = {n: engine_source/n for n in BASE_HASHES if n != "vllm_causallms.py"}
     sources["vllm_causallms.py"] = harness_source/"lm_eval/models/vllm_causallms.py"
     for name, p in sources.items():
-        if sha(p) != BASE_HASHES[name]:
+        accepted = {BASE_HASHES[name]} | ({GREEDY_ADAPTER_SHA} if name == "vllm_causallms.py" else set())
+        if sha(p) not in accepted:
             raise ValueError(f"Unvalidated source version: {p}")
     out.mkdir(parents=True, exist_ok=False)
     marker = "from vllm.oellm_continuation import OELLM_CONTINUATION_API, start_position, compute_continuation\n"
@@ -76,12 +78,16 @@ def prepare(engine_source, harness_source, out, profile_base=None, profile_out=N
             eval_logger.info("Likelihood scoring:''')
     text = once(text, "        continuation_logprobs_dicts = outputs.prompt_logprobs", "        continuation_logprobs_dicts = outputs.prompt_logprobs\n        if continuation_logprobs_dicts is None or len(continuation_logprobs_dicts) != len(tokens):\n            raise ValueError(\"Incomplete or misaligned prompt logprobs\")\n        if any(p is None for p in continuation_logprobs_dicts[ctxlen:]):\n            raise ValueError(\"Required continuation logprobs are missing\")")
     text = once(text, "            answers = restore_answers(plans, outputs, inputs, self._parse_logprobs)", "            if self.continuation_loglikelihood:\n                eval_logger.info(\"Prompt cache reuse: %d / %d input tokens\",\n                                 sum(o.num_cached_tokens or 0 for o in outputs),\n                                 sum(len(o.prompt_token_ids) for o in outputs))\n            answers = restore_answers(plans, outputs, inputs, self._parse_logprobs)")
+    # Existing images contain the older adapter; reconstructing an overlay
+    # must also preserve implicit greedy decoding for generation tasks.
+    if '_gen_kwargs.pop("do_sample", None) is False:' not in text:
+        text = once(text, '        _gen_kwargs.pop("do_sample", None)\n', '        # normalize_gen_kwargs may infer do_sample=False without materializing\n        # temperature. SamplingParams otherwise defaults to temperature=1.\n        if _gen_kwargs.pop("do_sample", None) is False:\n            _gen_kwargs["temperature"] = 0.0\n')
     (out/"vllm_causallms.py").write_text(text)
     here = Path(__file__).parent
     (out/"oellm_continuation.py").write_bytes((here/"vllm_continuation_engine.py").read_bytes())
     (out/"vllm_continuation.py").write_bytes((here/"vllm_continuation_adapter.py").read_bytes())
     (out/"vllm_single_token.py").write_bytes((harness_source/"lm_eval/models/vllm_single_token.py").read_bytes())
-    manifest = {"base_hashes": BASE_HASHES, "files": {str(out/n):sha(out/n) for n in TARGETS}, "bind_targets": TARGETS}
+    manifest = {"base_hashes": {name:sha(path) for name,path in sources.items()}, "files": {str(out/n):sha(out/n) for n in TARGETS}, "bind_targets": TARGETS}
     (out/"manifest.json").write_text(json.dumps(manifest,indent=2)+"\n")
     if profile_base:
         profile = json.loads(profile_base.read_text())
