@@ -36,7 +36,8 @@ class OverlayTests(unittest.TestCase):
                 helper.arguments(manifest)
 
     def test_paths_unsafe_for_scheduler_interpolation_are_rejected(self):
-        with tempfile.TemporaryDirectory() as directory:
-            _, manifest = self.manifest(Path(directory), "helper;unsafe.py")
-            with self.assertRaises(ValueError):
-                helper.arguments(manifest)
+        for name in ("helper;unsafe.py", "helper&unsafe.py", "helper,unsafe.py", "helper$(true).py", "helper?.py"):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as directory:
+                _, manifest = self.manifest(Path(directory), name)
+                with self.assertRaises(ValueError):
+                    helper.arguments(manifest)

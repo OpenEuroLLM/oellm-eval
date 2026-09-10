@@ -3,6 +3,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import re
 import shlex
 
 
@@ -16,7 +17,7 @@ def arguments(manifest):
         # The scheduler interpolates these arguments into shell templates;
         # reject unsafe paths rather than relying on a second shell parse.
         for value in (str(path), target):
-            if any(c.isspace() or c in "'\"$`;\\:()" for c in value):
+            if re.fullmatch(r"/[A-Za-z0-9_./+\-]+", value) is None:
                 raise ValueError("Container overlay paths must be shell-safe")
         args.extend(("--bind", f"{path}:{target}:ro"))
     return shlex.join(args)
