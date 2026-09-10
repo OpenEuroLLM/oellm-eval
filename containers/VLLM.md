@@ -65,7 +65,7 @@ Run scheduling from a separately installed control CLI. Omit `--venv_path` to ex
 
 ### Multiprocessing default and optional Ray
 
-The bundled harness patch adds `data_parallel_backend=mp` (the default) using the vLLM 0.28 offline multiprocessing DP interface. It sets native DP ranks in child processes, preserves visible GPUs for vLLM rank assignment and restores request order after collecting all ranks. The original harness Ray implementation remains available with `--data_parallel_backend ray`. Ray stays installed in both machine images; the multiprocessing evaluation path does not initialize it. These modes currently support one node only. Tensor parallelism is independently configured with `--tensor_parallel_size`.
+The bundled harness patch adds `data_parallel_backend=mp` (the default) using independent vLLM engines in spawned processes. vLLM 0.28 rejects its coordinated offline DP interface for dense models, so each replica receives a disjoint group of visible GPU identifiers and uses a regular engine with DP1 and the requested TP degree. Inherited coordinated DP ranks are cleared. Results are restored to request order after collecting all replicas. The original harness Ray implementation remains available with `--data_parallel_backend ray`. Ray stays installed in both machine images; the multiprocessing evaluation path does not initialize it. These modes currently support one node only. Tensor parallelism is independently configured with `--tensor_parallel_size`.
 
 Slurm requests one launcher with the machine's configured `CPUS_PER_TASK`: 288 on JUPITER and 96 logical CPUs on JUWELS Booster. Override this through `--slurm_template_var` if needed. This allocation is independent of the DP replica count and Ray logical resources.
 

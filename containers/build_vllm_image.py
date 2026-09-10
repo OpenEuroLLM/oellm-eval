@@ -15,7 +15,7 @@ import subprocess
 import tarfile
 
 REVISIONS = {
-    "harness": "49b495a86982cb22c77bcc12aea433ee8aa2a2d7",
+    "harness": "c861022c57cde85abde8382bf3808f9b32fb5894",
     "evalchemy": "b321416135050aa6919b430dbadbd4cc43cc8c15",
     "human-eval": "6d43fb980f9fee3c892a914eda09951f772ad10d",
 }

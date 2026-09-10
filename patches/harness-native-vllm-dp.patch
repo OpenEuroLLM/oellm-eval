@@ -1,12 +1,12 @@
 diff --git a/lm_eval/models/vllm_causallms.py b/lm_eval/models/vllm_causallms.py
-index 323ba9e..6774db6 100644
+index 323ba9e..ae50876 100644
 --- a/lm_eval/models/vllm_causallms.py
 +++ b/lm_eval/models/vllm_causallms.py
 @@ -15,6 +15,7 @@ from vllm.lora.request import LoRARequest
  
  from lm_eval.api.model import TemplateLM
  from lm_eval.api.registry import register_model
-+from lm_eval.models.vllm_dp import _vllm_mp_worker, run_workers
++from lm_eval.models.vllm_dp import _vllm_mp_worker, gpu_groups, run_workers
  from lm_eval.models.utils import (
      Collator,
      _add_special_kwargs,
@@ -52,22 +52,25 @@ index 323ba9e..6774db6 100644
              eval_logger.warning(
                  "You might experience occasional issues with model weight downloading when data_parallel is in use. To ensure stable performance, run with data_parallel_size=1 until the weights are downloaded and cached."
              )
-@@ -396,6 +400,21 @@ class VLLM(TemplateLM):
+@@ -396,6 +400,24 @@ class VLLM(TemplateLM):
              sampling_params = cast(
                  "list[SamplingParams]", [sampling_params] * len(requests)
              )
 +        if self.data_parallel_size > 1 and self.data_parallel_backend == "mp":
 +            if not requests:
 +                return []
-+            from vllm.utils.network_utils import get_open_port
++            import torch
 +
-+            # Avoid empty ranks: native engines may coordinate their progress.
++            visible = os.environ.get("CUDA_VISIBLE_DEVICES")
++            devices = ([device.strip() for device in visible.split(",")] if visible is not None
++                       else [str(i) for i in range(torch.cuda.device_count())])
++            # Avoid starting an engine for an empty shard.
 +            dp_size = min(self.data_parallel_size, len(requests))
 +            request_shards = [list(x) for x in distribute(dp_size, requests)]
 +            parameter_shards = [list(x) for x in distribute(dp_size, sampling_params)]
-+            port = get_open_port()
++            groups = gpu_groups(devices, dp_size, self.tensor_parallel_size)
 +            work = [
-+                (self.model_args, sp, req, self.lora_request, dp_size, rank, port, "127.0.0.1")
++                (self.model_args, sp, req, self.lora_request, dp_size, rank, groups[rank])
 +                for rank, (req, sp) in enumerate(zip(request_shards, parameter_shards, strict=True))
 +            ]
 +            return undistribute(run_workers(_vllm_mp_worker, work))
@@ -76,14 +79,14 @@ index 323ba9e..6774db6 100644
  
 diff --git a/lm_eval/models/vllm_dp.py b/lm_eval/models/vllm_dp.py
 new file mode 100644
-index 0000000..25c08c1
+index 0000000..b325190
 --- /dev/null
 +++ b/lm_eval/models/vllm_dp.py
-@@ -0,0 +1,92 @@
-+"""Single-node vLLM DP following vLLM 0.28's multiprocessing offline example.
+@@ -0,0 +1,95 @@
++"""Ray-free single-node DP with independent vLLM engines.
 +
-+The parent partitions requests; vLLM selects GPUs from DP ranks. No Ray runtime
-+is needed. Keep process supervision independent of vLLM imports for CPU tests.
++vLLM 0.28 rejects coordinated offline DP for dense models. Each spawned
++replica therefore owns a disjoint GPU group and runs an ordinary DP1 engine.
 +"""
 +
 +import multiprocessing
@@ -92,26 +95,29 @@ index 0000000..25c08c1
 +import traceback
 +
 +
++def gpu_groups(devices, dp_size, tp_size):
++    """Partition Slurm-visible ordinals or UUIDs without interpreting identifiers."""
++    if dp_size < 1 or tp_size < 1 or len(devices) < dp_size * tp_size:
++        raise ValueError("Insufficient visible GPUs for the requested DP * TP")
++    if any(not device or device == "-1" for device in devices) or len(set(devices)) != len(devices):
++        raise ValueError("Visible GPU identifiers must be nonempty and unique")
++    return [devices[rank * tp_size:(rank + 1) * tp_size] for rank in range(dp_size)]
++
++
 +def _vllm_mp_worker(model_args, sampling_params, requests, lora_request,
-+                    result_queue, dp_size, local_dp_rank, dp_master_port,
-+                    dp_master_ip="127.0.0.1"):
++                    result_queue, dp_size, local_dp_rank, visible_devices):
 +    try:
-+        # The caller omits empty shards, so every native DP rank participates.
 +        if not requests:
-+            raise ValueError("Native vLLM DP workers require a nonempty shard")
-+        os.environ.update({
-+            "VLLM_DP_RANK": str(local_dp_rank),
-+            "VLLM_DP_RANK_LOCAL": str(local_dp_rank),
-+            "VLLM_DP_SIZE": str(dp_size),
-+            "VLLM_DP_MASTER_IP": str(dp_master_ip),
-+            "VLLM_DP_MASTER_PORT": str(dp_master_port),
-+            "VLLM_WORKER_MULTIPROC_METHOD": "spawn",
-+        })
++            raise ValueError("vLLM DP workers require a nonempty shard")
++        os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(visible_devices)
++        os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
++        # Engines are independent; do not inherit coordinated offline DP ranks.
++        for name in ("VLLM_DP_RANK", "VLLM_DP_RANK_LOCAL", "VLLM_DP_SIZE",
++                     "VLLM_DP_MASTER_IP", "VLLM_DP_MASTER_PORT"):
++            os.environ.pop(name, None)
 +        from vllm import LLM, TokensPrompt
 +
 +        args = dict(model_args)
-+        # LLM(data_parallel_size>1) is deliberately rejected by vLLM 0.28.
-+        # Its supported offline example uses the rank environment above.
 +        args.pop("data_parallel_size", None)
 +        args["distributed_executor_backend"] = (
 +            "mp" if int(args.get("tensor_parallel_size", 1)) > 1 else "uni"
@@ -174,10 +180,10 @@ index 0000000..25c08c1
 +        queue.join_thread()
 diff --git a/tests/test_vllm_dp_process.py b/tests/test_vllm_dp_process.py
 new file mode 100644
-index 0000000..b2d335d
+index 0000000..99063cd
 --- /dev/null
 +++ b/tests/test_vllm_dp_process.py
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,76 @@
 +"""Real spawn/IPC tests without importing the GPU runtime or harness package."""
 +import importlib.util
 +import os
@@ -218,6 +224,13 @@ index 0000000..b2d335d
 +                dp.run_workers(worker, [(mode, 0, 'x', None, 0)], poll_seconds=.05, join_seconds=.1)
 +        self.assertFalse(dp.multiprocessing.active_children())
 +
++    def test_disjoint_gpu_groups(self):
++        self.assertEqual(dp.gpu_groups(['GPU-a','GPU-b','GPU-c','GPU-d'], 2, 2),
++                         [['GPU-a','GPU-b'],['GPU-c','GPU-d']])
++        for devices, n, tp in [(['0'],2,1), (['0','0'],2,1), ([''],1,1), (['-1'],1,1)]:
++            with self.assertRaises(ValueError):
++                dp.gpu_groups(devices,n,tp)
++
 +    def test_native_rank_environment_and_arguments(self):
 +        from unittest.mock import patch
 +        from types import SimpleNamespace
@@ -230,18 +243,18 @@ index 0000000..b2d335d
 +            def generate(self, requests, **kwargs):
 +                return [requests, kwargs]
 +        fake = SimpleNamespace(LLM=LLM, TokensPrompt=lambda **kw: kw)
-+        with patch.dict(sys.modules, {'vllm':fake, 'ray':None}), patch.dict(os.environ, {'CUDA_VISIBLE_DEVICES':'GPU-a,GPU-b,GPU-c,GPU-d'}):
++        with patch.dict(sys.modules, {'vllm':fake, 'ray':None}), patch.dict(os.environ, {'CUDA_VISIBLE_DEVICES':'GPU-a,GPU-b,GPU-c,GPU-d','VLLM_DP_SIZE':'4','VLLM_DP_RANK':'3'}):
 +            q = Queue()
 +            args = {'data_parallel_size':2, 'tensor_parallel_size':2}
-+            dp._vllm_mp_worker(args, ['sampling'], [[1,2]], 'lora', q, 2, 1, 12345)
++            dp._vllm_mp_worker(args, ['sampling'], [[1,2]], 'lora', q, 2, 1, ['GPU-c','GPU-d'])
 +            rank, outputs = q.get_nowait()
 +            self.assertEqual(rank, 1)
 +            self.assertEqual(outputs, [[{'prompt_token_ids':[1,2]}], {'sampling_params':['sampling'], 'lora_request':'lora'}])
 +            self.assertNotIn('data_parallel_size', seen)
 +            self.assertEqual(seen['distributed_executor_backend'], 'mp')
-+            self.assertEqual(seen['env']['VLLM_DP_RANK_LOCAL'], '1')
-+            self.assertEqual(seen['env']['VLLM_DP_SIZE'], '2')
-+            self.assertEqual(seen['env']['CUDA_VISIBLE_DEVICES'], 'GPU-a,GPU-b,GPU-c,GPU-d')
++            self.assertNotIn('VLLM_DP_RANK', seen['env'])
++            self.assertNotIn('VLLM_DP_SIZE', seen['env'])
++            self.assertEqual(seen['env']['CUDA_VISIBLE_DEVICES'], 'GPU-c,GPU-d')
 +            self.assertEqual(args['data_parallel_size'], 2)
 +
 +

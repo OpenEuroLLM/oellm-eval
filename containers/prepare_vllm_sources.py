@@ -15,7 +15,7 @@ SOURCES = {
     "evalchemy": ("https://github.com/Ali-Elganzory/evalchemy.git", "54ac97648230c4c3a22c3a2b93068b5a4e573f8d"),
     "human-eval": ("https://github.com/openai/human-eval.git", REVISIONS["human-eval"]),
 }
-HARNESS_TREE = "760c601bf39c8733901d7249b131399efd2c0403"
+HARNESS_TREE = "f5ae142b92ee86a26e49f937bf808ba4f9e9ea5e"
 EVALCHEMY_TREE = "2d7ddf635cb11e0b0d4ec85e0d9fe56a58d2277b"
 
 
