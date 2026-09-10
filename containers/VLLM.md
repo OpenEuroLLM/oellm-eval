@@ -62,3 +62,16 @@ oellm-eval schedule --models /path/to/model \
 ```
 
 Run scheduling from a separately installed control CLI. Omit `--venv_path` to execute evaluation entirely inside the image. Inspect the rendered batch script before submission. Pre-stage all required datasets/tokenizers on systems with offline compute nodes. Use the versioned task settings without local example caps. See [the backend guide](../docs/VLLM.md) for DP/TP allocation and parser-reference comparison requirements.
+
+### JUPITER Ray startup workaround under investigation
+
+The tested ARM64 image uses Ray 2.48.0. Two initial four-GPU jobs lost Ray workers before vLLM initialized; repeating full PIQA with the following environment completed all 1,838 examples at the same score as the JUWELS reference pair:
+
+```bash
+# Set before sbatch; the normal container launcher inherits this environment.
+export RAY_OVERRIDE_RESOURCES='{"CPU": 4}'
+```
+
+This sets Ray's logical CPU scheduling capacity. It does not set process CPU affinity or restrict evaluation to four physical cores. The native harness adapter schedules one Ray task per GPU replica, each requesting one logical CPU; use at least as many logical CPUs as DP replicas. Ray 2.48.0 also uses this count for prestarted Python workers and maximum worker startup concurrency, so it avoids a large startup pool on JUPITER's 288-core allocations. Excessive worker/thread startup is a hypothesis for the observed failure, not an established root cause. An uncapped repeat with persistent worker logs remains pending; this workaround is explicit rather than a global scheduler default. GPU compatibility for other tasks must still be checked.
+
+If using Apptainer `--cleanenv`, pass the variable explicitly with `--env` as well. Preserve Ray logs through a bind to a short container path such as `/tmp/ray_eval` and set `RAY_TMPDIR` there; long GPFS paths can exceed Ray's Unix-socket limit.
