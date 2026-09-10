@@ -1,0 +1,480 @@
+diff --git a/eval/eval.py b/eval/eval.py
+index b8563ee..73dc253 100644
+--- a/eval/eval.py
++++ b/eval/eval.py
+@@ -16,7 +16,10 @@ import torch.distributed as dist
+ import yaml
+ from lm_eval import evaluator as pretrain_evaluator
+ from lm_eval import utils
+-from lm_eval.__main__ import parse_eval_args, setup_parser
++try:
++    from lm_eval.__main__ import parse_eval_args, setup_parser
++except ImportError:
++    from eval.legacy_cli_parser import parse_eval_args, setup_parser
+ from lm_eval.api.model import LM
+ from lm_eval.loggers import EvaluationTracker, WandbLogger
+ from lm_eval.loggers.utils import add_env_info, add_tokenizer_info, get_git_commit_hash
+@@ -24,7 +27,6 @@ from lm_eval.tasks import TaskManager as PretrainTaskManager
+ from lm_eval.utils import sanitize_model_name, simple_parse_args_string
+ from lm_eval.utils import handle_non_serializable as _orig_handle
+ 
+-from eval.chat_benchmarks.curator_lm import CuratorAPIModel  # register curator model
+ from eval.chat_benchmarks.precomputed_hf_lm import PrecomputedHFLM  # register precomputed_hf model
+ from eval.chat_benchmarks.upload_to_hf_lm import UploadInstancesToHF  # register upload_to_hf model
+ from eval.constants import LIST_OPENAI_MODELS
+@@ -170,7 +172,7 @@ def evaluate(
+             Dictionary mapping task names to their evaluation results.
+             Each result dictionary contains metrics specific to that task.
+     """
+-    eval_logger = utils.eval_logger
++    eval_logger = logging.getLogger(__name__)
+     eval_logger.setLevel(getattr(logging, f"{verbosity}"))
+ 
+     # Split tasks between benchmark and pretrain
+@@ -352,16 +354,16 @@ def cli_evaluate(args: Optional[argparse.Namespace] = None) -> None:
+         try:
+             model_name = evaluation_tracker.get_model_attribute_from_db(args.model_id, "weights_location")
+             args.model_args = update_model_args_with_name(args.model_args or "", model_name)
+-            utils.eval_logger.info(f"Retrieved model name from database: {model_name}")
++            logging.getLogger(__name__).info(f"Retrieved model name from database: {model_name}")
+         except Exception as e:
+-            utils.eval_logger.error(f"Failed to retrieve model name from database: {str(e)}")
++            logging.getLogger(__name__).error(f"Failed to retrieve model name from database: {str(e)}")
+             sys.exit(1)
+         if not args.overwrite_database:
+             task_list = [
+                 task for task in task_list if not evaluation_tracker.check_if_already_done(task, args.model_id)
+             ]
+             if len(task_list) == 0:
+-                utils.eval_logger.info("All tasks passed in were found in the database.")
++                logging.getLogger(__name__).info("All tasks passed in were found in the database.")
+                 exit()
+     elif args.model_name:
+         model_name = args.model_name
+@@ -378,7 +380,7 @@ def cli_evaluate(args: Optional[argparse.Namespace] = None) -> None:
+     )
+     pretrain_task_manager = PretrainTaskManager(args.verbosity, include_path=args.include_path)
+ 
+-    utils.eval_logger.info(f"Selected Tasks: {[task for task in task_list]}")
++    logging.getLogger(__name__).info(f"Selected Tasks: {[task for task in task_list]}")
+ 
+     # Only check for OpenAI API keys if at least one task requires an annotator model
+     # TODO: Should we just skip the evaluation that requires the annotator model if the annotator model is not set or fail completely?
+@@ -401,7 +403,7 @@ def cli_evaluate(args: Optional[argparse.Namespace] = None) -> None:
+     try:
+         lm = initialize_model(args.model, args.model_args, batch_size=args.batch_size)
+     except Exception as e:
+-        utils.eval_logger.error(f"Failed to initialize model: {str(e)}")
++        logging.getLogger(__name__).error(f"Failed to initialize model: {str(e)}")
+         sys.exit(1)
+ 
+     # Log experiment configuration
+@@ -415,7 +417,7 @@ def cli_evaluate(args: Optional[argparse.Namespace] = None) -> None:
+         )
+ 
+     # Initialize logging and environment
+-    eval_logger = utils.eval_logger
++    eval_logger = logging.getLogger(__name__)
+     eval_logger.setLevel(getattr(logging, f"{args.verbosity}"))
+     os.environ["TOKENIZERS_PARALLELISM"] = "false"
+ 
+@@ -488,6 +490,9 @@ def initialize_model(
+             and a sanitized model identifier.
+     """
+     if isinstance(model, str):
++        # Local inference does not need Curator's external API dependencies.
++        if model == "curator":
++            from eval.chat_benchmarks.curator_lm import CuratorAPIModel  # noqa: F401
+         if model_args is None:
+             model_args = ""
+ 
+@@ -614,7 +619,7 @@ def handle_evaluation_output(
+             if args.log_samples:
+                 wandb_logger.log_eval_samples(samples)
+         except Exception as e:
+-            utils.eval_logger.info(f"Logging to Weights and Biases failed due to {e}")
++            logging.getLogger(__name__).info(f"Logging to Weights and Biases failed due to {e}")
+ 
+     evaluation_tracker.save_results_aggregated(results=results, samples=samples if args.log_samples else None)
+     if args.use_database and not args.debug:
+@@ -632,7 +637,7 @@ def handle_evaluation_output(
+         for task_name, config in results["configs"].items():
+             evaluation_tracker.save_results_samples(task_name=task_name, samples=samples[task_name])
+ 
+-    utils.eval_logger.info(
++    logging.getLogger(__name__).info(
+         f"Eval arugments: {args.model} ({args.model_args}), gen_kwargs: ({args.gen_kwargs}), "
+         f"limit: {args.limit}, num_fewshot: {args.num_fewshot}, annotator_model: {args.annotator_model}, "
+         f"batch_size: {args.batch_size}{f' ({batch_sizes})' if batch_sizes else ''}"
+diff --git a/eval/eval_tracker.py b/eval/eval_tracker.py
+index a1a879c..f0eaf08 100644
+--- a/eval/eval_tracker.py
++++ b/eval/eval_tracker.py
+@@ -13,7 +13,10 @@ from typing import Any, Dict, Optional, Tuple
+ import torch
+ from huggingface_hub import model_info
+ from lm_eval.loggers.evaluation_tracker import GeneralConfigTracker
+-from lm_eval.utils import eval_logger, handle_non_serializable, hash_string, simple_parse_args_string
++from lm_eval.utils import handle_non_serializable, hash_string, simple_parse_args_string
++import logging
++
++eval_logger = logging.getLogger(__name__)
+ 
+ from database.models import Dataset, EvalResult, EvalSetting, Model
+ from database.utils import create_db_engine, create_tables, get_model_from_db, get_or_add_model_by_name, sessionmaker
+diff --git a/eval/legacy_cli_parser.py b/eval/legacy_cli_parser.py
+new file mode 100644
+index 0000000..9a426f9
+--- /dev/null
++++ b/eval/legacy_cli_parser.py
+@@ -0,0 +1,263 @@
++# CLI parser preserved from EtashGuha/lm-evaluation-harness commit
++# 4071e1823bc1d05d1b394e03925b436a46de637e (MIT).
++# Keeps the pinned Evalchemy flags/defaults with newer harness runtimes.
++import argparse
++import logging
++from functools import partial
++
++
++def _int_or_none_list_arg_type(
++    min_len: int, max_len: int, defaults: str, value: str, split_char: str = ","
++):
++    def parse_value(item):
++        item = item.strip().lower()
++        if item == "none":
++            return None
++        try:
++            return int(item)
++        except ValueError:
++            raise argparse.ArgumentTypeError(f"{item} is not an integer or None")
++
++    items = [parse_value(v) for v in value.split(split_char)]
++    num_items = len(items)
++
++    if num_items == 1:
++        # Makes downstream handling the same for single and multiple values
++        items = items * max_len
++    elif num_items < min_len or num_items > max_len:
++        raise argparse.ArgumentTypeError(
++            f"Argument requires {max_len} integers or None, separated by '{split_char}'"
++        )
++    elif num_items != max_len:
++        logging.warning(
++            f"Argument requires {max_len} integers or None, separated by '{split_char}'. "
++            "Missing values will be filled with defaults."
++        )
++        default_items = [parse_value(v) for v in defaults.split(split_char)]
++        items.extend(
++            default_items[num_items:]
++        )  # extend items list with missing defaults
++
++    return items
++
++
++def check_argument_types(parser: argparse.ArgumentParser):
++    """
++    Check to make sure all CLI args are typed, raises error if not
++    """
++    for action in parser._actions:
++        if action.dest != "help" and not action.const:
++            if action.type is None:
++                raise ValueError(
++                    f"Argument '{action.dest}' doesn't have a type specified."
++                )
++            else:
++                continue
++
++
++def setup_parser() -> argparse.ArgumentParser:
++    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
++    parser.add_argument(
++        "--model", "-m", type=str, default="hf", help="Name of model e.g. `hf`"
++    )
++    parser.add_argument(
++        "--tasks",
++        "-t",
++        default=None,
++        type=str,
++        metavar="task1,task2",
++        help="Comma-separated list of task names or task groupings to evaluate on.\nTo get full list of tasks, use one of the commands `lm-eval --tasks {{list_groups,list_subtasks,list_tags,list}}` to list out all available names for task groupings; only (sub)tasks; tags; or all of the above",
++    )
++    parser.add_argument(
++        "--model_args",
++        "-a",
++        default="",
++        type=str,
++        help="Comma separated string arguments for model, e.g. `pretrained=EleutherAI/pythia-160m,dtype=float32`",
++    )
++    parser.add_argument(
++        "--num_fewshot",
++        "-f",
++        type=int,
++        default=None,
++        metavar="N",
++        help="Number of examples in few-shot context",
++    )
++    parser.add_argument(
++        "--batch_size",
++        "-b",
++        type=str,
++        default=1,
++        metavar="auto|auto:N|N",
++        help="Acceptable values are 'auto', 'auto:N' or N, where N is an integer. Default 1.",
++    )
++    parser.add_argument(
++        "--max_batch_size",
++        type=int,
++        default=None,
++        metavar="N",
++        help="Maximal batch size to try with --batch_size auto.",
++    )
++    parser.add_argument(
++        "--device",
++        type=str,
++        default=None,
++        help="Device to use (e.g. cuda, cuda:0, cpu).",
++    )
++    parser.add_argument(
++        "--output_path",
++        "-o",
++        default=None,
++        type=str,
++        metavar="DIR|DIR/file.json",
++        help="The path to the output file where the result metrics will be saved. If the path is a directory and log_samples is true, the results will be saved in the directory. Else the parent directory will be used.",
++    )
++    parser.add_argument(
++        "--limit",
++        "-L",
++        type=float,
++        default=None,
++        metavar="N|0<N<1",
++        help="Limit the number of examples per task. "
++        "If <1, limit is a percentage of the total number of examples.",
++    )
++    parser.add_argument(
++        "--use_cache",
++        "-c",
++        type=str,
++        default=None,
++        metavar="DIR",
++        help="A path to a sqlite db file for caching model responses. `None` if not caching.",
++    )
++    parser.add_argument(
++        "--cache_requests",
++        type=str,
++        default=None,
++        choices=["true", "refresh", "delete"],
++        help="Speed up evaluation by caching the building of dataset requests. `None` if not caching.",
++    )
++    parser.add_argument(
++        "--check_integrity",
++        action="store_true",
++        help="Whether to run the relevant part of the test suite for the tasks.",
++    )
++    parser.add_argument(
++        "--write_out",
++        "-w",
++        action="store_true",
++        default=False,
++        help="Prints the prompt for the first few documents.",
++    )
++    parser.add_argument(
++        "--log_samples",
++        "-s",
++        action="store_true",
++        default=False,
++        help="If True, write out all model outputs and documents for per-sample measurement and post-hoc analysis. Use with --output_path.",
++    )
++    parser.add_argument(
++        "--system_instruction",
++        type=str,
++        default=None,
++        help="System instruction to be used in the prompt",
++    )
++    parser.add_argument(
++        "--apply_chat_template",
++        type=str,
++        nargs="?",
++        const=True,
++        default=False,
++        help=(
++            "If True, apply chat template to the prompt. "
++            "Providing `--apply_chat_template` without an argument will apply the default chat template to the prompt. "
++            "To apply a specific template from the available list of templates, provide the template name as an argument. "
++            "E.g. `--apply_chat_template template_name`"
++        ),
++    )
++    parser.add_argument(
++        "--fewshot_as_multiturn",
++        action="store_true",
++        default=False,
++        help="If True, uses the fewshot as a multi-turn conversation",
++    )
++    parser.add_argument(
++        "--show_config",
++        action="store_true",
++        default=False,
++        help="If True, shows the the full config of all tasks at the end of the evaluation.",
++    )
++    parser.add_argument(
++        "--include_path",
++        type=str,
++        default=None,
++        metavar="DIR",
++        help="Additional path to include if there are external tasks to include.",
++    )
++    parser.add_argument(
++        "--gen_kwargs",
++        type=str,
++        default=None,
++        help=(
++            "String arguments for model generation on greedy_until tasks,"
++            " e.g. `temperature=0,top_k=0,top_p=0`."
++        ),
++    )
++    parser.add_argument(
++        "--verbosity",
++        "-v",
++        type=str.upper,
++        default="INFO",
++        metavar="CRITICAL|ERROR|WARNING|INFO|DEBUG",
++        help="Controls the reported logging error level. Set to DEBUG when testing + adding new task configurations for comprehensive log output.",
++    )
++    parser.add_argument(
++        "--wandb_args",
++        type=str,
++        default="",
++        help="Comma separated string arguments passed to wandb.init, e.g. `project=lm-eval,job_type=eval",
++    )
++    parser.add_argument(
++        "--hf_hub_log_args",
++        type=str,
++        default="",
++        help="Comma separated string arguments passed to Hugging Face Hub's log function, e.g. `hub_results_org=EleutherAI,hub_repo_name=lm-eval-results`",
++    )
++    parser.add_argument(
++        "--predict_only",
++        "-x",
++        action="store_true",
++        default=False,
++        help="Use with --log_samples. Only model outputs will be saved and metrics will not be evaluated.",
++    )
++    default_seed_string = "0,1234,1234,1234"
++    parser.add_argument(
++        "--seed",
++        type=partial(_int_or_none_list_arg_type, 3, 4, default_seed_string),
++        default=default_seed_string,  # for backward compatibility
++        help=(
++            "Set seed for python's random, numpy, torch, and fewshot sampling.\n"
++            "Accepts a comma-separated list of 4 values for python's random, numpy, torch, and fewshot sampling seeds, "
++            "respectively, or a single integer to set the same seed for all four.\n"
++            f"The values are either an integer or 'None' to not set the seed. Default is `{default_seed_string}` "
++            "(for backward compatibility).\n"
++            "E.g. `--seed 0,None,8,52` sets `random.seed(0)`, `torch.manual_seed(8)`, and fewshot sampling seed to 52. "
++            "Here numpy's seed is not set since the second value is `None`.\n"
++            "E.g, `--seed 42` sets all four seeds to 42."
++        ),
++    )
++    parser.add_argument(
++        "--trust_remote_code",
++        action="store_true",
++        help="Sets trust_remote_code to True to execute code to create HF Datasets from the Hub",
++    )
++    parser.add_argument(
++        "--confirm_run_unsafe_code",
++        action="store_true",
++        help="Confirm that you understand the risks of running unsafe code for tasks that require it",
++    )
++    return parser
++
++
++def parse_eval_args(parser: argparse.ArgumentParser) -> argparse.Namespace:
++    check_argument_types(parser)
++    return parser.parse_args()
+diff --git a/eval/task.py b/eval/task.py
+index 10f949f..5649c7f 100644
+--- a/eval/task.py
++++ b/eval/task.py
+@@ -9,6 +9,10 @@ from itertools import islice
+ from typing import Any, Callable, Dict, List, Optional, Type, Union
+ 
+ import lm_eval.models as lm_eval_models
++import lm_eval.models.huggingface
++import lm_eval.models.openai_completions
++if importlib.util.find_spec("vllm") is not None:
++    import lm_eval.models.vllm_causallms
+ import numpy as np
+ import torch
+ import torch.distributed as dist
+@@ -52,7 +56,8 @@ class BaseBenchmark(ABC):
+                 
+                 max_model_len = None
+                 if isinstance(model, lm_eval_models.vllm_causallms.VLLM):
+-                    max_model_len = model.model.llm_engine.model_config.max_model_len
++                    # DP adapters create engines in workers, not in this process.
++                    max_model_len = model.max_length
+                 elif isinstance(model, lm_eval_models.huggingface.HFLM):
+                     max_model_len = model.model.config.max_position_embeddings
+ 
+diff --git a/tests/test_vllm_dp_context.py b/tests/test_vllm_dp_context.py
+new file mode 100644
+index 0000000..8bc57f0
+--- /dev/null
++++ b/tests/test_vllm_dp_context.py
+@@ -0,0 +1,56 @@
++"""Exercise the actual normalization method without loading torch or a model."""
++import ast
++import copy
++import logging
++from pathlib import Path
++from types import SimpleNamespace
++import unittest
++
++
++class VLLM:
++    max_length = 4096
++    tokenizer = SimpleNamespace(encode=lambda prompt: list(range(len(prompt))))
++
++
++class HF:
++    model = SimpleNamespace(config=SimpleNamespace(max_position_embeddings=4096))
++    tokenizer = VLLM.tokenizer
++
++
++class OpenAI:
++    pass
++
++
++class NormalizationTest(unittest.TestCase):
++    def test_dp_context_matches_hf_and_keeps_task_settings(self):
++        source = Path(__file__).parents[1] / "eval/task.py"
++        tree = ast.parse(source.read_text())
++        cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "BaseBenchmark")
++        method = next(n for n in cls.body if isinstance(n, ast.FunctionDef) and n.name == "_normalize_model_args")
++        method.returns = None
++        for arg in method.args.args:
++            arg.annotation = None
++        noop = SimpleNamespace(seed=lambda value: None, manual_seed=lambda value: None)
++        space = dict(random=noop, np=SimpleNamespace(random=noop), torch=noop,
++                     SAFETY_BUFFER_TOKENS=16, lm_eval_models=SimpleNamespace(
++                         vllm_causallms=SimpleNamespace(VLLM=VLLM),
++                         huggingface=SimpleNamespace(HFLM=HF),
++                         openai_completions=SimpleNamespace(OpenAIChatCompletion=OpenAI, OpenAICompletionsAPI=OpenAI)))
++        exec(compile(ast.Module(body=[method], type_ignores=[]), str(source), "exec"), space)
++        normalize = space["_normalize_model_args"]
++        for prompt_len in (10, 100, 4079, 4096):
++            for max_tokens in (2048, 32768):
++                args = {"max_new_tokens": max_tokens, "do_sample": False, "temperature": 0.7, "seed": [0, 1234, 1234, 1234]}
++                results = []
++                for model in (HF(), VLLM(), VLLM()):
++                    instance = SimpleNamespace(args=("x" * prompt_len, copy.deepcopy(args)))
++                    normalize(SimpleNamespace(logger=logging.getLogger(__name__)), model, [instance])
++                    values = instance.args[1]
++                    results.append(values.get("max_gen_toks", values.get("max_new_tokens")))
++                    self.assertFalse(values["do_sample"])
++                    self.assertEqual(values["temperature"], 0.7)
++                self.assertEqual(results, [min(max_tokens, max(1, 4096-prompt_len-16))] * 3)
++
++
++if __name__ == "__main__":
++    unittest.main()

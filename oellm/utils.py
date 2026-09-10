@@ -59,6 +59,11 @@ def _ensure_singularity_image(image_name: str | None) -> None:
         )
 
     image_path = Path(os.getenv("EVAL_BASE_DIR")) / image_name
+    if Path(image_name).is_absolute():
+        if not image_path.is_file():
+            raise RuntimeError(f"Explicit container image does not exist: {image_path}")
+        logging.info("Using explicit local Singularity image at %s", image_path)
+        return
 
     try:
         console = get_console()
@@ -96,8 +101,7 @@ def _setup_logging(verbose: bool = False):
 
     class RichFormatter(logging.Formatter):
         def format(self, record):
-            record.msg = f"{record.getMessage()}"
-            return record.msg
+            return record.getMessage()
 
     rich_handler.setFormatter(RichFormatter())
 

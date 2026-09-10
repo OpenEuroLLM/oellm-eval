@@ -11,6 +11,7 @@
 #SBATCH --nodes=$NODES
 #SBATCH --nodelist=$NODELIST
 
+set -eo pipefail
 
 CSV_PATH="{csv_path}"
 NUM_JOBS={num_jobs}
@@ -18,6 +19,18 @@ TOTAL_EVALS={total_evals}
 LIMIT="{limit}"
 VENV_PATH="{venv_path}"
 LM_EVAL_INCLUDE_PATH="{lm_eval_include_path}"
+MODEL_BACKEND="{model_backend}"
+BACKEND_MODEL_ARGS={backend_model_args}
+EVALCHEMY_WORK_DIR="{evalchemy_dir}"
+
+if [ "$MODEL_BACKEND" = vllm ]; then
+    # The adapter owns its replicas; never nest it in Accelerate/torchrun.
+    if [ "${{WORLD_SIZE:-1}}" -gt 1 ] || [ "${{LMEVAL_DP:-1}}" -gt 1 ]; then
+        echo "[error] vLLM must run in one launcher process; unset LMEVAL_DP/WORLD_SIZE." >&2
+        exit 1
+    fi
+    export VLLM_WORKER_MULTIPROC_METHOD=spawn
+fi
 
 # avoiding crashes due to compute nodes not having access to the internet
 export HF_HOME=$HF_HOME
@@ -25,7 +38,10 @@ export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export HF_HUB_OFFLINE={hf_hub_offline}
 
 # Path to the shared Singularity image that contains all runtime deps (container mode)
-export EVAL_SIF_PATH="$EVAL_BASE_DIR/$EVAL_CONTAINER_IMAGE"
+export EVAL_SIF_PATH="$EVAL_CONTAINER_IMAGE"
+if [[ "$EVAL_SIF_PATH" != /* ]]; then
+    export EVAL_SIF_PATH="$EVAL_BASE_DIR/$EVAL_SIF_PATH"
+fi
 
 export MIOPEN_USER_DB_PATH="/tmp/$USER-miopen-${{SLURM_JOB_ID:-$$}}"
 export MIOPEN_CUSTOM_CACHE_DIR="$MIOPEN_USER_DB_PATH"
@@ -111,6 +127,9 @@ do
     fi
 
     GPU_DEVICES=$(seq -s, 0 $(($GPUS_PER_NODE - 1)))
+    # Respect scheduler GPU isolation when already set (including UUIDs).
+    export CUDA_VISIBLE_DEVICES="${{CUDA_VISIBLE_DEVICES:-$GPU_DEVICES}}"
+    RESOLVED_MODEL_ARGS="pretrained=$model_path,trust_remote_code=True${{BACKEND_MODEL_ARGS:+,$$BACKEND_MODEL_ARGS}}"
 
     MULTI_GPU_FLAG=""
     if [ "$GPUS_PER_NODE" -gt 1 ]; then
@@ -125,12 +144,17 @@ do
             source "$VENV_PATH/bin/activate"
             python "$@"
         else
+            CONTAINER_CWD_ARGS=()
+            if [ -n "${{EVAL_WORKDIR:-}}" ]; then
+                CONTAINER_CWD_ARGS=(--pwd "$EVAL_WORKDIR")
+            fi
             singularity exec $SINGULARITY_ARGS \
                 $SINGULARITY_ENV_ARGS \
                 $SINGULARITY_HOME_ARG \
                 --bind $BIND_PATHS \
+                "${{CONTAINER_CWD_ARGS[@]}}" \
                 $EVAL_SIF_PATH \
-                env CUDA_VISIBLE_DEVICES=$GPU_DEVICES \
+                env CUDA_VISIBLE_DEVICES="$CUDA_VISIBLE_DEVICES" \
                 python "$@"
         fi
     }}
@@ -140,14 +164,15 @@ do
             echo
             echo "----------------------------------------------------"
             echo "lm_eval Execution"
-            run_python -m lm_eval --model hf \
-                --model_args pretrained="$model_path",trust_remote_code=True \
+            run_python -m lm_eval --model "$MODEL_BACKEND" \
+                --model_args "$RESOLVED_MODEL_ARGS" \
                 --tasks "$task_path" \
                 --num_fewshot "$n_shot" \
                 --output_path "{evals_dir}/$(openssl rand -hex 5).json" \
                 --trust_remote_code \
                 ${{LM_EVAL_INCLUDE_PATH:+--include_path $$LM_EVAL_INCLUDE_PATH}} \
                 --batch_size auto \
+                {log_samples} \
                 ${{LIMIT:+--limit $LIMIT}}
             echo "----------------------------------------------------"
             ;;
@@ -196,16 +221,35 @@ do
             fi
             ;;
         evalchemy)
-            EVALCHEMY_WORK_DIR="{evalchemy_dir}"
             RESULTS_SUBDIR="{evals_dir}/$(openssl rand -hex 5)"
-            if [ -n "$VENV_PATH" ]; then
+            if [ "$MODEL_BACKEND" = vllm ]; then
+                # A container may carry Evalchemy internally at /opt/evalchemy.
+                # A host checkout remains supported via an explicit bind.
+                if [ -d "$EVALCHEMY_WORK_DIR" ]; then
+                    BIND_PATHS="$BIND_PATHS,$EVALCHEMY_WORK_DIR:$EVALCHEMY_WORK_DIR"
+                fi
+                (
+                    if [ -n "$VENV_PATH" ]; then
+                        cd "$EVALCHEMY_WORK_DIR"
+                    else
+                        EVAL_WORKDIR="$EVALCHEMY_WORK_DIR"
+                    fi
+                    run_python -m eval.eval \
+                        --model vllm \
+                        --tasks "$task_path" \
+                        --model_args "$RESOLVED_MODEL_ARGS" \
+                        --batch_size auto \
+                        --output_path "$RESULTS_SUBDIR" \
+                        ${{LIMIT:+--limit $LIMIT}}
+                )
+            elif [ -n "$VENV_PATH" ]; then
                 source "$VENV_PATH/bin/activate"
                 cd "$EVALCHEMY_WORK_DIR"
                 accelerate launch --num-processes "$GPUS_PER_NODE" --num-machines 1 \
                     $MULTI_GPU_FLAG -m eval.eval \
                     --model hf \
                     --tasks "$task_path" \
-                    --model_args "trust_remote_code=True,pretrained=$model_path" \
+                    --model_args "$RESOLVED_MODEL_ARGS" \
                     --batch_size auto \
                     --output_path "$RESULTS_SUBDIR" \
                     ${{LIMIT:+--limit $LIMIT}}

@@ -3,6 +3,7 @@ import logging
 import math
 import os
 import re
+import shlex
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime
@@ -122,6 +123,11 @@ def schedule_evals(
     local: bool = False,
     slurm_template_var: str | None = None,
     nodelist: str | None = None,
+    model_backend: str = "hf",
+    model_args: str = "",
+    data_parallel_size: int = 1,
+    tensor_parallel_size: int = 1,
+    log_samples: bool = False,
 ) -> None:
     """
     Schedule evaluation jobs for a given set of models, tasks, and number of shots.
@@ -171,8 +177,24 @@ def schedule_evals(
         nodelist: Optional SLURM nodelist to constrain the job to specific node(s),
             e.g. "tdll-3gpu4". Passed through as #SBATCH --nodelist. If unset, no
             node constraint is added.
+        model_backend: Model backend for lm-eval-harness and Evalchemy: hf or vllm.
+        model_args: Additional backend model arguments, in key=value comma-separated form.
+            pretrained, data_parallel_size and tensor_parallel_size are managed by the scheduler.
+            Lighteval continues to use its existing MODEL_ARGS setting.
+        data_parallel_size: Number of vLLM model replicas on one node. Requires model_backend=vllm.
+        tensor_parallel_size: GPUs per vLLM replica. Requires model_backend=vllm.
+        log_samples: Save per-example lm-eval results. Evalchemy chat results already include examples.
     """
     _setup_logging(verbose)
+
+    if model_backend not in {"hf", "vllm"}:
+        raise ValueError("model_backend must be hf or vllm")
+    if data_parallel_size < 1 or tensor_parallel_size < 1:
+        raise ValueError("Parallel sizes must be positive integers")
+    if model_backend != "vllm" and (data_parallel_size != 1 or tensor_parallel_size != 1):
+        raise ValueError("Parallel size options require model_backend=vllm")
+    if re.search(r"(?:^|,)\s*(pretrained|data_parallel_size|tensor_parallel_size)\s*=", model_args):
+        raise ValueError("Use models and the parallel size options instead of reserved model_args")
 
     if local:
         if not venv_path:
@@ -418,6 +440,20 @@ def schedule_evals(
         os.environ["NODELIST"] = nodelist
         logging.info(f"Constraining job to nodelist: {nodelist}")
 
+    backend_args = model_args.strip().strip(",")
+    if model_backend == "vllm":
+        if os.environ.get("NODES", "1") != "1":
+            raise ValueError("vLLM parallel evaluation currently requires NODES=1")
+        if any(job.eval_suite.lower() not in {"lm_eval", "lm-eval", "lm-eval-harness", "evalchemy"} for job in eval_jobs):
+            raise ValueError("model_backend=vllm supports only lm-eval-harness and Evalchemy")
+        required_gpus = data_parallel_size * tensor_parallel_size
+        explicit_gpus = json.loads(slurm_template_var or "{}").get("GPUS_PER_NODE")
+        if explicit_gpus is not None and int(explicit_gpus) != required_gpus:
+            raise ValueError("GPUS_PER_NODE must equal data_parallel_size * tensor_parallel_size")
+        os.environ["GPUS_PER_NODE"] = str(required_gpus)
+        os.environ["NODES"] = "1"
+        backend_args = ",".join(filter(None, [backend_args, f"tensor_parallel_size={tensor_parallel_size}", f"data_parallel_size={data_parallel_size}"]))
+
     # Log the calculated values
     slurm_mem = _resolve_slurm_mem()
     logging.info("📊 Evaluation planning:")
@@ -459,6 +495,9 @@ def schedule_evals(
         hf_hub_offline=_resolve_hf_hub_offline(local),
         additional_model_args=_resolve_additional_model_args(local),  # Batch size
         evalchemy_dir=os.environ.get("EVALCHEMY_DIR", "/opt/evalchemy"),
+        model_backend=model_backend,
+        backend_model_args=shlex.quote(backend_args),
+        log_samples="--log_samples" if log_samples else "",
     )
 
     if not os.environ.get("ACCOUNT"):
