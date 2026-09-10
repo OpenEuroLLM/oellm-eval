@@ -127,15 +127,18 @@ def main():
     for name in ("base-image", "runtime", "evalchemy", "humaneval", "source-manifest", "output", "tmp-dir"):
         parser.add_argument("--"+name, type=Path, required=True)
     parser.add_argument("--execute", action="store_true")
+    parser.add_argument("--profiles", type=Path, default=Path(__file__).with_name("vllm_profiles.json"),
+                        help="Verified base identities; use bootstrap_jupiter_base.py output for a fresh OCI build")
     args = parser.parse_args()
     for name in ("base_image", "runtime", "evalchemy", "humaneval", "source_manifest", "output", "tmp_dir"):
         setattr(args, name, getattr(args, name).resolve())
-    profile = json.loads(Path(__file__).with_name("vllm_profiles.json").read_text())[args.machine]
+    profile = json.loads(args.profiles.read_text())[args.machine]
     if not args.tmp_dir.is_relative_to("/tmp") or args.tmp_dir == Path("/tmp"):
         parser.error("--tmp-dir must be a dedicated directory under local /tmp")
     recipe = definition(args, profile)
     command = ["apptainer", "build", "--mksquashfs-args", "-processors 2", str(args.output), str(args.output.with_suffix(".def"))]
     plan = {"machine": args.machine, "base": profile, "command": command,
+            "profiles_sha256": sha(args.profiles),
             "runtime": str(args.runtime), "definition": recipe,
             "promotion": "Not promoted: real GPU evaluation is required."}
     print(json.dumps(plan, indent=2), flush=True)

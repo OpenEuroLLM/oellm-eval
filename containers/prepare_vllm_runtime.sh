@@ -55,13 +55,20 @@ python -m pip --version
 # Legacy pure-Python build scripts may import pkg_resources. Propagate a build
 # constraint into pip's temporary build environments. HumanEval is imported
 # directly from its pinned source (its published CLI entry point is malformed).
-printf '%s\n' 'setuptools==80.9.0' > "$work_dir/build-constraints.txt"
+printf '%s\n' 'setuptools==80.9.0' 'wheel==0.48.0' 'packaging==26.3' > "$work_dir/build-constraints.txt"
 export PIP_CONSTRAINT="$work_dir/build-constraints.txt"
+runtime_constraints=()
+if [[ -n ${OELLM_RUNTIME_CONSTRAINTS:-} ]]; then
+  [[ -f "$OELLM_RUNTIME_CONSTRAINTS" ]]
+  cp "$OELLM_RUNTIME_CONSTRAINTS" "$work_dir/provenance/runtime-constraints.txt"
+  runtime_constraints=(--constraint "$work_dir/provenance/runtime-constraints.txt")
+fi
 # Source builds are allowed only for these small pure-Python packages. Native
 # dependencies must have wheels: never compile CUDA or other native code here.
 python -m pip install --only-binary=:all: \
   --no-binary=rouge-score,sqlitedict,word2number,langdetect,human-eval \
   --constraint "$work_dir/engine-constraints.txt" \
+  "${runtime_constraints[@]}" \
   --report "$work_dir/provenance/install.json" \
   "$harness_source[api,math,ifeval]" 'datasets>=4,<5' \
   'fire==0.7.1' 'SQLAlchemy>=2,<3' scipy jsonargparse || {
@@ -88,7 +95,22 @@ export PYTHONPATH="$evalchemy_source"
 export HF_HOME="$work_dir/hf-cache"
 export HF_HUB_CACHE="$HF_HOME/hub"
 export NLTK_DATA="$work_dir/nltk_data"
-python -m nltk.downloader -d "$NLTK_DATA" punkt punkt_tab
+python - "$(dirname "${BASH_SOURCE[0]}")/locks/nltk.json" "$NLTK_DATA" <<'PY'
+import hashlib, json, sys, urllib.request, zipfile
+from pathlib import Path
+lock = Path(sys.argv[1])
+root = Path(sys.argv[2]) / 'tokenizers'
+root.mkdir(parents=True, exist_ok=True)
+for name, item in json.loads(lock.read_text()).items():
+    archive = root / (name + '.zip')
+    urllib.request.urlretrieve(item['url'], archive)
+    assert archive.stat().st_size == item['bytes']
+    assert hashlib.sha256(archive.read_bytes()).hexdigest() == item['sha256']
+    with zipfile.ZipFile(archive) as z:
+        assert all((root / p).resolve().is_relative_to(root.resolve()) for p in z.namelist())
+        z.extractall(root)
+(root.parent.parent / 'provenance/nltk-lock.json').write_bytes(lock.read_bytes())
+PY
 python -c 'import vllm, ray; from lm_eval.models.vllm_causallms import VLLM; from eval import eval; print("Engine, adapter and Evalchemy CLI imports passed")'
 python "$evalchemy_source/tests/test_vllm_dp_context.py"
 python "$evalchemy_source/tests/test_math_answer_parser.py"
