@@ -24,6 +24,17 @@ jureca:
   EVAL_CONTAINER_IMAGE: "eval_env-jureca.sif"
   SINGULARITY_ARGS: "--nv"
 
+juwels:
+  hostname_pattern:
+    - "*.juwels"
+    - "jwlogin*"
+  EVAL_BASE_DIR: "/p/data1/mmlaion/oellm_shared_evals"
+  PARTITION: "booster"
+  ACCOUNT: "cstdl"
+  QUEUE_LIMIT: 250
+  # Select a compatible explicit image or venv; no JUWELS image is promoted yet.
+  SINGULARITY_ARGS: "--nv"
+
 jupiter:
   hostname_pattern: "jp*"
   EVAL_BASE_DIR: "/e/data1/datasets/playground/mmlaion/shared/oellm_shared_evals"

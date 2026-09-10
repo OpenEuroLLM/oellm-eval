@@ -362,7 +362,7 @@ def schedule_evals(
         return None
 
     remaining_queue_capacity = (
-        1 if local else int(os.environ.get("QUEUE_LIMIT", 250)) - _num_jobs_in_queue()
+        1 if local else int(os.environ.get("QUEUE_LIMIT", 250)) - (0 if dry_run else _num_jobs_in_queue())
     )
 
     if remaining_queue_capacity <= 0 and not dry_run:

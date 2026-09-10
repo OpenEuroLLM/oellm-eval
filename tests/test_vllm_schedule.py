@@ -41,7 +41,7 @@ def render(tmp_path, monkeypatch, *, suite="lm_eval", container=False, internal_
     monkeypatch.setenv("PATH", f"{bindir}:{os.environ['PATH']}")
     csv = tmp_path / "input.csv"
     csv.write_text(f"model_path,task_path,n_shot,eval_suite\n/model with spaces,piqa,10,{suite}\n")
-    with patch("oellm.main._load_cluster_env"), patch("oellm.main._num_jobs_in_queue", return_value=0):
+    with patch("oellm.main._load_cluster_env"), patch("oellm.main._num_jobs_in_queue", side_effect=AssertionError("dry run must not query Slurm")):
         schedule_evals(
             eval_csv_path=str(csv), skip_checks=True, dry_run=True,
             venv_path=None if container else str(tmp_path), **options,
