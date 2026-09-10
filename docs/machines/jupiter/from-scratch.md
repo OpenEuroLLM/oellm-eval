@@ -345,6 +345,8 @@ Use a model checkpoint whose exact revision and file hashes you record. Stage it
 
 Select task groups from the pinned `oellm/resources/task-groups.yaml`. The public reference cache above does not include every registered benchmark. Before scheduling another group, prepare **all** of its required datasets, configurations, splits and auxiliary files using this evaluation image, pin their revisions, record complete counts and verify offline task construction. Some Evalchemy tasks obtain assets through their own loader rather than the CLI's generic dataset registry. Additional language/code/API tasks can require extra pinned dependencies, access grants or a separate code-execution service; those tasks are not validated merely because this image imports successfully. Keep such extensions in a newly versioned image/cache and test the whole selected protocol.
 
+HumanEval grading is not validated by this guide. Separate acceptance testing identified a `filelock`/fork failure in the pinned multilingual grader; its correction and full code-task acceptance are being handled separately. The image build checks HumanEval imports only. Do not promote code-task support based on the three public reference tasks above.
+
 Use complete groups when reporting their standard aggregate. Do not replace missing subjects/languages with a subset average or add a local `--limit`. For the initial guide tasks, report the individual scores rather than a `reasoning` or `open-sci` aggregate.
 
 ## Reproducibility records and recovery
