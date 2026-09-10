@@ -15,7 +15,7 @@ import subprocess
 import tarfile
 
 REVISIONS = {
-    "harness": "6d642546f4688648fced259eb3302efd36ece5af",
+    "harness": "49b495a86982cb22c77bcc12aea433ee8aa2a2d7",
     "evalchemy": "b321416135050aa6919b430dbadbd4cc43cc8c15",
     "human-eval": "6d43fb980f9fee3c892a914eda09951f772ad10d",
 }
@@ -44,7 +44,7 @@ From: {args.base_image}
 %labels
     oellm.machine {args.machine}
     oellm.base.sha256 {profile['base_sha256']}
-    oellm.harness.revision 6d642546f4688648fced259eb3302efd36ece5af
+    oellm.harness.revision {REVISIONS['harness']}
     oellm.evalchemy.revision {REVISIONS['evalchemy']}
     oellm.humaneval.revision 6d43fb980f9fee3c892a914eda09951f772ad10d
     oellm.status gpu-validation-required
@@ -99,6 +99,8 @@ assert not [line for line in lines if line not in (known, 'No broken requirement
 assert m.version('vllm') == {profile['vllm']!r}
 assert m.version('ray') == {profile['ray']!r}
 from lm_eval.models.vllm_causallms import VLLM
+import inspect
+assert inspect.signature(VLLM).parameters["data_parallel_backend"].default == "mp"
 from eval import eval
 from human_eval.evaluation import evaluate_functional_correctness
 PY

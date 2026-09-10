@@ -25,6 +25,7 @@ jureca:
   SINGULARITY_ARGS: "--nv"
 
 juwels:
+  CPUS_PER_TASK: 96  # Whole Booster node, independent of vLLM DP/TP and Ray
   hostname_pattern:
     - "*.juwels"
     - "jwlogin*"
@@ -36,6 +37,7 @@ juwels:
   SINGULARITY_ARGS: "--nv"
 
 jupiter:
+  CPUS_PER_TASK: 288  # Whole GH200 node, independent of vLLM DP/TP and Ray
   hostname_pattern: "jp*"
   EVAL_BASE_DIR: "/e/data1/datasets/playground/mmlaion/shared/oellm_shared_evals"
   HF_HOME: "/e/data1/datasets/playground/mmlaion/shared/oellm_shared_evals"

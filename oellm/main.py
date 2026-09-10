@@ -126,6 +126,7 @@ def schedule_evals(
     model_backend: str = "hf",
     model_args: str = "",
     data_parallel_size: int = 1,
+    data_parallel_backend: str = "mp",
     tensor_parallel_size: int = 1,
     log_samples: bool = False,
 ) -> None:
@@ -182,6 +183,7 @@ def schedule_evals(
             pretrained, data_parallel_size and tensor_parallel_size are managed by the scheduler.
             Lighteval continues to use its existing MODEL_ARGS setting.
         data_parallel_size: Number of vLLM model replicas on one node. Requires model_backend=vllm.
+        data_parallel_backend: vLLM DP launcher: mp (default, no Ray runtime) or ray.
         tensor_parallel_size: GPUs per vLLM replica. Requires model_backend=vllm.
         log_samples: Save per-example lm-eval results. Evalchemy chat results already include examples.
     """
@@ -189,11 +191,15 @@ def schedule_evals(
 
     if model_backend not in {"hf", "vllm"}:
         raise ValueError("model_backend must be hf or vllm")
+    if data_parallel_backend not in {"mp", "ray"}:
+        raise ValueError("data_parallel_backend must be mp or ray")
+    if model_backend != "vllm" and data_parallel_backend != "mp":
+        raise ValueError("data_parallel_backend requires model_backend=vllm")
     if data_parallel_size < 1 or tensor_parallel_size < 1:
         raise ValueError("Parallel sizes must be positive integers")
     if model_backend != "vllm" and (data_parallel_size != 1 or tensor_parallel_size != 1):
         raise ValueError("Parallel size options require model_backend=vllm")
-    if re.search(r"(?:^|,)\s*(pretrained|data_parallel_size|tensor_parallel_size)\s*=", model_args):
+    if re.search(r"(?:^|,)\s*(pretrained|data_parallel_size|tensor_parallel_size|data_parallel_backend)\s*=", model_args):
         raise ValueError("Use models and the parallel size options instead of reserved model_args")
 
     if local:
@@ -452,7 +458,7 @@ def schedule_evals(
             raise ValueError("GPUS_PER_NODE must equal data_parallel_size * tensor_parallel_size")
         os.environ["GPUS_PER_NODE"] = str(required_gpus)
         os.environ["NODES"] = "1"
-        backend_args = ",".join(filter(None, [backend_args, f"tensor_parallel_size={tensor_parallel_size}", f"data_parallel_size={data_parallel_size}"]))
+        backend_args = ",".join(filter(None, [backend_args, f"tensor_parallel_size={tensor_parallel_size}", f"data_parallel_size={data_parallel_size}", f"data_parallel_backend={data_parallel_backend}"]))
 
     # Log the calculated values
     slurm_mem = _resolve_slurm_mem()
@@ -473,7 +479,18 @@ def schedule_evals(
     logging.info(f"   Time limit with safety margin: {time_limit}")
     logging.info(f"   Requested host memory: {slurm_mem}")
 
+    # One launcher owns the full procedure. CPUs are independent of DP and Ray.
+    launcher_resources = ""
+    if model_backend == "vllm":
+        launcher_resources = "#SBATCH --ntasks=1\n"
+        cpus = os.environ.get("CPUS_PER_TASK")
+        if cpus is not None:
+            if not cpus.isdecimal() or int(cpus) < 1:
+                raise ValueError("CPUS_PER_TASK must be a positive integer")
+            launcher_resources += f"#SBATCH --cpus-per-task={cpus}\n"
+
     sbatch_script = sbatch_template.format(
+        launcher_resources=launcher_resources,
         csv_path=csv_path,
         max_array_len=max_array_len,
         array_limit=actual_array_size - 1,  # Array is 0-indexed

@@ -1,6 +1,6 @@
 # Portable vLLM evaluation images
 
-The evaluation runtime is separate from the agent/control environment. Each image combines a SHA-256-pinned machine engine image, official lm-eval-harness v0.4.12, and the pinned Evalchemy source with the reviewed compatibility and answer-parser patches. JUPITER uses ARM64 with Ray 2.48.0; JUWELS Booster uses x86_64 with Ray 2.56.1. Machine identities are in `vllm_profiles.json`. Existing cluster configuration still selects the scheduler account, partition and container flags independently.
+The evaluation runtime is separate from the agent/control environment. Each image combines a SHA-256-pinned machine engine image, official lm-eval-harness v0.4.12 plus the reviewed native DP patch, and the pinned Evalchemy source with the reviewed compatibility and answer-parser patches. JUPITER uses ARM64 with Ray 2.48.0; JUWELS Booster uses x86_64 with Ray 2.56.1. Machine identities are in `vllm_profiles.json`. Existing cluster configuration still selects the scheduler account, partition and container flags independently.
 
 Use an activated control environment for the Python builders below. Runtime package installation happens only through `apptainer exec` into a newly created evaluation venv. Never point preparation at an agent environment or an existing production runtime. These commands do not compile CUDA; native task dependencies must have wheels. Keep longer preparation/build commands in your named tmux session.
 
@@ -63,15 +63,10 @@ oellm-eval schedule --models /path/to/model \
 
 Run scheduling from a separately installed control CLI. Omit `--venv_path` to execute evaluation entirely inside the image. Inspect the rendered batch script before submission. Pre-stage all required datasets/tokenizers on systems with offline compute nodes. Use the versioned task settings without local example caps. See [the backend guide](../docs/VLLM.md) for DP/TP allocation and parser-reference comparison requirements.
 
-### JUPITER Ray startup workaround under investigation
+### Multiprocessing default and optional Ray
 
-The tested ARM64 image uses Ray 2.48.0. Two initial four-GPU jobs lost Ray workers before vLLM initialized; repeating full PIQA with the following environment completed all 1,838 examples at the same score as the JUWELS reference pair:
+The bundled harness patch adds `data_parallel_backend=mp` (the default) using the vLLM 0.28 offline multiprocessing DP interface. It sets native DP ranks in child processes, preserves visible GPUs for vLLM rank assignment and restores request order after collecting all ranks. The original harness Ray implementation remains available with `--data_parallel_backend ray`. Ray stays installed in both machine images; the multiprocessing evaluation path does not initialize it. These modes currently support one node only. Tensor parallelism is independently configured with `--tensor_parallel_size`.
 
-```bash
-# Set before sbatch; the normal container launcher inherits this environment.
-export RAY_OVERRIDE_RESOURCES='{"CPU": 4}'
-```
+Slurm requests one launcher with the machine's configured `CPUS_PER_TASK`: 288 on JUPITER and 96 logical CPUs on JUWELS Booster. Override this through `--slurm_template_var` if needed. This allocation is independent of the DP replica count and Ray logical resources.
 
-This sets Ray's logical CPU scheduling capacity. It does not set process CPU affinity or restrict evaluation to four physical cores. The native harness adapter schedules one Ray task per GPU replica, each requesting one logical CPU; use at least as many logical CPUs as DP replicas. Ray 2.48.0 also uses this count for prestarted Python workers and maximum worker startup concurrency, so it avoids a large startup pool on JUPITER's 288-core allocations. Excessive worker/thread startup is a hypothesis for the observed failure, not an established root cause. An uncapped repeat with persistent worker logs remains pending; this workaround is explicit rather than a global scheduler default. GPU compatibility for other tasks must still be checked.
-
-If using Apptainer `--cleanenv`, pass the variable explicitly with `--env` as well. Preserve Ray logs through a bind to a short container path such as `/tmp/ray_eval` and set `RAY_TMPDIR` there; long GPFS paths can exceed Ray's Unix-socket limit.
+Two earlier JUPITER Ray jobs failed before engine startup. Both a capped repeat and an uncapped repeat subsequently passed full PIQA; the uncapped control advertised all 288 CPUs to Ray. A CPU cap is therefore not recommended as a demonstrated fix. For Ray diagnostics, preserve logs using a bind to a short path such as `/tmp/ray_eval`; long GPFS paths can exceed Unix-socket limits.

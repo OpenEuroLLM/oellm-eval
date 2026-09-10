@@ -1,0 +1,249 @@
+diff --git a/lm_eval/models/vllm_causallms.py b/lm_eval/models/vllm_causallms.py
+index 323ba9e..6774db6 100644
+--- a/lm_eval/models/vllm_causallms.py
++++ b/lm_eval/models/vllm_causallms.py
+@@ -15,6 +15,7 @@ from vllm.lora.request import LoRARequest
+ 
+ from lm_eval.api.model import TemplateLM
+ from lm_eval.api.registry import register_model
++from lm_eval.models.vllm_dp import _vllm_mp_worker, run_workers
+ from lm_eval.models.utils import (
+     Collator,
+     _add_special_kwargs,
+@@ -78,6 +79,7 @@ class VLLM(TemplateLM):
+         max_model_len: int | None = None,
+         seed: int = 1234,
+         data_parallel_size: int = 1,
++        data_parallel_backend: Literal["mp", "ray"] = "mp",
+         lora_local_path: str | None = None,
+         # VLLM: enable thinking tags in the prompt.
+         enable_thinking: bool | None = None,
+@@ -109,16 +111,18 @@ class VLLM(TemplateLM):
+         # truncation strategy for inputs exceeding max length
+         self.truncation_side = truncation_side
+         self.data_parallel_size = int(data_parallel_size)
++        if data_parallel_backend not in {"mp", "ray"}:
++            raise ValueError("data_parallel_backend must be mp or ray")
++        self.data_parallel_backend = data_parallel_backend
+         if self.data_parallel_size > 1 and kwargs.get("enable_expert_parallel", False):
+             raise ValueError(
+                 "data_parallel_size > 1 is not supported with enable_expert_parallel=True. "
+-                "lm-eval dispatches data parallelism through independent Ray workers, which "
+-                "does not provide a single coordinated MoE expert-parallel engine. "
++                "This adapter does not yet validate combined DP and expert parallelism. "
+                 "Use tensor_parallel_size > 1 with data_parallel_size=1 instead."
+             )
+-        if self.data_parallel_size > 1 and not find_spec("ray"):
++        if self.data_parallel_size > 1 and self.data_parallel_backend == "ray" and not find_spec("ray"):
+             raise ModuleNotFoundError(
+-                "ray is required for data parallelism. Please install ray using `pip install ray`."
++                "ray is required only for data_parallel_backend=ray; use mp for single-node evaluation."
+             )
+         self.model_args = {
+             "model": pretrained,
+@@ -145,8 +149,8 @@ class VLLM(TemplateLM):
+         if self.data_parallel_size <= 1:
+             self.model = LLM(**self.model_args)  # type: ignore[invalid-argument-type]
+         else:
+-            # note: DP is always dispatched through ray actors; the mp data-parallel
+-            # path was dropped upstream for dense models.
++            # Single-node native vLLM multiprocessing is the default.
++            # The upstream Ray path remains an explicitly selected comparison mode.
+             eval_logger.warning(
+                 "You might experience occasional issues with model weight downloading when data_parallel is in use. To ensure stable performance, run with data_parallel_size=1 until the weights are downloaded and cached."
+             )
+@@ -396,6 +400,21 @@ class VLLM(TemplateLM):
+             sampling_params = cast(
+                 "list[SamplingParams]", [sampling_params] * len(requests)
+             )
++        if self.data_parallel_size > 1 and self.data_parallel_backend == "mp":
++            if not requests:
++                return []
++            from vllm.utils.network_utils import get_open_port
++
++            # Avoid empty ranks: native engines may coordinate their progress.
++            dp_size = min(self.data_parallel_size, len(requests))
++            request_shards = [list(x) for x in distribute(dp_size, requests)]
++            parameter_shards = [list(x) for x in distribute(dp_size, sampling_params)]
++            port = get_open_port()
++            work = [
++                (self.model_args, sp, req, self.lora_request, dp_size, rank, port, "127.0.0.1")
++                for rank, (req, sp) in enumerate(zip(request_shards, parameter_shards, strict=True))
++            ]
++            return undistribute(run_workers(_vllm_mp_worker, work))
+         if self.data_parallel_size > 1:
+             import ray
+ 
+diff --git a/lm_eval/models/vllm_dp.py b/lm_eval/models/vllm_dp.py
+new file mode 100644
+index 0000000..25c08c1
+--- /dev/null
++++ b/lm_eval/models/vllm_dp.py
+@@ -0,0 +1,92 @@
++"""Single-node vLLM DP following vLLM 0.28's multiprocessing offline example.
++
++The parent partitions requests; vLLM selects GPUs from DP ranks. No Ray runtime
++is needed. Keep process supervision independent of vLLM imports for CPU tests.
++"""
++
++import multiprocessing
++import os
++from queue import Empty
++import traceback
++
++
++def _vllm_mp_worker(model_args, sampling_params, requests, lora_request,
++                    result_queue, dp_size, local_dp_rank, dp_master_port,
++                    dp_master_ip="127.0.0.1"):
++    try:
++        # The caller omits empty shards, so every native DP rank participates.
++        if not requests:
++            raise ValueError("Native vLLM DP workers require a nonempty shard")
++        os.environ.update({
++            "VLLM_DP_RANK": str(local_dp_rank),
++            "VLLM_DP_RANK_LOCAL": str(local_dp_rank),
++            "VLLM_DP_SIZE": str(dp_size),
++            "VLLM_DP_MASTER_IP": str(dp_master_ip),
++            "VLLM_DP_MASTER_PORT": str(dp_master_port),
++            "VLLM_WORKER_MULTIPROC_METHOD": "spawn",
++        })
++        from vllm import LLM, TokensPrompt
++
++        args = dict(model_args)
++        # LLM(data_parallel_size>1) is deliberately rejected by vLLM 0.28.
++        # Its supported offline example uses the rank environment above.
++        args.pop("data_parallel_size", None)
++        args["distributed_executor_backend"] = (
++            "mp" if int(args.get("tensor_parallel_size", 1)) > 1 else "uni"
++        )
++        model = LLM(**args)
++        outputs = model.generate(
++            [TokensPrompt(prompt_token_ids=request) for request in requests],
++            sampling_params=sampling_params, lora_request=lora_request,
++        )
++        result_queue.put((local_dp_rank, outputs))
++    except BaseException:
++        result_queue.put((local_dp_rank, {"error": traceback.format_exc()}))
++
++
++def run_workers(worker, work, *, poll_seconds=1.0, join_seconds=30.0):
++    """Run rank-ordered jobs, draining IPC before joining and rejecting failures.
++
++    Each tuple supplies worker arguments except its fifth (the results queue).
++    Spawn avoids forking a process that has already imported CUDA libraries.
++    """
++    context = multiprocessing.get_context("spawn")
++    queue = context.Queue()
++    processes = []
++    results = {}
++    try:
++        for item in work:
++            process = context.Process(target=worker, args=(*item[:4], queue, *item[4:]))
++            process.start()
++            processes.append(process)
++        while len(results) < len(processes):
++            try:
++                rank, result = queue.get(timeout=poll_seconds)
++            except Empty:
++                dead = [rank for rank, process in enumerate(processes)
++                        if process.exitcode is not None and rank not in results]
++                if dead:
++                    raise RuntimeError(f"vLLM DP workers exited without results: {dead}") from None
++                continue
++            if not isinstance(rank, int) or not 0 <= rank < len(processes) or rank in results:
++                raise RuntimeError(f"Invalid or repeated vLLM DP result rank: {rank!r}")
++            if isinstance(result, dict) and "error" in result:
++                raise RuntimeError(f"vLLM DP rank {rank} failed:\n{result['error']}")
++            results[rank] = result
++        for rank, process in enumerate(processes):
++            process.join(timeout=join_seconds)
++            if process.exitcode != 0:
++                raise RuntimeError(f"vLLM DP rank {rank} failed to exit cleanly: {process.exitcode}")
++        return [results[rank] for rank in range(len(processes))]
++    finally:
++        for process in processes:
++            if process.is_alive():
++                process.terminate()
++        for process in processes:
++            process.join(timeout=5)
++            if process.is_alive():
++                process.kill()
++                process.join(timeout=5)
++            process.close()
++        queue.close()
++        queue.join_thread()
+diff --git a/tests/test_vllm_dp_process.py b/tests/test_vllm_dp_process.py
+new file mode 100644
+index 0000000..b2d335d
+--- /dev/null
++++ b/tests/test_vllm_dp_process.py
+@@ -0,0 +1,69 @@
++"""Real spawn/IPC tests without importing the GPU runtime or harness package."""
++import importlib.util
++import os
++from pathlib import Path
++import sys
++import time
++import unittest
++
++spec = importlib.util.spec_from_file_location('vllm_dp_under_test', Path(__file__).parents[1] / 'lm_eval/models/vllm_dp.py')
++dp = importlib.util.module_from_spec(spec)
++sys.modules[spec.name] = dp
++spec.loader.exec_module(dp)
++
++
++def worker(mode, delay, payload, unused, queue, rank):
++    time.sleep(delay)
++    if mode == 'die':
++        os._exit(9)
++    if mode == 'error':
++        queue.put((rank, {'error': 'test failure'}))
++    elif mode == 'invalid':
++        queue.put((100, payload))
++    else:
++        queue.put((rank, payload))
++        if mode == 'hang':
++            time.sleep(60)
++
++
++class Processes(unittest.TestCase):
++    def test_order_and_large_payload(self):
++        data = ['a' * 2_000_000, 'b' * 2_000_000]
++        work = [('ok', .2, data[0], None, 0), ('ok', 0, data[1], None, 1)]
++        self.assertEqual(dp.run_workers(worker, work, poll_seconds=.05), data)
++
++    def test_failure_cleanup(self):
++        for mode in ['die', 'error', 'invalid', 'hang']:
++            with self.subTest(mode=mode), self.assertRaises(RuntimeError):
++                dp.run_workers(worker, [(mode, 0, 'x', None, 0)], poll_seconds=.05, join_seconds=.1)
++        self.assertFalse(dp.multiprocessing.active_children())
++
++    def test_native_rank_environment_and_arguments(self):
++        from unittest.mock import patch
++        from types import SimpleNamespace
++        from queue import Queue
++        seen = {}
++        class LLM:
++            def __init__(self, **kwargs):
++                seen.update(kwargs)
++                seen['env'] = dict(os.environ)
++            def generate(self, requests, **kwargs):
++                return [requests, kwargs]
++        fake = SimpleNamespace(LLM=LLM, TokensPrompt=lambda **kw: kw)
++        with patch.dict(sys.modules, {'vllm':fake, 'ray':None}), patch.dict(os.environ, {'CUDA_VISIBLE_DEVICES':'GPU-a,GPU-b,GPU-c,GPU-d'}):
++            q = Queue()
++            args = {'data_parallel_size':2, 'tensor_parallel_size':2}
++            dp._vllm_mp_worker(args, ['sampling'], [[1,2]], 'lora', q, 2, 1, 12345)
++            rank, outputs = q.get_nowait()
++            self.assertEqual(rank, 1)
++            self.assertEqual(outputs, [[{'prompt_token_ids':[1,2]}], {'sampling_params':['sampling'], 'lora_request':'lora'}])
++            self.assertNotIn('data_parallel_size', seen)
++            self.assertEqual(seen['distributed_executor_backend'], 'mp')
++            self.assertEqual(seen['env']['VLLM_DP_RANK_LOCAL'], '1')
++            self.assertEqual(seen['env']['VLLM_DP_SIZE'], '2')
++            self.assertEqual(seen['env']['CUDA_VISIBLE_DEVICES'], 'GPU-a,GPU-b,GPU-c,GPU-d')
++            self.assertEqual(args['data_parallel_size'], 2)
++
++
++if __name__ == '__main__':
++    unittest.main()

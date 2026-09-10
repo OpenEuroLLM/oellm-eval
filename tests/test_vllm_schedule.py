@@ -12,7 +12,7 @@ from oellm.utils import _ensure_singularity_image
 
 
 def render(tmp_path, monkeypatch, *, suite="lm_eval", container=False, internal_evalchemy=False, **options):
-    for key in ("WORLD_SIZE", "LMEVAL_DP", "NODES", "GPUS_PER_NODE"):
+    for key in ("WORLD_SIZE", "LMEVAL_DP", "NODES", "GPUS_PER_NODE", "CPUS_PER_TASK"):
         monkeypatch.delenv(key, raising=False)
     env = {
         "EVAL_OUTPUT_DIR": str(tmp_path / "output"),
@@ -51,12 +51,17 @@ def render(tmp_path, monkeypatch, *, suite="lm_eval", container=False, internal_
 
 @pytest.mark.parametrize("suite", ["lm_eval", "evalchemy"])
 @pytest.mark.parametrize("container", [False, True])
+@pytest.mark.parametrize("dp_backend", ["mp", "ray"])
 @pytest.mark.parametrize("dp,tp", [(1, 1), (4, 1), (2, 2)])
-def test_native_launch(tmp_path, monkeypatch, suite, container, dp, tp):
+def test_native_launch(tmp_path, monkeypatch, suite, container, dp, tp, dp_backend):
     script = render(tmp_path, monkeypatch, suite=suite, container=container,
                     model_backend="vllm", data_parallel_size=dp, tensor_parallel_size=tp,
-                    model_args="dtype=bfloat16", log_samples=True)
+                    model_args="dtype=bfloat16", log_samples=True, data_parallel_backend=dp_backend,
+                    slurm_template_var=json.dumps({"CPUS_PER_TASK":288}))
     assert f"#SBATCH --gres=gpu:{dp * tp}" in script.read_text()
+    assert "#SBATCH --ntasks=1" in script.read_text()
+    assert "#SBATCH --cpus-per-task=288" in script.read_text()
+    assert "RAY_num_cpus" not in script.read_text()
     assert "#SBATCH --nodes=1" in script.read_text()
     subprocess.run(["bash", "-n", str(script)], check=True)
     subprocess.run(["bash", str(script)], check=True, capture_output=True)
@@ -64,7 +69,7 @@ def test_native_launch(tmp_path, monkeypatch, suite, container, dp, tp):
     assert argv.count("--model") == 1
     assert argv[argv.index("--model") + 1] == "vllm"
     assert argv[argv.index("--model_args") + 1] == (
-        f"pretrained=/model with spaces,trust_remote_code=True,dtype=bfloat16,tensor_parallel_size={tp},data_parallel_size={dp}"
+        f"pretrained=/model with spaces,trust_remote_code=True,dtype=bfloat16,tensor_parallel_size={tp},data_parallel_size={dp},data_parallel_backend={dp_backend}"
     )
     assert "launch" not in argv and "torch.distributed.run" not in argv
     assert argv[0] == os.environ["CUDA_VISIBLE_DEVICES"]
@@ -91,6 +96,10 @@ def test_nested_launcher_refused(tmp_path, monkeypatch, variable):
 
 @pytest.mark.parametrize("options", [
     {"model_backend": "invalid"},
+    {"data_parallel_backend": "ray"},
+    {"model_backend": "vllm", "data_parallel_backend": "invalid"},
+    {"model_args": "data_parallel_backend=ray"},
+    {"model_backend": "vllm", "slurm_template_var": '{"CPUS_PER_TASK":0}'},
     {"data_parallel_size": 4},
     {"model_backend": "vllm", "data_parallel_size": 0},
     {"model_backend": "vllm", "tensor_parallel_size": -1},
