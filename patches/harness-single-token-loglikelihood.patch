@@ -1,0 +1,134 @@
+diff --git a/lm_eval/models/vllm_causallms.py b/lm_eval/models/vllm_causallms.py
+--- a/lm_eval/models/vllm_causallms.py
++++ b/lm_eval/models/vllm_causallms.py
+@@ -50,6 +50,8 @@
+     from transformers import PreTrainedTokenizerBase
+ 
+     from lm_eval.api.instance import Instance
++
++from lm_eval.models.vllm_single_token import plan_requests, restore_answers
+ 
+ eval_logger = logging.getLogger(__name__)
+ 
+@@ -80,6 +82,7 @@
+         seed: int = 1234,
+         data_parallel_size: int = 1,
+         data_parallel_backend: Literal["mp", "ray"] = "mp",
++        single_token_loglikelihood: bool = True,
+         lora_local_path: str | None = None,
+         # VLLM: enable thinking tags in the prompt.
+         enable_thinking: bool | None = None,
+@@ -114,6 +117,11 @@
+         if data_parallel_backend not in {"mp", "ray"}:
+             raise ValueError("data_parallel_backend must be mp or ray")
+         self.data_parallel_backend = data_parallel_backend
++        if isinstance(single_token_loglikelihood, str):
++            if single_token_loglikelihood.lower() not in {"true", "false"}:
++                raise ValueError("single_token_loglikelihood must be true or false")
++            single_token_loglikelihood = single_token_loglikelihood.lower() == "true"
++        self.single_token_loglikelihood = bool(single_token_loglikelihood) and hasattr(SamplingParams(), "logprob_token_ids")
+         if self.data_parallel_size > 1 and kwargs.get("enable_expert_parallel", False):
+             raise ValueError(
+                 "data_parallel_size > 1 is not supported with enable_expert_parallel=True. "
+@@ -392,7 +400,7 @@
+         generate: bool = False,
+         sampling_params: list[SamplingParams] | SamplingParams | None = None,
+     ):
+-        if not generate or sampling_params is None:
++        if sampling_params is None:
+             sampling_params = SamplingParams(
+                 temperature=0, prompt_logprobs=1, max_tokens=1, detokenize=False
+             )
+@@ -714,16 +722,21 @@
+                 inputs.append(inp)
+                 ctxlens.append(ctxlen)
+ 
+-            outputs = self._model_generate(requests=inputs, generate=False)
+-
+-            for output, ctxlen, (cache_key, _, _), inp in zip(
+-                outputs, ctxlens, chunk, inputs, strict=True
+-            ):
+-                answer = self._parse_logprobs(
+-                    tokens=inp,
+-                    outputs=output,
+-                    ctxlen=ctxlen,
+-                )
++            plans = plan_requests(inputs, ctxlens, self.single_token_loglikelihood)
++            params = [
++                SamplingParams(temperature=0, max_tokens=1, detokenize=False,
++                               logprob_token_ids=plan.selected)
++                if plan.selected is not None else
++                SamplingParams(temperature=0, max_tokens=1, detokenize=False, prompt_logprobs=1)
++                for plan in plans
++            ]
++            eval_logger.info("Likelihood scoring: %d options -> %d engine requests (%d shared next-token groups)",
++                             len(inputs), len(plans), sum(p.selected is not None for p in plans))
++            outputs = self._model_generate(requests=[p.tokens for p in plans], generate=False,
++                                           sampling_params=params)
++            answers = restore_answers(plans, outputs, inputs, self._parse_logprobs)
++
++            for answer, (cache_key, _, _) in zip(answers, chunk, strict=True):
+ 
+                 res.append(answer)
+ 
+diff --git a/lm_eval/models/vllm_single_token.py b/lm_eval/models/vllm_single_token.py
+new file mode 100644
+--- /dev/null
++++ b/lm_eval/models/vllm_single_token.py
+@@ -0,0 +1,56 @@
++"""Share single-token likelihood contexts without restricting the vocabulary.
++
++Dependency-free planning/reassembly for the lm-eval vLLM adapter. Multi-token
++requests retain their original prompt-logprob route and truncation semantics.
++"""
++from dataclasses import dataclass, field
++
++
++@dataclass
++class ScoringRequest:
++    tokens: list[int]
++    selected: list[int] | None
++    members: list[tuple[int, int]] = field(default_factory=list)
++
++
++def plan_requests(inputs, ctxlens, enabled=True, max_selected=128):
++    if len(inputs) != len(ctxlens):
++        raise ValueError("Input/context length count differs")
++    plans = []
++    groups = {}
++    for index, (tokens, ctxlen) in enumerate(zip(inputs, ctxlens, strict=True)):
++        # Inputs are already truncated by the adapter, including the target.
++        if enabled and ctxlen > 0 and len(tokens) == ctxlen + 1:
++            context, target = tuple(tokens[:-1]), tokens[-1]
++            group = groups.get(context)
++            if group is None or (target not in group.selected and len(group.selected) >= max_selected):
++                group = ScoringRequest(list(context), [])
++                groups[context] = group
++                plans.append(group)
++            if target not in group.selected:
++                group.selected.append(target)
++            group.members.append((index, ctxlen))
++        else:
++            plans.append(ScoringRequest(tokens, None, [(index, ctxlen)]))
++    return plans
++
++
++def restore_answers(plans, outputs, inputs, parse_prompt):
++    answers = [None] * len(inputs)
++    for plan, output in zip(plans, outputs, strict=True):
++        if plan.selected is None:
++            index, ctxlen = plan.members[0]
++            answers[index] = parse_prompt(tokens=plan.tokens, outputs=output, ctxlen=ctxlen)
++            continue
++        generated = output.outputs[0]
++        probabilities = generated.logprobs[0]
++        greedy_token = generated.token_ids[0]
++        for index, _ in plan.members:
++            token = inputs[index][-1]
++            if token not in probabilities:
++                raise ValueError(f"vLLM omitted requested token logprob: {token}")
++            value = probabilities[token]
++            answers[index] = (float(getattr(value, "logprob", value)), token == greedy_token)
++    if any(answer is None for answer in answers):
++        raise ValueError("Incomplete likelihood result mapping")
++    return answers
