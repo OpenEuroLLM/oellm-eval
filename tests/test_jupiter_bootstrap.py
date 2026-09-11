@@ -93,3 +93,21 @@ def test_result_check_requires_every_gpqa_repeat_and_ignores_its_own_summary(tmp
     path.write_text(json.dumps(data))
     with pytest.raises(ValueError, match='repeats'):
         results.check(tmp_path, 'GPQADiamond')
+
+
+def test_humaneval_checker_requires_both_languages_and_reproduces_verdicts(tmp_path):
+    root = tmp_path/'results'; root.mkdir()
+    data = {'config':{'limit':None,'max_tokens':'default'},
+            'results':{'HumanEval':{'python_pass@1':1.0,'sh_pass@1':1.0}}}
+    (root/'result.json').write_text(json.dumps(data))
+    for language, count in [('python',164),('sh',158)]:
+        rows=[{'task_id':f'{language}/{i}','passed':True} for i in range(count)]
+        (root/f'generated_{language}.jsonl.graded.jsonl').write_text(''.join(json.dumps(r)+'\n' for r in rows))
+    assert results.check(root,'HumanEval')['examples']==322
+    artifact=root/'generated_sh.jsonl.graded.jsonl'
+    valid=artifact.read_text();artifact.unlink()
+    with pytest.raises(ValueError,match='missing'):results.check(root,'HumanEval')
+    artifact.write_text(valid.replace('"passed": true','"passed": "true"',1))
+    with pytest.raises(ValueError,match='nonboolean'):results.check(root,'HumanEval')
+    artifact.write_text(valid.replace('"passed": true','"passed": false',1))
+    with pytest.raises(ValueError,match='mismatch'):results.check(root,'HumanEval')

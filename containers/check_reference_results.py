@@ -5,11 +5,12 @@ This checks results/configuration, not scheduler completion or worker traces.
 import argparse
 from collections import defaultdict
 import json
+import math
 from pathlib import Path
 
-COUNTS = {'piqa':1838, 'gsm8k':1319, 'MATH500':500, 'GPQADiamond':198}
+COUNTS = {'piqa':1838, 'gsm8k':1319, 'MATH500':500, 'GPQADiamond':198, 'HumanEval':322}
 METRICS = {'piqa':'acc_norm,none', 'gsm8k':'exact_match,strict-match',
-           'MATH500':'accuracy', 'GPQADiamond':'accuracy_avg'}
+           'MATH500':'accuracy', 'GPQADiamond':'accuracy_avg', 'HumanEval':'python_pass@1'}
 
 
 def check(root, task):
@@ -26,7 +27,24 @@ def check(root, task):
     metric, config, count = data['results'][task], data['config'], COUNTS[task]
     if config.get('limit') is not None:
         raise ValueError(f'{task}: local example cap')
-    if task in ('MATH500', 'GPQADiamond'):
+    language_scores = {}
+    if task == 'HumanEval':
+        if config.get('max_tokens') != 'default':
+            raise ValueError('HumanEval: local generation cap')
+        for language, expected in [('python',164), ('sh',158)]:
+            artifacts = list(root.rglob(f'generated_{language}.jsonl.graded.jsonl'))
+            if len(artifacts) != 1:
+                raise ValueError(f'HumanEval {language}: missing/ambiguous grading artifact')
+            rows = [json.loads(line) for line in artifacts[0].read_text().splitlines() if line.strip()]
+            if len(rows) != expected or len({r['task_id'] for r in rows}) != expected:
+                raise ValueError(f'HumanEval {language}: incomplete or duplicate examples')
+            if any(type(r['passed']) is not bool for r in rows):
+                raise ValueError(f'HumanEval {language}: nonboolean verdict')
+            score = sum(r['passed'] for r in rows)/expected
+            if not math.isclose(score, metric[language+'_pass@1'], abs_tol=1e-12):
+                raise ValueError(f'HumanEval {language}: verdict/score mismatch')
+            language_scores[language] = dict(examples=expected, score=score, verdicts=str(artifacts[0]))
+    elif task in ('MATH500', 'GPQADiamond'):
         if config.get('max_tokens') != 'default':
             raise ValueError(f'{task}: local generation cap')
         records = metric['examples']
@@ -54,6 +72,7 @@ def check(root, task):
                 raise ValueError(f'{task}: incomplete or duplicate sample IDs')
     return {'task':task, 'examples':count, 'metric':METRICS[task],
             'score':metric[METRICS[task]], 'result':str(path), 'config':config,
+            'language_scores':language_scores,
             'scheduler_completion_checked':False, 'worker_trace_checked':False}
 
 
