@@ -144,3 +144,38 @@ def test_explicit_local_image_never_downloads(tmp_path, monkeypatch):
         with pytest.raises(RuntimeError, match="does not exist"):
             _ensure_singularity_image(str(tmp_path / "missing.sif"))
         download.assert_not_called()
+
+
+@pytest.mark.parametrize('backend', ['hf', 'vllm'])
+@pytest.mark.parametrize('policy', ['eos', 'continue'])
+def test_explicit_ifeval_stopping_policy(tmp_path, monkeypatch, backend, policy):
+    script = render(tmp_path, monkeypatch, model_backend=backend, ifeval_stopping_policy=policy)
+    # Replace the rendered input task, keeping ordinary renderer coverage.
+    for path in (tmp_path/'output').rglob('*.csv'):
+        path.write_text(path.read_text().replace(',piqa,', ',ifeval,'))
+    subprocess.run(['bash', '-n', str(script)], check=True)
+    subprocess.run(['bash', str(script)], check=True, capture_output=True)
+    argv=(tmp_path/'argv').read_text().splitlines()
+    assert ('oellm_ifeval' in argv) == (policy == 'continue')
+    assert ('lm_eval' in argv) == (policy == 'eos')
+    assert argv[argv.index('--model')+1] == backend
+
+
+def test_ifeval_policy_is_not_applied_to_other_tasks(tmp_path, monkeypatch):
+    script=render(tmp_path,monkeypatch,model_backend='vllm',ifeval_stopping_policy='continue')
+    subprocess.run(['bash', str(script)], check=True, capture_output=True)
+    argv=(tmp_path/'argv').read_text().splitlines()
+    assert 'lm_eval' in argv and 'oellm_ifeval' not in argv
+
+
+def test_unknown_ifeval_policy_is_rejected(tmp_path,monkeypatch):
+    with pytest.raises(ValueError,match='ifeval_stopping_policy'):
+        render(tmp_path,monkeypatch,ifeval_stopping_policy='pick-best')
+
+
+@pytest.mark.parametrize('confirmed', [False, True])
+def test_code_execution_acknowledgement_is_explicit(tmp_path, monkeypatch, confirmed):
+    script=render(tmp_path,monkeypatch,model_backend='vllm',confirm_run_unsafe_code=confirmed)
+    subprocess.run(['bash', str(script)],check=True,capture_output=True)
+    argv=(tmp_path/'argv').read_text().splitlines()
+    assert ('--confirm_run_unsafe_code' in argv) == confirmed

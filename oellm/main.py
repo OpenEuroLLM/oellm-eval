@@ -124,6 +124,8 @@ def schedule_evals(
     slurm_template_var: str | None = None,
     nodelist: str | None = None,
     model_backend: str = "hf",
+    ifeval_stopping_policy: str = "eos",
+    confirm_run_unsafe_code: bool = False,
     model_args: str = "",
     data_parallel_size: int = 1,
     data_parallel_backend: str = "mp",
@@ -178,6 +180,8 @@ def schedule_evals(
         nodelist: Optional SLURM nodelist to constrain the job to specific node(s),
             e.g. "tdll-3gpu4". Passed through as #SBATCH --nodelist. If unset, no
             node constraint is added.
+        confirm_run_unsafe_code: Explicitly enable harness code-execution benchmarks such as MBPP.
+        ifeval_stopping_policy: IFEval only: eos (ordinary stopping) or continue (greedy full 1280-token response; requires complete image).
         model_backend: Model backend for lm-eval-harness and Evalchemy: hf or vllm.
         model_args: Additional backend model arguments, in key=value comma-separated form.
             pretrained, data_parallel_size and tensor_parallel_size are managed by the scheduler.
@@ -189,6 +193,8 @@ def schedule_evals(
     """
     _setup_logging(verbose)
 
+    if ifeval_stopping_policy not in {"eos", "continue"}:
+        raise ValueError("ifeval_stopping_policy must be eos or continue")
     if model_backend not in {"hf", "vllm"}:
         raise ValueError("model_backend must be hf or vllm")
     if data_parallel_backend not in {"mp", "ray"}:
@@ -515,6 +521,8 @@ def schedule_evals(
         additional_model_args=_resolve_additional_model_args(local),  # Batch size
         evalchemy_dir=os.environ.get("EVALCHEMY_DIR", "/opt/evalchemy"),
         model_backend=model_backend,
+        ifeval_stopping_policy=ifeval_stopping_policy,
+        confirm_run_unsafe_code="--confirm_run_unsafe_code" if confirm_run_unsafe_code else "",
         backend_model_args=shlex.quote(backend_args),
         log_samples="--log_samples" if log_samples else "",
     )

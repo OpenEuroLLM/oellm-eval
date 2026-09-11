@@ -39,6 +39,28 @@ def definition(args, profile):
     for path in (args.base_image, args.runtime, args.evalchemy, args.humaneval, args.source_manifest):
         if any(c.isspace() for c in str(path)):
             raise ValueError("Build input paths must not contain whitespace")
+    complete = getattr(args, "complete_runtime", None)
+    extra_files = f"    {complete} /opt/oellm-updates\n" if complete else ""
+    extra_post = ""
+    if complete:
+        extra_post = """    /opt/oellm-eval/bin/python - <<'PY'
+import hashlib, json, shutil
+from pathlib import Path
+root=Path('/opt/oellm-updates')
+manifest=json.loads((root/'complete-manifest.json').read_text())
+for relative, item in manifest['files'].items():
+    source=root/relative
+    assert hashlib.sha256(source.read_bytes()).hexdigest()==item['sha256'], source
+    target=Path(item['target'])
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source, target)
+shutil.copyfile(root/'complete-manifest.json', '/opt/oellm-provenance/complete-runtime.json')
+PY
+    rm -rf /opt/oellm-updates
+    export VLLM_USE_V2_MODEL_RUNNER=1
+    /opt/oellm-eval/bin/python /opt/oellm-provenance/verify_complete_image.py
+    /opt/oellm-eval/bin/python /opt/oellm-provenance/check_complete_runtime_cpu.py
+"""
     return f'''Bootstrap: localimage
 From: {args.base_image}
 
@@ -57,7 +79,7 @@ From: {args.base_image}
     {args.source_manifest} /opt/oellm-provenance/source-manifest.json
     {args.evalchemy} /opt/evalchemy
     {args.humaneval} /opt/human-eval
-
+{extra_files}
 %post
     set -eu
     mkdir -p /opt/oellm-eval
@@ -107,10 +129,11 @@ from human_eval.evaluation import evaluate_functional_correctness
 PY
     python /opt/evalchemy/tests/test_vllm_dp_context.py
     python /opt/evalchemy/tests/test_math_answer_parser.py
-    python -m eval.eval --help > /opt/oellm-provenance/image-evalchemy-help.txt
+{extra_post}    python -m eval.eval --help > /opt/oellm-provenance/image-evalchemy-help.txt
     python -m lm_eval --help > /opt/oellm-provenance/image-harness-help.txt
 
 %environment
+    {'export VLLM_USE_V2_MODEL_RUNNER=1' if complete else ''}
     export PATH=/opt/oellm-eval/bin:$PATH
     export VIRTUAL_ENV=/opt/oellm-eval
     export PYTHONPATH=/opt/evalchemy
@@ -127,12 +150,17 @@ def main():
     parser.add_argument("--machine", choices=["jupiter", "juwels_booster"], required=True)
     for name in ("base-image", "runtime", "evalchemy", "humaneval", "source-manifest", "output", "tmp-dir"):
         parser.add_argument("--"+name, type=Path, required=True)
+    parser.add_argument("--complete-runtime", type=Path, help="Directory from prepare_complete_runtime.py; packages all validated updates")
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--profiles", type=Path, default=Path(__file__).with_name("vllm_profiles.json"),
                         help="Verified base identities; use bootstrap_jupiter_base.py output for a fresh OCI build")
     args = parser.parse_args()
     for name in ("base_image", "runtime", "evalchemy", "humaneval", "source_manifest", "output", "tmp_dir"):
         setattr(args, name, getattr(args, name).resolve())
+    if args.complete_runtime:
+        args.complete_runtime = args.complete_runtime.resolve()
+        if any(c.isspace() for c in str(args.complete_runtime)):
+            parser.error("Complete runtime path must not contain whitespace")
     profile = json.loads(args.profiles.read_text())[args.machine]
     if not args.tmp_dir.is_relative_to("/tmp") or args.tmp_dir == Path("/tmp"):
         parser.error("--tmp-dir must be a dedicated directory under local /tmp")
@@ -164,6 +192,10 @@ def main():
             path = root / relative
             if not path.resolve().is_relative_to(root.resolve()) or not path.is_file() or sha(path) != expected:
                 parser.error(f"Source content mismatch: {name}/{relative}")
+    if args.complete_runtime:
+        from prepare_complete_runtime import verify
+        plan["complete_runtime"] = verify(args.complete_runtime, args.base_image, args.source_manifest)
+        plan["complete_manifest_sha256"] = sha(args.complete_runtime / "complete-manifest.json")
     plan["source_manifest_sha256"] = sha(args.source_manifest)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.tmp_dir.mkdir(mode=0o700, parents=True, exist_ok=True)

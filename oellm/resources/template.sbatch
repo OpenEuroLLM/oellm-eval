@@ -20,6 +20,7 @@ LIMIT="{limit}"
 VENV_PATH="{venv_path}"
 LM_EVAL_INCLUDE_PATH="{lm_eval_include_path}"
 MODEL_BACKEND="{model_backend}"
+IFEVAL_STOPPING_POLICY="{ifeval_stopping_policy}"
 BACKEND_MODEL_ARGS={backend_model_args}
 EVALCHEMY_WORK_DIR="{evalchemy_dir}"
 
@@ -172,7 +173,14 @@ do
             echo
             echo "----------------------------------------------------"
             echo "lm_eval Execution"
-            run_python -m lm_eval --model "$MODEL_BACKEND" \
+            HARNESS_MODULE=lm_eval
+            if [[ "$task_path" == ifeval ]]; then
+                echo "IFEval stopping policy: $IFEVAL_STOPPING_POLICY"
+                if [[ "$IFEVAL_STOPPING_POLICY" == continue ]]; then
+                    HARNESS_MODULE=oellm_ifeval
+                fi
+            fi
+            run_python -m "$HARNESS_MODULE" --model "$MODEL_BACKEND" \
                 --model_args "$RESOLVED_MODEL_ARGS" \
                 --tasks "$task_path" \
                 --num_fewshot "$n_shot" \
@@ -181,6 +189,7 @@ do
                 ${{LM_EVAL_INCLUDE_PATH:+--include_path $$LM_EVAL_INCLUDE_PATH}} \
                 --batch_size auto \
                 {log_samples} \
+                {confirm_run_unsafe_code} \
                 ${{LIMIT:+--limit $LIMIT}}
             echo "----------------------------------------------------"
             ;;
