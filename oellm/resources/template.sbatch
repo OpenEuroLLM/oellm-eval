@@ -273,6 +273,9 @@ do
             else
                 # The complete image also carries the HF adapter and Accelerate.
                 # Preserve the HF process-per-GPU recipe inside that image.
+                # --containall with disabled site binds may omit localhost;
+                # Accelerate checks its rendezvous port through that hostname.
+                BIND_PATHS="$BIND_PATHS,/etc/hosts:/etc/hosts:ro"
                 if [ -d "$EVALCHEMY_WORK_DIR" ]; then
                     BIND_PATHS="$BIND_PATHS,$EVALCHEMY_WORK_DIR:$EVALCHEMY_WORK_DIR"
                 fi

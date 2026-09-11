@@ -191,3 +191,4 @@ def test_hf_evalchemy_is_available_in_complete_container(tmp_path,monkeypatch):
     assert argv[argv.index('--num_processes')+1]=='4'
     assert argv[argv.index('--model')+1]=='hf'
     assert argv[argv.index('--pwd')+1]=='/opt/packed-evalchemy'
+    assert '/etc/hosts:/etc/hosts:ro' in argv[argv.index('--bind')+1]
