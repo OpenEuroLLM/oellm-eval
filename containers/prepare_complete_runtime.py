@@ -10,6 +10,7 @@ import subprocess
 import sys
 from build_vllm_image import sha
 from continuation_scoring.prepare_hellaswag_optimization import TARGETS
+from hf_generation_limit import patch as patch_hf_limit
 
 
 def verify(root, base_image, source_manifest):
@@ -20,6 +21,7 @@ def verify(root, base_image, source_manifest):
         "/opt/oellm-eval/lib/python3.12/site-packages/oellm_ifeval.py",
         "/opt/oellm-provenance/verify_complete_image.py",
         "/opt/oellm-provenance/check_complete_runtime_cpu.py",
+        "/opt/oellm-eval/lib/python3.12/site-packages/lm_eval/models/huggingface.py",
     }
     for relative, item in data["files"].items():
         path = root / relative
@@ -76,6 +78,8 @@ def main():
                          ("check_complete_runtime_cpu.py", "/opt/oellm-provenance/check_complete_runtime_cpu.py")):
         (a.out/name).write_bytes((here/name).read_bytes())
         files[name] = dict(target=target, sha256=sha(a.out/name))
+    (a.out/"huggingface.py").write_text(patch_hf_limit((a.sources/"harness/lm_eval/models/huggingface.py").read_text()))
+    files["huggingface.py"] = dict(target="/opt/oellm-eval/lib/python3.12/site-packages/lm_eval/models/huggingface.py", sha256=sha(a.out/"huggingface.py"))
     data = dict(schema=1, base_sha256=sha(a.base_image), source_manifest_sha256=sha(manifest), files=files,
                 ifeval_default="eos", ifeval_choices=["eos", "continue"],
                 recipe={str(f.relative_to(here)): sha(f) for f in here.rglob("*.py") if "__pycache__" not in str(f)})

@@ -62,3 +62,13 @@ def test_explicit_policy_requires_full_task_and_fixed_decoding():
     with pytest.raises(ValueError): policy.vllm_kwargs({'temperature':1},['EOS'],'EOS',1280)
     with pytest.raises(ValueError): policy.vllm_kwargs({'temperature':0},['EOS'],'EOS',100)
     with pytest.raises(ValueError): policy.hf_kwargs({},['user stop'],'EOS')
+
+
+def test_hf_request_budget_correction_is_narrow_and_preserves_explicit_overrides():
+    from hf_generation_limit import patch
+    text='def generate(generation_kwargs):\n        # Some checkpoint exports omit EOS\n        # build stopping criteria\n        return generation_kwargs\n'
+    result=patch(text); ns={};exec(result,ns)
+    assert ns['generate']({})['max_new_tokens'] is None
+    assert ns['generate']({'max_new_tokens':17})['max_new_tokens']==17
+    with pytest.raises(ValueError):patch(result)
+    with pytest.raises(ValueError):patch('changed upstream source')

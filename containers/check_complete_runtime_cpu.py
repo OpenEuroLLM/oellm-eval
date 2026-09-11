@@ -16,7 +16,7 @@ tokenizer=PreTrainedTokenizerFast(tokenizer_object=Tokenizer(WordLevel({'<unk>':
                                   unk_token='<unk>',bos_token='<bos>',eos_token='<eos>',pad_token='<eos>')
 lm=HFLM.__new__(HFLM); lm.tokenizer=tokenizer; lm._device=torch.device('cpu'); lm.mixed_precision_dtype=None
 lm._model=GPT2LMHeadModel(GPT2Config(vocab_size=4,n_positions=1300,n_embd=8,n_layer=1,n_head=1,bos_token_id=1,eos_token_id=2)).eval()
-lm._model.generation_config=GenerationConfig()
+lm._model.generation_config=GenerationConfig(max_new_tokens=1)
 class Forced(LogitsProcessor):
     def __call__(self,ids,scores):
         scores.fill_(-float('inf')); first=ids.shape[1]==2
@@ -27,6 +27,13 @@ ids=torch.tensor([[1,3],[1,3]])
 kwargs=dict(do_sample=False,attention_mask=torch.ones_like(ids),logits_processor=[Forced()])
 stopped=lm._model_generate(ids,max_length=6,stop=['<eos>'],**kwargs)
 assert stopped[0,2:].tolist()==[2,2],stopped
+assert lm._model.generation_config.max_new_tokens==1
+# Disable EOS explicitly: the request's four-token budget must override the
+# checkpoint's one-token default, while explicit request overrides still win.
+longer=lm._model_generate(ids,max_length=6,stop=[],eos_token_id=None,**kwargs)
+assert longer.shape==(2,6)
+explicit=lm._model_generate(ids,max_length=6,stop=[],eos_token_id=None,max_new_tokens=2,**kwargs)
+assert explicit.shape==(2,4)
 # Same actual generate implementation; the explicit policy disables token and
 # text EOS, rather than depending on when another batch row happens to finish.
 oellm_ifeval.install('hf')
@@ -38,4 +45,4 @@ assert SamplingParams(**normal,stop=stops,max_tokens=limit).temperature==0
 cont,stops,limit=oellm_ifeval.vllm_kwargs(normal,stops,'<eos>',limit)
 p=SamplingParams(**cont,stop=stops,max_tokens=limit)
 assert p.ignore_eos and not p.stop and not p.stop_token_ids and p.skip_special_tokens and p.max_tokens==1280
-print(json.dumps(dict(hf_eos=True,hf_continuation_tokens=1280,vllm_greedy=True,vllm_continuation=True)))
+print(json.dumps(dict(hf_eos=True,hf_continuation_tokens=1280,vllm_greedy=True,vllm_continuation=True,hf_task_budget_precedence=True)))

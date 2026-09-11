@@ -18,6 +18,7 @@ def main():
     from vllm.oellm_continuation import OELLM_CONTINUATION_API
     import oellm_ifeval
     assert "Some checkpoint exports omit EOS" in inspect.getsource(HFLM._model_generate)
+    assert 'generation_kwargs.setdefault("max_new_tokens", None)' in inspect.getsource(HFLM._model_generate)
     assert inspect.signature(VLLM).parameters["data_parallel_backend"].default == "mp"
     assert inspect.signature(VLLM).parameters["continuation_loglikelihood"].default is True
     kwargs, stops, limit = VLLM.modify_gen_kwargs({"do_sample":False}, "EOS", 1280)
