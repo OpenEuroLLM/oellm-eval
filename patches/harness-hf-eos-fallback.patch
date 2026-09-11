@@ -1,0 +1,19 @@
+--- a/lm_eval/models/huggingface.py
++++ b/lm_eval/models/huggingface.py
+@@ -1173,6 +1173,16 @@
+ 
+         if do_sample is False and temp == 0.0:
+             generation_kwargs.pop("temperature", None)
++        # Some checkpoint exports omit EOS from generation_config.json even
++        # though the tokenizer defines it. Text stopping is batch-wide and
++        # decoding removes special tokens, so it cannot enforce per-row EOS.
++        if (
++            "eos_token_id" not in generation_kwargs
++            and self.model.generation_config.eos_token_id is None
++            and self.eot_token_id is not None
++        ):
++            generation_kwargs["eos_token_id"] = self.eot_token_id
++
+         # build stopping criteria
+         stopping_criteria = stop_sequences_criteria(
+             self.tokenizer, stop, context.shape[1], context.shape[0]
