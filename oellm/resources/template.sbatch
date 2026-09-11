@@ -119,11 +119,19 @@ do
     # When using --contain, provide a writable home for prediction caches
     SINGULARITY_HOME_ARG=""
     SINGULARITY_ENV_ARGS=""
+    JOB_TMP=""
     if [[ "$SINGULARITY_ARGS" == *"--contain"* ]]; then
         JOB_HOME="$EVAL_BASE_DIR/$USER/container_home/$SLURM_JOB_ID"
         mkdir -p "$JOB_HOME"
         SINGULARITY_HOME_ARG="--home $JOB_HOME"
-        SINGULARITY_ENV_ARGS="--env HF_HOME=$HF_HOME --env HF_DATASETS_CACHE=$HF_DATASETS_CACHE --env HF_HUB_OFFLINE=$HF_HUB_OFFLINE --env TRANSFORMERS_OFFLINE=$TRANSFORMERS_OFFLINE --env NLTK_DATA=$NLTK_DATA"
+        # Contained /tmp may otherwise be a tiny session tmpfs (16 MiB on JUPITER).
+        # Mount a private host directory at a short container path for multiprocessing sockets.
+        JOB_TMP=$(mktemp -d "${{OELLM_EVAL_TMP_ROOT:-/tmp}}/oellm-eval-${{SLURM_JOB_ID:-local}}.XXXXXX")
+        trap 'rm -rf -- "$JOB_TMP"' EXIT ERR
+        BIND_PATHS="$BIND_PATHS,$JOB_TMP:/tmp,$JOB_TMP:/var/tmp"
+        echo "Evaluation temporary storage: $JOB_TMP -> /tmp and /var/tmp"
+        df -Pk "$JOB_TMP"
+        SINGULARITY_ENV_ARGS="--env TMPDIR=/tmp --env TMP=/tmp --env TEMP=/tmp --env HF_HOME=$HF_HOME --env HF_DATASETS_CACHE=$HF_DATASETS_CACHE --env HF_HUB_OFFLINE=$HF_HUB_OFFLINE --env TRANSFORMERS_OFFLINE=$TRANSFORMERS_OFFLINE --env NLTK_DATA=$NLTK_DATA"
     fi
 
     GPU_DEVICES=$(seq -s, 0 $(($GPUS_PER_NODE - 1)))
@@ -265,6 +273,11 @@ do
 
     echo "----------------------------------------------------"
     echo "Evaluation finished for model: $model_path"
+
+    if [ -n "$JOB_TMP" ]; then
+        rm -rf -- "$JOB_TMP"
+        trap - EXIT ERR
+    fi
 
 done
 
