@@ -179,3 +179,15 @@ def test_code_execution_acknowledgement_is_explicit(tmp_path, monkeypatch, confi
     subprocess.run(['bash', str(script)],check=True,capture_output=True)
     argv=(tmp_path/'argv').read_text().splitlines()
     assert ('--confirm_run_unsafe_code' in argv) == confirmed
+
+
+def test_hf_evalchemy_is_available_in_complete_container(tmp_path,monkeypatch):
+    script=render(tmp_path,monkeypatch,suite='evalchemy',container=True,internal_evalchemy=True,
+                  model_backend='hf',slurm_template_var=json.dumps({'GPUS_PER_NODE':4}))
+    subprocess.run(['bash','-n',str(script)],check=True)
+    subprocess.run(['bash',str(script)],check=True,capture_output=True)
+    argv=(tmp_path/'argv').read_text().splitlines()
+    assert 'accelerate.commands.launch' in argv
+    assert argv[argv.index('--num_processes')+1]=='4'
+    assert argv[argv.index('--model')+1]=='hf'
+    assert argv[argv.index('--pwd')+1]=='/opt/packed-evalchemy'

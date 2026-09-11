@@ -271,8 +271,20 @@ do
                     --output_path "$RESULTS_SUBDIR" \
                     ${{LIMIT:+--limit $LIMIT}}
             else
-                echo "[error] evalchemy suite requires --venv_path (not supported in container mode)."
-                exit 1
+                # The complete image also carries the HF adapter and Accelerate.
+                # Preserve the HF process-per-GPU recipe inside that image.
+                if [ -d "$EVALCHEMY_WORK_DIR" ]; then
+                    BIND_PATHS="$BIND_PATHS,$EVALCHEMY_WORK_DIR:$EVALCHEMY_WORK_DIR"
+                fi
+                (
+                    EVAL_WORKDIR="$EVALCHEMY_WORK_DIR"
+                    run_python -m accelerate.commands.launch --num_processes "$GPUS_PER_NODE" --num_machines 1 \
+                        $MULTI_GPU_FLAG -m eval.eval \
+                        --model hf --tasks "$task_path" \
+                        --model_args "$RESOLVED_MODEL_ARGS" --batch_size auto \
+                        --output_path "$RESULTS_SUBDIR" \
+                        ${{LIMIT:+--limit $LIMIT}}
+                )
             fi
             ;;
         *)
