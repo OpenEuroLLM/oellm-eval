@@ -2,7 +2,7 @@
 
 This guide starts with a JUPITER account and public internet access on a login node. It downloads every software, image, model and dataset input into your own directories. It does not require another collaborator's container, Python environment, model cache, dataset cache, or model-deployment checkout. The repository/package is named **oellm-eval**; older links and discussion also use **oellm-evals**.
 
-The result is a standalone ARM64 Apptainer image with vLLM 0.28.0, the patched lm-eval-harness 0.4.12 adapter, Evalchemy, and optional Ray 2.48.0. Single-node data parallelism defaults to independent vLLM engines managed by Python multiprocessing. The CLI used to schedule work is installed separately on the login node. This guide covers single-node evaluation; other machines and reuse of shared installations will have separate guides.
+The result is a standalone ARM64 Apptainer image with vLLM 0.28.0, the patched lm-eval-harness 0.4.12 adapter, Evalchemy, and Ray 2.48.0 for optional Ray execution. The complete build includes the validated single-token and continuation-only likelihood optimizations, greedy-decoding correction, HumanEval/LiveCodeBench grading repairs, the HF EOS fallback, and task-budget precedence over implicit HF model defaults. No source overlays are needed at evaluation time. HF remains available. Single-node data parallelism defaults to independent vLLM engines managed by Python multiprocessing. The CLI used to schedule work is installed separately on the login node. This guide covers single-node evaluation; other machines and reuse of shared installations will have separate guides.
 
 ## 1. Obtain access and check the machine
 
@@ -61,7 +61,7 @@ Save these non-secret settings in your own setup file if you need to reopen the 
 ## 3. Fetch the exact CLI and builder sources
 
 ```bash
-export OELLM_REVISION=fad52d60ef1d385d818dbe545fbbea799761e021
+export OELLM_REVISION=b4996091f4a305ef03dffc4dc0f6cab17df0f38d
 git clone https://github.com/OpenEuroLLM/oellm-eval.git "$OELLM_REPO"
 git -C "$OELLM_REPO" checkout --detach "$OELLM_REVISION"
 git -C "$OELLM_REPO" rev-parse HEAD | tee "$OELLM_WORK/logs/oellm-revision.txt"
@@ -147,7 +147,7 @@ python "$OELLM_REPO/containers/prepare_vllm_sources.py" \
   2>&1 | tee "$OELLM_WORK/logs/sources-prepare.log"
 ```
 
-This fetches public upstream revisions, applies the bundled patches and checks the resulting trees. It preserves Evalchemy's corrected GPQA randomization and the reviewed MATH500 parser. All source file hashes are in `sources/source-manifest.json`. Expected patched trees are harness `f5ae142b92ee86a26e49f937bf808ba4f9e9ea5e` and Evalchemy `2d7ddf635cb11e0b0d4ec85e0d9fe56a58d2277b`. A failed tree check is an error, not permission to drop the check.
+This fetches public upstream revisions, applies the bundled patches and checks the resulting trees. It preserves Evalchemy's corrected GPQA randomization and the reviewed MATH500 parser. All source file hashes are in `sources/source-manifest.json`. Expected patched trees are harness `9b7bbc80fbec2a891efd0fa496707cdab6c96c10` and Evalchemy `2d7ddf635cb11e0b0d4ec85e0d9fe56a58d2277b`. A failed tree check is an error, not permission to drop the check.
 
 ## 7. Prepare the pinned evaluation runtime inside the base image
 
@@ -170,7 +170,16 @@ HumanEval comes from pinned public source because its published package/entry po
 ## 8. Build the standalone evaluation image
 
 ```bash
-export OELLM_IMAGE="$OELLM_WORK/images/oellm-eval-vllm028-jupiter.sif"
+# Assemble the validated updates from the pinned base and reconstructed sources.
+# This step installs no packages and refuses source/hash mismatches.
+python "$OELLM_REPO/containers/prepare_complete_runtime.py" \
+  --base-image "$OELLM_BASE_IMAGE" --sources "$OELLM_WORK/sources" \
+  --out "$OELLM_WORK/complete" | tee "$OELLM_WORK/logs/complete-plan.json"
+python "$OELLM_REPO/containers/prepare_complete_runtime.py" \
+  --base-image "$OELLM_BASE_IMAGE" --sources "$OELLM_WORK/sources" \
+  --out "$OELLM_WORK/complete" --execute \
+  2>&1 | tee "$OELLM_WORK/logs/complete-prepare.log"
+export OELLM_IMAGE="$OELLM_WORK/images/oellm-eval-complete-jupiter.sif"
 export OELLM_IMAGE_TMP=$(mktemp -d /tmp/oellm-image.XXXXXX)
 image_build_args=(
   --machine jupiter --profiles "$OELLM_WORK/base/profiles.json"
@@ -178,6 +187,7 @@ image_build_args=(
   --evalchemy "$OELLM_WORK/sources/evalchemy"
   --humaneval "$OELLM_WORK/sources/human-eval"
   --source-manifest "$OELLM_WORK/sources/source-manifest.json"
+  --complete-runtime "$OELLM_WORK/complete"
   --output "$OELLM_IMAGE" --tmp-dir "$OELLM_IMAGE_TMP"
 )
 python "$OELLM_REPO/containers/build_vllm_image.py" "${image_build_args[@]}" \
@@ -187,7 +197,18 @@ python "$OELLM_REPO/containers/build_vllm_image.py" "${image_build_args[@]}" --e
 sha256sum "$OELLM_IMAGE" | tee "$OELLM_WORK/logs/image.sha256"
 ```
 
-The final image contains `/opt/oellm-eval`, `/opt/evalchemy`, `/opt/human-eval`, `/opt/nltk_data` and `/opt/oellm-provenance`. The build verifies the base hash, source manifest and installed adapter contents. It relocates the runtime into the image, checks dependency consistency and both CLIs, and writes a `.def` and `.provenance.json` beside the output. Building/importing successfully is not yet GPU validation.
+The final image contains `/opt/oellm-eval`, `/opt/evalchemy`, `/opt/human-eval`, `/opt/nltk_data` and `/opt/oellm-provenance`. The build verifies the base hash, source manifest and installed adapter contents. It relocates the runtime into the image, checks dependency consistency and both CLIs, and writes a `.def` and `.provenance.json` beside the output. The complete update manifest is installed at `/opt/oellm-provenance/complete-runtime.json`. The build verifies each installed update, runs actual-library CPU checks of implicit greedy decoding and HF EOS/continuation generation, and enables the pinned vLLM V2 runner required by continuation scoring. The final complete manifest contains 19 installed updates, including the HF generation adapter. A real tiny-model regression verifies that a saved `generation_config.max_new_tokens` cannot silently shorten a benchmark’s requested budget; an explicit per-request override remains respected. The original source manifest describes the reconstructed baseline; the complete manifest identifies the final installed replacements. Building/importing successfully is not yet GPU validation.
+
+Verify the final SIF without mounting your source checkout, preparation directory, control environment or runtime venv:
+
+```bash
+apptainer exec --cleanenv --containall --no-mount bind-paths,hostfs,cwd,home \
+  --pwd /opt/evalchemy "$OELLM_IMAGE" \
+  /opt/oellm-eval/bin/python /opt/oellm-provenance/verify_complete_image.py
+apptainer exec --cleanenv --containall --no-mount bind-paths,hostfs,cwd,home \
+  --pwd /opt/evalchemy "$OELLM_IMAGE" \
+  /opt/oellm-eval/bin/python /opt/oellm-provenance/check_complete_runtime_cpu.py
+```
 
 ## 9. Download a reference model and complete public benchmarks
 
@@ -339,15 +360,95 @@ For an explicit Ray comparison, render into a fresh output directory with `--dat
 
 The existing engine/adapter has passed these complete reference tasks on JUPITER; the separate installation rehearsal status below records what was re-tested from empty inputs. Scores can vary across generation batch layouts even with fixed inputs; do not promise bitwise identical generated responses. A parser change also requires re-scoring reference outputs before comparing accuracy.
 
+## Check the available HF backend
+
+Use a separate output directory for a full HumanEval HF/Accelerate check with the same public checkpoint and image. HumanEval’s standard 1,024-token generation budget makes it a bounded installation check. This exercises the four-GPU Evalchemy route; the vLLM DP flags are intentionally omitted. It retains the task’s standard token budget and all 164 Python and 158 shell problems.
+
+```bash
+export EVAL_OUTPUT_DIR="$EVAL_BASE_DIR/reference-hf-humaneval"
+mkdir "$EVAL_OUTPUT_DIR"
+python - <<'PY_HF'
+import csv, os
+from pathlib import Path
+with (Path(os.environ['EVAL_OUTPUT_DIR'])/'input.csv').open('w') as f:
+    w=csv.writer(f,lineterminator='\n')
+    w.writerow(['model_path','task_path','n_shot','eval_suite'])
+    w.writerow([os.environ['OELLM_MODEL'],'HumanEval',0,'evalchemy'])
+PY_HF
+hf_slurm_options=$(python -c 'import json,sys; d=json.loads(sys.argv[1]); d["GPUS_PER_NODE"]=4; print(json.dumps(d))' "$slurm_options")
+oellm-eval schedule --eval_csv_path "$EVAL_OUTPUT_DIR/input.csv" \
+  --model_backend hf --model_args dtype=bfloat16 --log_samples true \
+  --slurm_template_var "$hf_slurm_options" --skip_checks true --dry_run true \
+  2>&1 | tee "$EVAL_OUTPUT_DIR/render.log"
+```
+
+Repeat the script inspection, launch-hash recording, `sbatch --test-only`, single submission and scheduler-completion checks from steps 10–11 for this new output directory. Confirm four Accelerate processes in the runtime log. After completion, run the same result checker with `--tasks HumanEval`. Automatic HF batch-size probing can emit caught CUDA out-of-memory warnings while finding a fitting batch; inspect the eventual batch size and successful full-task completion. Such probing time belongs in end-to-end runtime comparisons. An uncaught OOM or incomplete result fails acceptance.
+
+The public-model HF MATH500 task retains its standard 32,768-token budget and can take much longer than this check. Allocate time deliberately if selecting it; do not substitute the model’s saved 2,048-token default or a local sample cap to make an acceptance run cheaper. The HumanEval checker verifies both full language sets and reproduces the scores from retained Boolean verdicts.
+
 ## 12. Evaluate other models or benchmark groups
 
 Use a model checkpoint whose exact revision and file hashes you record. Stage its tokenizer/config/weights on the login node and verify loading offline inside the evaluation image. DP4/TP1 requires the model and inference state to fit on each GPU; choose TP deliberately for larger models. Do not silently shorten context or generation to fit.
 
 Select task groups from the pinned `oellm/resources/task-groups.yaml`. The public reference cache above does not include every registered benchmark. Before scheduling another group, prepare **all** of its required datasets, configurations, splits and auxiliary files using this evaluation image, pin their revisions, record complete counts and verify offline task construction. Some Evalchemy tasks obtain assets through their own loader rather than the CLI's generic dataset registry. Additional language/code/API tasks can require extra pinned dependencies, access grants or a separate code-execution service; those tasks are not validated merely because this image imports successfully. Keep such extensions in a newly versioned image/cache and test the whole selected protocol.
 
-HumanEval grading is not validated by this guide. Separate acceptance testing identified a `filelock`/fork failure in the pinned multilingual grader; its correction and full code-task acceptance are being handled separately. The image build checks HumanEval imports only. Do not promote code-task support based on the three public reference tasks above.
+The complete image packages the HumanEval and LiveCodeBench corrections described in [code grading](../../code-grading-runtime.md). Their original full production64k acceptance covered 164 Python and 158 shell HumanEval problems, plus 511 LiveCodeBench questions with six repeats. The scheduler also binds private host temporary storage, avoiding the contained 16 MiB `/tmp` failure. Code execution is not enabled by a package import: for harness code tasks such as MBPP, pass `--confirm_run_unsafe_code true` and `--env HF_ALLOW_CODE_EVAL=1` explicitly in your scheduling/container settings. Preserve the standard benchmark data/repeats and retain all grading verdicts. The three public reference tasks alone are not a fresh code-task GPU acceptance.
 
 Use complete groups when reporting their standard aggregate. Do not replace missing subjects/languages with a subset average or add a local `--limit`. For the initial guide tasks, report the individual scores rather than a `reasoning` or `open-sci` aggregate.
+
+## Template-free base checkpoints
+
+The public Qwen reference already has the model-specific prompt handling checked by the reference preparer. A custom base export may omit a chat template, while Evalchemy calls the chat-template interface even for plain-completion benchmarks. If the established reference protocol is plain completion, prepare an explicit identity-template view using the command below. This is the production64k protocol used in the validation; do not apply it to an instruct checkpoint or substitute it for a different benchmark prompt protocol.
+
+```bash
+# Set these two paths for your own template-free base checkpoint:
+# export OELLM_BASE_EXPORT=/absolute/path/to/base-export
+# export OELLM_PROMPT_VIEW=/absolute/path/on-the-same-filesystem/base-prompt-view
+# python "$OELLM_REPO/containers/prepare_base_model_view.py" \
+#   --source "$OELLM_BASE_EXPORT" --out "$OELLM_PROMPT_VIEW" --template identity
+# Then use OELLM_PROMPT_VIEW as the scheduled model path.
+```
+
+The view copies metadata and hard-links immutable weights on the same filesystem. It contains no external symlinks, does not duplicate the weights and does not modify the export. The helper refuses an existing output or an existing instruct/chat template. It records the explicit template and weight identities in `prompt-view-manifest.json`. Mount the resulting directory in the container. Before GPU submission, exercise the actual HF and vLLM prompt rendering with the selected tokenizer and compare the rendered text with the reference protocol; dataset coverage checks alone do not catch a missing template.
+
+For an explicitly selected identity view, this CPU check requires both real adapters to produce the original plain prompt:
+
+```bash
+apptainer exec --cleanenv --containall --no-mount bind-paths,hostfs,cwd,home \
+  --bind "$OELLM_PROMPT_VIEW:/model:ro" --pwd /opt/evalchemy "$OELLM_IMAGE" \
+  /opt/oellm-eval/bin/python - <<'PY_PROMPT'
+from transformers import AutoTokenizer
+from lm_eval.models.huggingface import HFLM
+from lm_eval.models.vllm_causallms import VLLM
+tokenizer=AutoTokenizer.from_pretrained('/model',local_files_only=True)
+hf=HFLM.__new__(HFLM); hf.tokenizer=tokenizer; hf.chat_template_args={}
+vllm=VLLM.__new__(VLLM); vllm.tokenizer=tokenizer
+vllm.hf_chat_template=tokenizer.chat_template
+vllm.enable_thinking=None; vllm.chat_template_args={}
+messages=[{'role':'user','content':'Problem: 2 + 2\nAnswer:'}]
+assert hf.apply_chat_template(messages)==vllm.apply_chat_template(messages)==messages[0]['content']
+print('HF/vLLM identity prompt check passed')
+PY_PROMPT
+```
+
+## Explicit IFEval stopping policy and the HF backend
+
+`oellm-eval schedule --model_backend hf` remains supported; the default backend is still HF. For native vLLM, explicitly select `--model_backend vllm --data_parallel_size 4 --tensor_parallel_size 1`. The vLLM size arguments do not configure HF parallelism. The HF container route explicitly binds the compute host’s `/etc/hosts` read-only so Accelerate can resolve its local rendezvous address even with `--containall` and site binds disabled. For Evalchemy in either container or external-venv mode, HF uses the existing Accelerate process-per-GPU recipe; set `GPUS_PER_NODE` explicitly through `--slurm_template_var`. For harness HF, record its actual process/GPU use separately. Record the actual GPUs allocated and used in every comparison.
+
+HF generation also clears an implicit saved-model `max_new_tokens` when the harness has calculated the task’s `max_length`. This prevents a checkpoint’s export defaults, such as 2,048 tokens, from overriding the benchmark budget. An explicit generation-call override remains intact, and the model’s saved configuration is not mutated. The contained CPU acceptance checks exercise both cases.
+
+IFEval has two separately labelled policies. `--ifeval_stopping_policy eos` is the default and uses ordinary per-response model EOS stopping. The HF fallback uses tokenizer EOS only when the checkpoint's generation configuration omits EOS; configured EOS lists and explicit overrides remain intact. `--ifeval_stopping_policy continue` selects the packaged `oellm_ifeval` runner only for the exact IFEval task. It applies the validated greedy 1,280-token budget, ignores token/text EOS, strips special tokens consistently in both backends and grades the complete response. It refuses shortened coverage, generation overrides, non-greedy decoding and early termination, and writes an adjacent `.ifeval-policy-rank*.json` record. Other tasks continue through the ordinary harness. This option requires the complete image built above.
+
+For example, add exactly one of these options to an otherwise identical IFEval scheduling command:
+
+```bash
+# Ordinary stopping, comparable with the EOS-stopping reference series:
+# oellm-eval schedule ... --tasks ifeval --n_shot 0 --ifeval_stopping_policy eos
+# Explicit continuation, a separately reported decoding configuration:
+# oellm-eval schedule ... --tasks ifeval --n_shot 0 --ifeval_stopping_policy continue
+```
+
+Retain the default task prompt, all 541 examples and all 834 instructions. Do not choose a stopping policy per answer using its score. The production64k matched continuation control scored HF 36.3309% and vLLM 36.0911% strict instruction accuracy; matched EOS stopping scored 30.5755% and 30.6954%. These are different response policies, not competing arithmetic definitions of IFEval. A higher continuation score can include useful completion, repetition-based constraint matches and damage to previously valid answers; preserve the official grading unchanged and report the policy.
 
 ## Reproducibility records and recovery
 
@@ -357,7 +458,7 @@ Compute nodes cannot repair a missing download. For an offline cache error, retu
 
 Building the same immutable inputs reproduces the software/data configuration, not necessarily the SIF bytes or generated answer strings. Record the hash of each new image and retain the raw outputs used for every reported score.
 
-## Installation rehearsal
+## Earlier installation rehearsal (base recipe)
 
 On 2026-09-10, these instructions were rehearsed on JUPITER with a fresh public OCI download, verified Ray wheel, fresh control environment/conda/pip caches, reconstructed public sources, newly installed runtime, newly built standalone image, and newly downloaded public Qwen/PIQA/GSM8K inputs. Both final-container online preparation and strict offline model/prompt/full-dataset checks passed; MATH500 contains all 500 source-packaged examples. The final image is 8,644,136,960 bytes, SHA-256 `f89a7521d2c6a4ed0ef45971ae071ba21bd9a60be90bb772f8a4a6a668434c02`. Eleven bootstrap/image tests and syntax checks for all 15 guide Bash blocks pass.
 
@@ -371,3 +472,28 @@ The exact three-task launcher was rendered through the fresh control environment
 | MATH500, 0-shot | `accuracy` | 48.0000% |
 
 PIQA exactly matches the earlier complete reference score. Generation scores need not match another batching layout bit for bit; preserve both GSM8K filter names when comparing results. Fresh gated GPQA download requires the collaborator's own approved access and was not re-tested in this public-input rehearsal.
+
+## Complete-runtime installation acceptance (2026-09-11)
+
+The complete recipe was exercised with fresh source checkouts, a fresh evaluation venv/package/NLTK preparation, a newly built standalone image and clean dedicated CLI installations. The immutable public OCI-derived base SIF and pinned model/dataset assets were reused from the earlier download rehearsal; this is a fresh software installation, not a claim that unchanged large inputs were downloaded twice. GPU execution used strict contained mode with no engine/harness/grading source overlays. All full-task coverage and retained-verdict gates below passed.
+
+| Full production64k task | Coverage | Metric | Score % | Elapsed |
+|---|---:|---|---:|---:|
+| mmlu | 14042 | `acc,none` | 62.6905 | 6m57s |
+| hellaswag | 10042 | `acc_norm,none` | 77.4746 | 10m19s |
+| gsm8k | 1319 | `exact_match,strict-match` | 68.1577 | 4m47s |
+| ifeval | 541 prompts / 834 instructions | `inst_level_strict_acc,none` | 30.0959 | 5m19s |
+| mbpp | 500 | `pass_at_1,none` | 48.0000 | 4m57s |
+| MATH500 | 500 | `accuracy` | 35.6000 | 9m19s |
+| LiveCodeBench | 511 × 6 repeats | `accuracy_avg` | 6.5232 | 62m54s |
+| HumanEval | 164 Python + 158 shell | `python_pass@1` | 67.0732 | 6m20s |
+
+These production64k tests use its explicit identity prompt view. HumanEval also retains the complete shell result, 6.3291%. IFEval is separately tested with explicit continuation: 541 prompts, 834 instructions, 1,280 generated tokens per prompt, strict instruction accuracy 37.2902%, elapsed 6m18s. Both IFEval policies reproduce all four saved-verdict metrics and match their reference documents/request arguments; the fresh full-policy GPU tests use vLLM, while actual-library CPU tests cover both HF and vLLM policy behavior. This is a configuration/coverage/functional check, not a promise of bitwise identical generations.
+
+The initial 18-update image has SHA-256 `5ae0222748346026ae311845664fec45adfea19a715f2b60eb661082973d06c2`. The final 19-update image, SHA-256 `c05e2f86de179d5128adf6fab8da3d929398ebdadd9894d38e0f314e2febf4c1`, adds the HF task-budget correction and updates its two CPU check scripts. All 16 vLLM, grading and policy files are byte-identical. The final image separately passes full production64k GSM8K (68.2335% strict, 1,319 examples, 4m57s) and public Qwen3-1.7B-Base HF HumanEval through four Accelerate ranks (104/164 Python, 6/158 shell, 18m35s). The public-model HF scores are not a comparison with the different production model. Reconstructing from the guide’s pinned source reproduces all 19 installed files and the same launcher/builder; its only later recipe-file difference is the read-only HumanEval result checker.
+
+The source suite passes 152 tests and five subtests. All 20 Bash blocks in this guide parse; the identity prompt check and fresh-control HF scheduling example execute. The earlier failed prompt-view/contained-rendezvous attempts were fixed and retained. A full public-model HF MATH500 attempt was stopped for cost after the model-default token-budget correction exposed its actual standard 32,768-token workload; it is not reported as a completed check. HumanEval is the complete, standard-budget HF acceptance substitute. All 16 allocations, including failed/cancelled attempts, consumed 10.4144 GPU-hours. No merge or default-backend promotion was performed as part of this acceptance.
+
+The fresh LCB point estimate is 6.5232%, compared with 7.0450% in the earlier overlay installation. All 511 inputs match; 2,782 identical extracted answers have zero changed grading verdicts. The difference comes from generated answers. The paired question-level comparison and its uncertainty are retained in the linked report; functional acceptance is not a claim of numerical score equivalence.
+
+See the [complete installation report and reproducible receipts](https://github.com/SLAMPAI/oellm-workflows/blob/main/oellm_32B_loss-increase_debug/reports/eval_complete_installation_2026-09-11.md) for source/image identities, the historical-HF comparison caveats, all-attempt accounting and raw-artifact replay commands.
