@@ -372,9 +372,7 @@ def _pre_download_datasets_from_specs(
                 )
             except ValueError as e:
                 if "Config name is missing" in str(e) and spec.subset is None:
-                    configs = get_dataset_config_names(
-                        spec.repo_id, **dataset_kwargs
-                    )
+                    configs = get_dataset_config_names(spec.repo_id, **dataset_kwargs)
                     logging.info(
                         f"Dataset '{spec.repo_id}' requires config. "
                         f"Downloading all {len(configs)} configs."
