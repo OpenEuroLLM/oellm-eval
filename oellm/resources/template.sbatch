@@ -21,6 +21,9 @@ VENV_PATH="{venv_path}"
 LM_EVAL_INCLUDE_PATH="{lm_eval_include_path}"
 MODEL_BACKEND="{model_backend}"
 IFEVAL_STOPPING_POLICY="{ifeval_stopping_policy}"
+EVAL_VERSION="{eval_version}"
+PROTOCOL_ROOT={protocol_root}
+CALIBRATED_OUTPUT_TOKENS="{calibrated_output_tokens}"
 BACKEND_MODEL_ARGS={backend_model_args}
 EVALCHEMY_WORK_DIR="{evalchemy_dir}"
 
@@ -105,6 +108,9 @@ do
     # bind the directory that contains the model checkpoint when the path exists
     BIND_PATHS="$EVAL_BASE_DIR:$EVAL_BASE_DIR,$HF_HOME:$HF_HOME,$HF_DATASETS_CACHE:$HF_DATASETS_CACHE${{LM_EVAL_INCLUDE_PATH:+,$$LM_EVAL_INCLUDE_PATH:$$LM_EVAL_INCLUDE_PATH}}"
 
+    if [[ "$EVAL_VERSION" == v0.02 ]]; then
+        BIND_PATHS="$BIND_PATHS,$PROTOCOL_ROOT:$PROTOCOL_ROOT:ro"
+    fi
     if [ -e "$model_path" ]; then
         # If the model_path is a file, bind its parent directory; otherwise bind the dir itself
         MODEL_DIR="$model_path"
@@ -180,7 +186,11 @@ do
                     HARNESS_MODULE=oellm_ifeval
                 fi
             fi
-            run_python -m "$HARNESS_MODULE" --model "$MODEL_BACKEND" \
+            HARNESS_ENTRY=(-m "$HARNESS_MODULE")
+            if [[ "$EVAL_VERSION" == v0.02 ]]; then
+                HARNESS_ENTRY=("$PROTOCOL_ROOT/protocol_runtime.py" --module "$HARNESS_MODULE")
+            fi
+            run_python "${{HARNESS_ENTRY[@]}}" --model "$MODEL_BACKEND" \
                 --model_args "$RESOLVED_MODEL_ARGS" \
                 --tasks "$task_path" \
                 --num_fewshot "$n_shot" \
@@ -251,7 +261,14 @@ do
                     else
                         EVAL_WORKDIR="$EVALCHEMY_WORK_DIR"
                     fi
-                    run_python -m eval.eval \
+                    EVALCHEMY_ENTRY=(-m eval.eval)
+                    if [[ "$EVAL_VERSION" == v0.02 ]]; then
+                        EVALCHEMY_ENTRY=("$PROTOCOL_ROOT/protocol_runtime.py" --module eval.eval)
+                        if [[ -n "$CALIBRATED_OUTPUT_TOKENS" && ( "$task_path" == HumanEval || "$task_path" == MATH500 ) ]]; then
+                            EVALCHEMY_ENTRY+=(--output-tokens "$CALIBRATED_OUTPUT_TOKENS")
+                        fi
+                    fi
+                    run_python "${{EVALCHEMY_ENTRY[@]}}" \
                         --model vllm \
                         --tasks "$task_path" \
                         --model_args "$RESOLVED_MODEL_ARGS" \

@@ -1,0 +1,2 @@
+task: gsm8k_cot_numeric_v1
+class: !function policy_tasks.GSM8KCoTNumeric

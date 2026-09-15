@@ -497,3 +497,7 @@ The source suite passes 152 tests and five subtests. All 20 Bash blocks in this 
 The fresh LCB point estimate is 6.5232%, compared with 7.0450% in the earlier overlay installation. All 511 inputs match; 2,782 identical extracted answers have zero changed grading verdicts. The difference comes from generated answers. The paired question-level comparison and its uncertainty are retained in the linked report; functional acceptance is not a claim of numerical score equivalence.
 
 See the [complete installation report and reproducible receipts](https://github.com/SLAMPAI/oellm-workflows/blob/main/oellm_32B_loss-increase_debug/reports/eval_complete_installation_2026-09-11.md) for source/image identities, the historical-HF comparison caveats, all-attempt accounting and raw-artifact replay commands.
+
+## Evaluation protocol releases
+
+Use the [release guide](../../releases/README.md) to choose v0.01 (historical checkpoint campaigns) or v0.02 (explicit calibrated procedures). Existing campaigns keep their frozen installation. The v0.02 control CLI packages a per-submission Python snapshot into the unchanged complete evaluator image through a read-only bind; see [its launch and context requirements](../../releases/v0.02.md). No collaborator-specific calibration checkout is needed.

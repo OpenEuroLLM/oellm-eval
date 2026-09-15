@@ -1,0 +1,2 @@
+task: squadv2_abstention_v1
+class: !function policy_tasks.SQuAD2

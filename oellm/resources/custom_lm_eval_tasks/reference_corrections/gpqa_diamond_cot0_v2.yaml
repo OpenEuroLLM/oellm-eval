@@ -1,0 +1,21 @@
+task: gpqa_diamond_cot0_v2
+dataset_path: Idavidrein/gpqa
+dataset_name: gpqa_diamond
+output_type: generate_until
+validation_split: train
+num_fewshot: 0
+doc_to_target: '{{answer}}'
+generation_kwargs:
+  until: ["\nQuestion:", "</s>", "<|im_end|>"]
+  do_sample: false
+  temperature: 0
+  max_gen_toks: 4096
+metric_list:
+  - {metric: exact_match, aggregation: mean, higher_is_better: true}
+  - {metric: legacy_match, aggregation: mean, higher_is_better: true}
+metadata:
+  version: 2.0
+  protocol: v0.02
+process_docs: !function gpqa_v2.docs
+doc_to_text: !function gpqa_v2.text
+process_results: !function gpqa_v2.results

@@ -1,0 +1,69 @@
+{
+  "version": "v0.02",
+  "default_cli_version": "v0.01",
+  "selection": "--eval_version v0.02",
+  "changes": {
+    "gsm8k": {
+      "task": "gsm8k_cot_numeric_v1",
+      "shots": 4,
+      "output_tokens": 1024,
+      "decoding": "greedy",
+      "primary_metric": "numeric_match,flexible-extract",
+      "reference_correct": 1187,
+      "reference_questions": 1319
+    },
+    "squadv2": {
+      "task": "squadv2_abstention_v1",
+      "correction": "literal unanswerable -> empty prediction",
+      "prompt_unchanged": true,
+      "shots": "preserved"
+    },
+    "LiveCodeBench": {
+      "correction": "missing-only syntax-checked Python extraction",
+      "preserve_existing_candidates": true,
+      "tests_and_repetitions_unchanged": true
+    },
+    "HumanEval": {
+      "correction": "completion fence boundaries",
+      "output_tokens": 4096,
+      "decoding": "greedy",
+      "avg32": "separate pre-existing entry point"
+    },
+    "GPQADiamond": {
+      "task": "gpqa_diamond_cot0_v2",
+      "shots": 0,
+      "output_tokens": 4096,
+      "decoding": "greedy",
+      "option_seed": 42,
+      "repeats": 1,
+      "parser": "explicit answer/boxed priority"
+    },
+    "MATH500": {
+      "template": "qwen3_calibration.jinja",
+      "output_tokens": 32768,
+      "decoding": "greedy",
+      "stop": [
+        "<|im_end|>"
+      ]
+    }
+  },
+  "chat_template": {
+    "repo": "Qwen/Qwen3-8B",
+    "revision": "b968826d9c46dd6066d109eabc6255188de91218",
+    "source": "https://huggingface.co/Qwen/Qwen3-8B/resolve/b968826d9c46dd6066d109eabc6255188de91218/tokenizer_config.json",
+    "source_sha256": "d5d09f07b48c3086c508b30d1c9114bd1189145b74e982a265350c923acd8101",
+    "template_sha256": "a55ee1b1660128b7098723e0abcd92caa0788061051c62d51cbe87d9cf1974d8",
+    "license": "Apache-2.0"
+  },
+  "validation": {
+    "gpu_runs": 0,
+    "reference_generations": "Previously completed calibration runs; full saved GSM8K numeric verdicts and SQuAD replay, actual installed task loading, full GPQA/MATH500 prompt equality.",
+    "context": "Complete prompt plus full output allowance; refuse silent truncation. Explicit HumanEval/MATH500 budget variants remain separately labelled."
+  },
+  "limits": [
+    "GPQA still does not reproduce the Qwen headline score.",
+    "Full MATH remains an unresolved separate experiment; it is not MATH500.",
+    "Longer output and chat prompting are protocol changes, not just answer parsing.",
+    "Historical LCB calibration used a bounded per-answer memory grader overlay; this release preserves the installed grader and its resource policy. Future scores must retain resource provenance."
+  ]
+}

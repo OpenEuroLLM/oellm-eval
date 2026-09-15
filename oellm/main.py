@@ -14,6 +14,8 @@ from string import Template
 import pandas as pd
 from jsonargparse import auto_cli
 
+from oellm.eval_protocol import VERSIONS, freeze, resolve_job, result_identity
+
 from oellm.task_groups import (
     _build_task_suite_map,
     _collect_dataset_specs,
@@ -125,6 +127,8 @@ def schedule_evals(
     nodelist: str | None = None,
     model_backend: str = "hf",
     ifeval_stopping_policy: str = "eos",
+    eval_version: str = "v0.01",
+    calibrated_output_tokens: int | None = None,
     confirm_run_unsafe_code: bool = False,
     model_args: str = "",
     data_parallel_size: int = 1,
@@ -182,6 +186,8 @@ def schedule_evals(
             node constraint is added.
         confirm_run_unsafe_code: Explicitly enable harness code-execution benchmarks such as MBPP.
         ifeval_stopping_policy: IFEval only: eos (ordinary stopping) or continue (greedy full 1280-token response; requires complete image).
+        eval_version: v0.01 preserves historical procedures; v0.02 selects calibrated tasks in frozen per-submission snapshots.
+        calibrated_output_tokens: Explicit common HumanEval/MATH500 output override; recorded as a protocol variant.
         model_backend: Model backend for lm-eval-harness and Evalchemy: hf or vllm.
         model_args: Additional backend model arguments, in key=value comma-separated form.
             pretrained, data_parallel_size and tensor_parallel_size are managed by the scheduler.
@@ -193,6 +199,18 @@ def schedule_evals(
     """
     _setup_logging(verbose)
 
+    if eval_version not in VERSIONS:
+        raise ValueError("Unknown eval_version")
+    if eval_version == "v0.02":
+        if model_backend != "vllm" or local:
+            raise ValueError("v0.02 currently requires scheduled vLLM execution")
+        if limit is not None:
+            raise ValueError("v0.02 requires full benchmark coverage")
+        if lm_eval_include_path or os.environ.get("LM_EVAL_INCLUDE_PATH"):
+            raise ValueError("v0.02 uses its frozen bundled task definitions")
+    if calibrated_output_tokens is not None:
+        if eval_version != "v0.02" or calibrated_output_tokens < 1:
+            raise ValueError("calibrated_output_tokens requires v0.02 and a positive budget")
     if ifeval_stopping_policy not in {"eos", "continue"}:
         raise ValueError("ifeval_stopping_policy must be eos or continue")
     if model_backend not in {"hf", "vllm"}:
@@ -345,6 +363,9 @@ def schedule_evals(
         logging.warning("No evaluation jobs to schedule.")
         return None
 
+    df["model_path"] = df["model_path"].map(str)
+    original_jobs = df.to_dict("records")
+    df = pd.DataFrame([resolve_job(job, eval_version) for job in original_jobs])
     df["eval_suite"] = df["eval_suite"].str.lower()
 
     # Ensure that all datasets required by the tasks are cached locally to avoid
@@ -356,7 +377,7 @@ def schedule_evals(
             dataset_specs = _collect_dataset_specs(group_list)
         else:
             # Look up individual tasks in task groups registry
-            all_tasks = df["task_path"].unique().tolist()
+            all_tasks = list(dict.fromkeys(job["task_path"] for job in original_jobs))
             dataset_specs = _lookup_dataset_specs_for_tasks(all_tasks)
             if not dataset_specs:
                 logging.info(
@@ -497,6 +518,10 @@ def schedule_evals(
                     raise ValueError(f"{variable} must be a positive integer")
                 launcher_resources += f"#SBATCH --{flag}={value}\n"
 
+    protocol_root = freeze(evals_dir / "protocol", eval_version, original_jobs, df.to_dict("records"), calibrated_output_tokens)
+    if eval_version == "v0.02":
+        lm_eval_include_path = str(protocol_root / "tasks")
+
     sbatch_script = sbatch_template.format(
         launcher_resources=launcher_resources,
         csv_path=csv_path,
@@ -521,6 +546,9 @@ def schedule_evals(
         additional_model_args=_resolve_additional_model_args(local),  # Batch size
         evalchemy_dir=os.environ.get("EVALCHEMY_DIR", "/opt/evalchemy"),
         model_backend=model_backend,
+        eval_version=eval_version,
+        protocol_root=shlex.quote(str(protocol_root.resolve())),
+        calibrated_output_tokens=calibrated_output_tokens or "",
         ifeval_stopping_policy=ifeval_stopping_policy,
         confirm_run_unsafe_code="--confirm_run_unsafe_code" if confirm_run_unsafe_code else "",
         backend_model_args=shlex.quote(backend_args),
@@ -727,11 +755,15 @@ def collect_results(
         logging.info(
             f"Found {len(jobs_csv_paths)} jobs.csv file(s): {[str(p) for p in jobs_csv_paths]}"
         )
-        jobs_frames = [pd.read_csv(p) for p in jobs_csv_paths]
+        jobs_frames = []
+        for p in jobs_csv_paths:
+            frame = pd.read_csv(p)
+            frame["eval_version"], frame["protocol_variant"] = result_identity(p)
+            jobs_frames.append(frame)
         # Concatenate and let later entries win for duplicate (model_path, task_path, n_shot).
         jobs_df = pd.concat(jobs_frames, ignore_index=True)
         dup_cols = [
-            c for c in ("model_path", "task_path", "n_shot") if c in jobs_df.columns
+            c for c in ("model_path", "task_path", "n_shot", "eval_version", "protocol_variant") if c in jobs_df.columns
         ]
         if dup_cols:
             jobs_df = jobs_df.drop_duplicates(subset=dup_cols, keep="last")
@@ -761,6 +793,9 @@ def collect_results(
     completed_jobs = set()  # Track (model, task, n_shot) tuples
 
     for json_file in json_files:
+        if "protocol" in json_file.relative_to(results_path).parts or json_file.name.endswith(".protocol.json"):
+            continue
+        eval_version, protocol_variant = result_identity(json_file)
         with open(json_file) as f:
             data = json.load(f)
 
@@ -827,7 +862,7 @@ def collect_results(
                 task_metric_pairs = _resolve_primary_metric(group_name, task_metric_pairs)
             if task_metric_pairs:
                 if check:
-                    completed_jobs.add((model_name, group_name, n_shot))
+                    completed_jobs.add((model_name, group_name, n_shot, eval_version, protocol_variant))
                 for metric_name, performance in task_metric_pairs:
                     rows.append(
                         {
@@ -836,6 +871,8 @@ def collect_results(
                             "n_shot": n_shot,
                             "metric_name": metric_name,
                             "performance": performance,
+                            "eval_version": eval_version,
+                            "protocol_variant": protocol_variant,
                         }
                     )
                 # Skip per-task iteration when groups are present
@@ -903,6 +940,11 @@ def collect_results(
 
             # Extract all available metrics for this task
             task_metric_pairs = _extract_all_metrics(task_results)
+            if task_name_clean == "gsm8k_cot_numeric_v1" and not fetch_all_metrics:
+                key = "numeric_match,flexible-extract"
+                if key not in task_results:
+                    raise ValueError("Calibrated GSM8K result lacks its primary numeric/flexible metric")
+                task_metric_pairs = [(key, float(task_results[key]))]
             if not fetch_all_metrics:
                 task_metric_pairs = _resolve_primary_metric(
                     task_name_clean, task_metric_pairs
@@ -911,7 +953,7 @@ def collect_results(
             if task_metric_pairs:
                 # Track completed job for check mode (once per task, not per metric)
                 if check:
-                    completed_jobs.add((model_name, task_name_clean, n_shot))
+                    completed_jobs.add((model_name, task_name_clean, n_shot, eval_version, protocol_variant))
 
                 for metric_name, performance in task_metric_pairs:
                     rows.append(
@@ -921,6 +963,8 @@ def collect_results(
                             "n_shot": n_shot,
                             "metric_name": metric_name,
                             "performance": performance,
+                            "eval_version": eval_version,
+                            "protocol_variant": protocol_variant,
                         }
                     )
             else:
@@ -938,7 +982,7 @@ def collect_results(
     if rows:
         df = pd.DataFrame(rows)
         df = df.drop_duplicates(
-            subset=["model_name", "task", "n_shot", "metric_name"], keep="last"
+            subset=["model_name", "task", "n_shot", "metric_name", "eval_version", "protocol_variant"], keep="last"
         )
         df.to_csv(output_csv, index=False)
         logging.info(f"Results saved to {output_csv}")
@@ -961,7 +1005,7 @@ def collect_results(
         missing_jobs = []
 
         for _, job in jobs_df.iterrows():
-            job_tuple = (job["model_path"], job["task_path"], job["n_shot"])
+            job_tuple = (job["model_path"], job["task_path"], job["n_shot"], job["eval_version"], job["protocol_variant"])
 
             # Check if this job corresponds to one of our completed results
             is_completed = False
@@ -972,7 +1016,9 @@ def collect_results(
             else:
                 # Try fuzzy matching for model names
                 for completed_job in completed_jobs:
-                    completed_model, completed_task, completed_n_shot = completed_job
+                    completed_model, completed_task, completed_n_shot, completed_version, completed_variant = completed_job
+                    if (completed_version, completed_variant) != (job["eval_version"], job["protocol_variant"]):
+                        continue
 
                     if (
                         job["n_shot"] == completed_n_shot

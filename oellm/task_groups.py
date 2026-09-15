@@ -341,6 +341,9 @@ def primary_metric_map() -> dict[str, str]:
             name = task_data.get("task")
             if metric and name:
                 metrics.setdefault(name, metric)
+    metrics.update({"gsm8k_cot_numeric_v1": "numeric_match,flexible-extract",
+                    "squadv2_abstention_v1": "f1",
+                    "gpqa_diamond_cot0_v2": "exact_match"})
     return metrics
 
 
