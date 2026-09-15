@@ -221,6 +221,35 @@ def generate(case):
         tokenizer_sha256=sha(Path(case['model'])/'tokenizer.json')))
 
 
+def check_shell_correctness(task_id, sample, language, timeout, tmp_dir, completion_id):
+    """Execute unchanged shell tests with a deadline covering the whole child tree."""
+    import signal
+    import subprocess
+    import tempfile
+    Path(tmp_dir).mkdir(parents=True,exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='shell-',dir=tmp_dir) as temporary:
+        root=Path(temporary);(root/'test.sh').write_text(sample['test_code'])
+        # File-backed diagnostics cannot exhaust grader RAM on verbose wrong code.
+        with (root/'output').open('w+b') as output:
+            process=subprocess.Popen(['/bin/bash','test.sh'],cwd=root,stdout=output,stderr=output,start_new_session=True)
+            try:
+                try:
+                    process.wait(timeout=timeout)
+                    verdict='passed' if process.returncode==0 else 'failed'
+                except subprocess.TimeoutExpired:
+                    verdict='timed out'
+            finally:
+                # The old shell=True runner killed only /bin/sh. Recursive bash
+                # grandchildren survived and accumulated across the full suite.
+                try:os.killpg(process.pid,signal.SIGKILL)
+                except ProcessLookupError:pass
+                process.wait()
+            output.seek(0);detail=output.read(65536).decode(errors='replace')
+            if verdict=='failed':verdict+=': '+detail
+    return dict(task_id=task_id,completion_id=completion_id,result=verdict,passed=verdict=='passed',
+        finish=sample.get('finish',-1),code=sample['test_code'])
+
+
 def grade(case):
     """Use the installed audited multilingual execution runtime, on CPU only."""
     if os.environ.get('CUDA_VISIBLE_DEVICES') not in (None,'','-1'):
@@ -244,6 +273,11 @@ def grade(case):
     from human_eval.evaluation import evaluate_functional_correctness
     import human_eval.evaluation as scorer
     if Path(scorer.__file__).resolve()!=benchmark/'human_eval/evaluation.py':raise ValueError('Unexpected scorer')
+    native_checker=scorer.check_correctness
+    def checked(task_id,sample,language,timeout,tmp_dir,completion_id):
+        checker=check_shell_correctness if language=='sh' else native_checker
+        return checker(task_id,sample,language,timeout,tmp_dir,completion_id)
+    scorer.check_correctness=checked
     if case.get('test_protocol')=='openai':
         # NVIDIA code_eval executes precisely the sanitized completion and original
         # tests; Evalchemy additionally injects helper imports. Keep those distinct.

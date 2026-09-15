@@ -8,13 +8,28 @@ import sys
 import tempfile
 import unittest
 
-from oellm.humaneval_sampling import build_prompt,read_jsonl,summarize,write_jsonl,sampling_parameters,stabilize_process_join
+from oellm.humaneval_sampling import build_prompt,read_jsonl,summarize,write_jsonl,sampling_parameters,stabilize_process_join,check_shell_correctness
 
 BENCH=Path(os.environ.get('HUMANEVAL_BENCHMARK','/opt/evalchemy/eval/chat_benchmarks/HumanEval'))
 
 
 @unittest.skipUnless(BENCH.exists(),'requires the pinned evaluation image')
 class RuntimeTests(unittest.TestCase):
+    def test_shell_timeout_kills_descendants_and_keeps_verdicts(self):
+        import time
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary)
+            for code,passed in [('true',True),('false',False)]:
+                result=check_shell_correctness('shell',dict(test_code=code),'sh',1,temporary,0)
+                self.assertEqual(result['passed'],passed)
+            marker=root/'escaped'
+            # A grandchild would write the marker after its wrapper times out.
+            code=f'(sleep 1; touch "{marker}") &\nwait\n'
+            result=check_shell_correctness('shell',dict(test_code=code),'sh',.1,temporary,0)
+            self.assertEqual(result['result'],'timed out')
+            time.sleep(1.1)
+            self.assertFalse(marker.exists())
+
     def test_resolved_vllm_sampling_preserves_intended_settings(self):
         from vllm import SamplingParams
         for n in (1,32):
