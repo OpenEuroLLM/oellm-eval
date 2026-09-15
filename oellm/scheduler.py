@@ -368,7 +368,7 @@ def schedule_evals(
     runner = EvalRunner()
     runner.prepare_jobs(expanded_eval_jobs)
 
-    # Warn when a scheduled task has no explicit task_metrics entry —
+    # Warn when a scheduled task has no declared primary metric —
     # collect_results then relies on METRIC_FALLBACK_KEYS, whose choice is
     # insertion-order-dependent for multi-filter engine outputs.
     _tm = _load_task_metrics()
@@ -380,8 +380,8 @@ def schedule_evals(
         if len(_unmapped_tasks) > 10:
             _shown += f" (+{len(_unmapped_tasks) - 10} more)"
         logging.warning(
-            f"No task_metrics entry for: {_shown} — collect will use fallback "
-            f"metric keys; add entries to task-groups.yaml for a stable metric policy."
+            f"No primary metric declared for: {_shown} — collect will use fallback "
+            f"metric keys; add a metric: key to the task group in task-groups.yaml."
         )
 
     # Quantized loading: applied via --model_args for the HF-style
@@ -636,6 +636,7 @@ def schedule_evals(
         "slurm_mem": slurm_mem,
         "lighteval_model_args": additional_model_args,
         "max_num_frames": os.environ.get("MAX_NUM_FRAMES"),
+        "lmms_model_args": os.environ.get("LMMS_MODEL_ARGS"),
         "limit": limit,
         "venv_path": venv_path,
         "hf_hub_offline": _resolve_hf_hub_offline(local),

@@ -97,9 +97,9 @@ class DefaultHFAdapter(BaseModelAdapter):
         return f'pretrained="{self._path}",trust_remote_code={self._trust}{self._extra}'
 
     def to_lmms_eval_args(self) -> str:
-        # $_lmms_extra_args is the bash-side per-family hook filled in
-        # template.sbatch (llava model_name workaround, qwen frame cap).
-        return f"pretrained={self._path},device_map=auto$_lmms_extra_args{self._extra}"
+        # $_lmms_extra_args is set by template.sbatch on the node: device
+        # placement plus per-family hooks.
+        return f"pretrained={self._path}$_lmms_extra_args{self._extra}"
 
     def to_evalchemy_args(self) -> str:
         return f"trust_remote_code={self._trust},pretrained={self._path}{self._extra}"

@@ -41,21 +41,20 @@ def main() -> None:
 
     df = pd.concat(frames, ignore_index=True)
 
-    required = {"model_name", "task", "n_shot", "performance"}
+    required = {"model_name", "task", "n_shot", "metric_name", "performance"}
     if not required.issubset(df.columns):
         missing = required - set(df.columns)
         print(f"Error: input CSVs missing columns: {missing}", file=sys.stderr)
         sys.exit(1)
 
-    if "metric_name" not in df.columns:
-        df["metric_name"] = ""
     has_norm = "performance_normalized" in df.columns
 
     # Metric identity is part of the column label so rows that legitimately
     # differ only in metric_name don't collapse into one cell; the n_shot
     # label is not int()-coerced because collect legitimately emits "unknown".
     def _label(r) -> str:
-        metric = str(r["metric_name"]).split(",")[0] or "metric"
+        base, _, filt = str(r["metric_name"]).partition(",")
+        metric = (base or "metric") if filt in ("", "none") else f"{base}:{filt}"
         norm_ok = has_norm and pd.notna(r.get("performance_normalized"))
         suffix = "" if norm_ok else ", raw"
         return f"{r['task']} ({r['n_shot']}-shot, {metric}{suffix})"

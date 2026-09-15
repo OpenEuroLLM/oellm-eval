@@ -4,12 +4,14 @@ from importlib.resources import files
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 import yaml
 
 from oellm.task_groups import (
     _collect_dataset_specs,
     _expand_task_groups,
     get_all_task_group_names,
+    primary_metric_map,
 )
 
 AUDIO_TASK_GROUP = "audio-understanding"
@@ -171,11 +173,10 @@ class TestAudioTaskGroupExpansion:
 
     def test_audio_understanding_has_no_judge_tasks(self):
         """Regression guard: curated smoke suite must stay runnable without
-        OPENAI_API_KEY on the compute node. Any task listed in task_metrics
-        with a gpt_eval* metric is a judge-model task and belongs in an
-        individual audio-* group, not the curated suite."""
-        data = yaml.safe_load((files("oellm.resources") / "task-groups.yaml").read_text())
-        task_metrics = data.get("task_metrics", {})
+        OPENAI_API_KEY on the compute node. Any task whose declared metric
+        is gpt_eval* is a judge-model task and belongs in an individual
+        audio-* group, not the curated suite."""
+        task_metrics = primary_metric_map()
         results = _expand_task_groups([AUDIO_TASK_GROUP])
         judge_tasks = [
             r.task
@@ -282,25 +283,29 @@ class TestAudioModelAdapters:
 
         assert detect_lmms_model_type("Qwen/Qwen2-Audio-7B-Instruct") == "qwen2_audio"
 
-    def test_qwen2_5_audio_detected(self):
+    def test_qwen2_5_omni_detected(self):
         from oellm.constants import detect_lmms_model_type
 
-        assert detect_lmms_model_type("Qwen/Qwen2.5-Audio-7B") == "qwen2_5_audio"
+        assert detect_lmms_model_type("Qwen/Qwen2.5-Omni-7B") == "qwen2_5_omni"
 
-    def test_salmonn_detected(self):
+    def test_video_salmonn_detected(self):
         from oellm.constants import detect_lmms_model_type
 
-        assert detect_lmms_model_type("tsinghua-ee/SALMONN-7B") == "salmonn"
+        assert detect_lmms_model_type("tsinghua-ee/video-SALMONN-2") == "video_salmonn_2"
 
-    def test_audio_flamingo_detected(self):
+    def test_audio_flamingo_3_detected(self):
         from oellm.constants import detect_lmms_model_type
 
-        assert detect_lmms_model_type("nvidia/audio-flamingo-2") == "audio_flamingo"
+        assert detect_lmms_model_type("nvidia/audio-flamingo-3") == "audio_flamingo_3"
 
-    def test_ultravox_detected(self):
+    def test_families_without_an_lmms_adapter_raise(self):
+        """lmms-eval has no adapter for Ultravox or Audio Flamingo 2; failing at
+        schedule time beats loading the wrong adapter on the node."""
         from oellm.constants import detect_lmms_model_type
 
-        assert detect_lmms_model_type("fixie-ai/ultravox-v0_4") == "ultravox"
+        for model in ("fixie-ai/ultravox-v0_4", "nvidia/audio-flamingo-2"):
+            with pytest.raises(ValueError):
+                detect_lmms_model_type(model)
 
     def test_phi4_multimodal_detected(self):
         from oellm.constants import detect_lmms_model_type

@@ -6,11 +6,9 @@ import json
 import logging
 import subprocess
 from datetime import UTC, datetime
-from importlib.resources import files
 from pathlib import Path
 
 import pandas as pd
-import yaml
 
 from oellm.constants import METRIC_FALLBACK_KEYS
 from oellm.utils import _setup_logging
@@ -18,7 +16,7 @@ from oellm.utils import _setup_logging
 # Native scale (max value) of each lmms-eval / lm-eval metric.
 # Used to normalize all reported metrics to 0–100 for cross-benchmark
 # comparison in the Markdown report and JSON envelope. Whenever a new
-# metric is added to ``task_metrics`` in ``task-groups.yaml``, also add
+# metric is declared as a ``metric:`` key in ``task-groups.yaml``, also add
 # its native scale here so the normalized column renders correctly.
 METRIC_NATIVE_SCALE: dict[str, float] = {
     # ── 0–1 scale ──
@@ -166,6 +164,21 @@ def _resolve_metric(
     return None, None
 
 
+def _extract_all_metrics(result_dict: dict) -> list[tuple[str, float]]:
+    """Every numeric metric as ``(engine_key, value)``; keys keep their ``,filter`` suffix."""
+    pairs: list[tuple[str, float]] = []
+    seen: set[str] = set()
+    for raw_key, value in result_dict.items():
+        key = raw_key.split("/", 1)[1] if "/" in raw_key else raw_key
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            continue
+        if key in seen or key in ("alias", " ", ""):
+            continue
+        seen.add(key)
+        pairs.append((key, float(value)))
+    return pairs
+
+
 def _split_task_and_nshot(name: str) -> tuple[str, int | None]:
     """Split ``'task|N'`` task names used by some harnesses.
 
@@ -256,16 +269,12 @@ def _model_paths_match(scheduled: str, completed: str) -> bool:
 
 
 def _load_task_metrics() -> dict:
-    """Load task_metrics from core YAML and all contrib suites."""
-    task_groups_yaml = files("oellm.resources") / "task-groups.yaml"
-    with open(str(task_groups_yaml)) as _f:
-        _tg_cfg = yaml.safe_load(_f)
-    task_metrics = _tg_cfg.get("task_metrics", {})
+    """Primary metric per task: the ``metric:`` keys in task-groups.yaml (group
+    default, per-task override) plus the ``task_metrics`` contrib suites declare."""
+    from oellm.registry import get_all_task_groups as _contrib_task_groups
+    from oellm.task_groups import primary_metric_map
 
-    from oellm.registry import (
-        get_all_task_groups as _contrib_task_groups,
-    )
-
+    task_metrics = primary_metric_map()
     task_metrics.update(_contrib_task_groups().get("task_metrics", {}))
     return task_metrics
 
@@ -300,6 +309,7 @@ def collect_results(
     output_csv: str = "eval_results.csv",
     *,
     check: bool = False,
+    fetch_all_metrics: bool = False,
     verbose: bool = False,
 ) -> None:
     """
@@ -309,6 +319,8 @@ def collect_results(
         results_dir: Path to the directory containing result JSON files
         output_csv: Output CSV filename (default: eval_results.csv)
         check: Check for missing evaluations and create a missing jobs CSV
+        fetch_all_metrics: Emit one row per numeric metric the engine reported
+            instead of only the task's primary metric
         verbose: Enable verbose logging
     """
     _setup_logging(verbose)
@@ -386,6 +398,29 @@ def collect_results(
     rows = []
     completed_jobs = set()
 
+    def _metric_pairs(task_name: str, result_dict: dict) -> list[tuple[str, float]]:
+        if fetch_all_metrics:
+            return _extract_all_metrics(result_dict)
+        performance, metric_name = _resolve_metric(task_name, result_dict, task_metrics)
+        if performance is None:
+            return []
+        return [(metric_name if metric_name is not None else "", performance)]
+
+    def _emit(model: str, task: str, n_shot, pairs: list[tuple[str, float]]) -> None:
+        for metric_name, performance in pairs:
+            rows.append(
+                {
+                    "model_name": model,
+                    "task": task,
+                    "n_shot": n_shot,
+                    "performance": performance,
+                    "performance_normalized": _normalize_to_100(
+                        performance, metric_name, task
+                    ),
+                    "metric_name": metric_name,
+                }
+            )
+
     for json_file in json_files:
         # Provenance sidecars are consumed separately above, not result files.
         if json_file.name == "provenance.json":
@@ -416,22 +451,11 @@ def collect_results(
         _contrib_parsed = _try_contrib_parse(data)
         if _contrib_parsed is not None:
             _c_model, _c_task, _c_n_shot, _c_metrics = _contrib_parsed
-            performance, metric_name = _resolve_metric(_c_task, _c_metrics, task_metrics)
-            if performance is not None:
+            _c_pairs = _metric_pairs(_c_task, _c_metrics)
+            if _c_pairs:
                 if check:
                     completed_jobs.add((_c_model, _c_task, _c_n_shot))
-                rows.append(
-                    {
-                        "model_name": _c_model,
-                        "task": _c_task,
-                        "n_shot": _c_n_shot,
-                        "performance": performance,
-                        "performance_normalized": _normalize_to_100(
-                            performance, metric_name, _c_task
-                        ),
-                        "metric_name": metric_name if metric_name is not None else "",
-                    }
-                )
+                _emit(_c_model, _c_task, _c_n_shot, _c_pairs)
             else:
                 logging.warning(
                     f"No numeric metric for contrib-parsed '{_c_task}' in "
@@ -520,24 +544,11 @@ def collect_results(
                 group_name, parsed_n = _split_task_and_nshot(orig_group_name)
                 if n_shot == "unknown" and parsed_n is not None:
                     n_shot = parsed_n
-                performance, metric_name = _resolve_metric(
-                    group_name, group_results, task_metrics
-                )
-                if performance is not None:
+                _g_pairs = _metric_pairs(group_name, group_results)
+                if _g_pairs:
                     if check:
                         completed_jobs.add((model_name, group_name, n_shot))
-                    rows.append(
-                        {
-                            "model_name": model_name,
-                            "task": group_name,
-                            "n_shot": n_shot,
-                            "performance": performance,
-                            "performance_normalized": _normalize_to_100(
-                                performance, metric_name, group_name
-                            ),
-                            "metric_name": metric_name if metric_name is not None else "",
-                        }
-                    )
+                    _emit(model_name, group_name, n_shot, _g_pairs)
                 else:
                     # Metric-less aggregate: descend into child groups so
                     # aggregating children are still collected.
@@ -597,55 +608,57 @@ def collect_results(
                 subtasks = group_subtasks_map.get(task_name_clean, [])
                 if not subtasks:
                     continue
-                child_values: list[float] = []
-                child_metric_name: str | None = None
-                for subtask_name in subtasks:
-                    sub_results = results.get(subtask_name, {})
-                    sub_val, sub_metric = _resolve_metric(
-                        task_name_clean, sub_results, task_metrics
+                if fetch_all_metrics:
+                    per_metric: dict[str, list[float]] = {}
+                    children_present = 0
+                    for subtask_name in subtasks:
+                        sub_pairs = _extract_all_metrics(results.get(subtask_name, {}))
+                        if sub_pairs:
+                            children_present += 1
+                        for sub_metric, sub_val in sub_pairs:
+                            per_metric.setdefault(sub_metric, []).append(sub_val)
+                    pairs = [(m, sum(v) / len(v)) for m, v in per_metric.items()]
+                else:
+                    child_values: list[float] = []
+                    child_metric_name: str | None = None
+                    for subtask_name in subtasks:
+                        sub_val, sub_metric = _resolve_metric(
+                            task_name_clean, results.get(subtask_name, {}), task_metrics
+                        )
+                        if sub_val is not None:
+                            child_values.append(sub_val)
+                            if child_metric_name is None:
+                                child_metric_name = sub_metric
+                    children_present = len(child_values)
+                    pairs = (
+                        [(child_metric_name or "", sum(child_values) / len(child_values))]
+                        if child_values
+                        else []
                     )
-                    if sub_val is not None:
-                        child_values.append(sub_val)
-                        if child_metric_name is None:
-                            child_metric_name = sub_metric
-                if not child_values:
+                if not pairs:
                     continue
-                if len(child_values) < len(subtasks):
+                if children_present < len(subtasks):
                     logging.warning(
                         f"Aggregate '{task_name_clean}' in {json_file.name}: only "
-                        f"{len(child_values)}/{len(subtasks)} subtasks present — "
+                        f"{children_present}/{len(subtasks)} subtasks present — "
                         f"missing children are excluded from the mean"
                     )
-                performance = sum(child_values) / len(child_values)
-                metric_name = child_metric_name
             else:
-                performance, metric_name = _resolve_metric(
-                    task_name_clean, task_results, task_metrics
-                )
+                pairs = _metric_pairs(task_name_clean, task_results)
 
-            if performance is not None:
+            if pairs:
                 if check:
                     completed_jobs.add((model_name, task_name_clean, n_shot))
-
-                rows.append(
-                    {
-                        "model_name": model_name,
-                        "task": task_name_clean,
-                        "n_shot": n_shot,
-                        "performance": performance,
-                        "performance_normalized": _normalize_to_100(
-                            performance, metric_name, task_name_clean
-                        ),
-                        "metric_name": metric_name if metric_name is not None else "",
-                    }
-                )
+                _emit(model_name, task_name_clean, n_shot, pairs)
             else:
                 # Log missing metrics — for lmms-eval tasks this often means
                 # llm_as_judge_eval is null (no judge LLM configured) or the
-                # metric key is not yet listed in task_metrics in task-groups.yaml
+                # task's metric: key in task-groups.yaml names a key the engine
+                # did not write
                 logging.warning(
                     f"No numeric metric for '{task_name}' in {json_file.name} "
-                    f"— value may be null (LLM judge not configured?) or metric key missing from task_metrics"
+                    f"— value may be null (LLM judge not configured?) or the declared "
+                    f"metric is absent from the result"
                 )
 
         if len(rows) == rows_before_file:
