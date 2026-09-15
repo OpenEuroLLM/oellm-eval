@@ -11,7 +11,8 @@ from oellm.main import schedule_evals
 from oellm.utils import _ensure_singularity_image
 
 
-def render(tmp_path, monkeypatch, *, suite="lm_eval", container=False, internal_evalchemy=False, **options):
+def render(tmp_path, monkeypatch, *, suite="lm_eval", container=False, internal_evalchemy=False,
+           tasks=("piqa",), queue_limit=10, **options):
     for key in ("WORLD_SIZE", "LMEVAL_DP", "NODES", "GPUS_PER_NODE", "CPUS_PER_TASK", "THREADS_PER_CORE"):
         monkeypatch.delenv(key, raising=False)
     env = {
@@ -21,7 +22,7 @@ def render(tmp_path, monkeypatch, *, suite="lm_eval", container=False, internal_
         "EVAL_CONTAINER_IMAGE": "/shared/images/evaluation.sif",
         "HF_HOME": str(tmp_path / "cache"),
         "GPUS_PER_NODE": "1",
-        "QUEUE_LIMIT": "10",
+        "QUEUE_LIMIT": str(queue_limit),
         "SLURM_ARRAY_TASK_ID": "0",
         "SLURM_JOB_ID": "123",
         "CUDA_VISIBLE_DEVICES": "GPU-uuid-0,GPU-uuid-1,GPU-uuid-2,GPU-uuid-3",
@@ -32,7 +33,11 @@ def render(tmp_path, monkeypatch, *, suite="lm_eval", container=False, internal_
         monkeypatch.setenv(k, v)
     bindir = tmp_path / "bin"
     bindir.mkdir()
-    recorder = '#!/bin/bash\nprintf "%s\\n" "$CUDA_VISIBLE_DEVICES" "$@" >> "$RECORD"\nexit "${FAIL:-0}"\n'
+    # FAIL_TASK fails only the evaluation of that task; READ_STDIN reads stdin to EOF.
+    recorder = ('#!/bin/bash\nprintf "%s\\n" "$CUDA_VISIBLE_DEVICES" "$@" >> "$RECORD"\n'
+                '[ -z "${READ_STDIN:-}" ] || cat > /dev/null\n'
+                'if [ -n "${FAIL_TASK:-}" ]; then for a in "$@"; do [ "$a" != "$FAIL_TASK" ] || exit 7; done; fi\n'
+                'exit "${FAIL:-0}"\n')
     for name in ("python", "accelerate", "singularity"):
         p = bindir / name
         p.write_text(recorder)
@@ -40,7 +45,8 @@ def render(tmp_path, monkeypatch, *, suite="lm_eval", container=False, internal_
     (bindir / "activate").write_text(f'export PATH="{bindir}:$PATH"\n')
     monkeypatch.setenv("PATH", f"{bindir}:{os.environ['PATH']}")
     csv = tmp_path / "input.csv"
-    csv.write_text(f"model_path,task_path,n_shot,eval_suite\n/model with spaces,piqa,10,{suite}\n")
+    csv.write_text("model_path,task_path,n_shot,eval_suite\n"
+                   + "".join(f"/model with spaces,{task},10,{suite}\n" for task in tasks))
     with patch("oellm.main._load_cluster_env"), patch("oellm.main._num_jobs_in_queue", side_effect=AssertionError("dry run must not query Slurm")):
         schedule_evals(
             eval_csv_path=str(csv), skip_checks=True, dry_run=True,

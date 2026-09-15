@@ -39,6 +39,9 @@ fi
 # avoiding crashes due to compute nodes not having access to the internet
 export HF_HOME=$HF_HOME
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
+# evaluate metrics (e.g. MBPP's code_eval) cache to a fixed file name, so array tasks sharing
+# $HF_HOME/metrics crash each other (FileNotFoundError). Give every array task its own.
+export HF_METRICS_CACHE="$HF_HOME/metrics/job_${{SLURM_JOB_ID:-local}}"
 export HF_HUB_OFFLINE={hf_hub_offline}
 
 # Path to the shared Singularity image that contains all runtime deps (container mode)
@@ -82,7 +85,9 @@ fi
 
 # Use `tail` and `head` to slice the CSV file for the tasks assigned to this job.
 # The +1 on START_INDEX accounts for the header row.
-tail -n +$((START_INDEX + 1)) "$CSV_PATH" | head -n $((END_INDEX - START_INDEX + 1)) | \
+# A failed evaluation does not skip the remaining ones of this array task; the task
+# exits with the status of the last failure.
+FAILED_STATUS=0
 while IFS=, read -r model_path task_path n_shot eval_suite
 do
     # Remove trailing carriage returns if script is edited on Windows
@@ -138,7 +143,7 @@ do
         BIND_PATHS="$BIND_PATHS,$JOB_TMP:/tmp,$JOB_TMP:/var/tmp"
         echo "Evaluation temporary storage: $JOB_TMP -> /tmp and /var/tmp"
         df -Pk "$JOB_TMP"
-        SINGULARITY_ENV_ARGS="--env TMPDIR=/tmp --env TMP=/tmp --env TEMP=/tmp --env HF_HOME=$HF_HOME --env HF_DATASETS_CACHE=$HF_DATASETS_CACHE --env HF_HUB_OFFLINE=$HF_HUB_OFFLINE --env TRANSFORMERS_OFFLINE=$TRANSFORMERS_OFFLINE --env NLTK_DATA=$NLTK_DATA"
+        SINGULARITY_ENV_ARGS="--env TMPDIR=/tmp --env TMP=/tmp --env TEMP=/tmp --env HF_HOME=$HF_HOME --env HF_DATASETS_CACHE=$HF_DATASETS_CACHE --env HF_HUB_OFFLINE=$HF_HUB_OFFLINE --env TRANSFORMERS_OFFLINE=$TRANSFORMERS_OFFLINE --env NLTK_DATA=$NLTK_DATA --env HF_METRICS_CACHE=$${{HF_METRICS_CACHE}}"
     fi
 
     GPU_DEVICES=$(seq -s, 0 $(($GPUS_PER_NODE - 1)))
@@ -174,6 +179,11 @@ do
         fi
     }}
 
+    # Run the evaluation in its own errexit subshell so a failure ends only this evaluation;
+    # stdin is closed so nothing it starts can consume the remaining CSV rows.
+    set +e
+    (
+    set -e
     case "$suite_normalized" in
         lm_eval|lm-eval|lm-eval-harness)
             echo
@@ -311,15 +321,27 @@ do
             echo "[warning] Unknown evaluation suite '$eval_suite'. Skipping."
             ;;
     esac
+    ) < /dev/null
+    eval_status=$?
+    set -e
 
     echo "----------------------------------------------------"
-    echo "Evaluation finished for model: $model_path"
+    if [ "$eval_status" -ne 0 ]; then
+        echo "[error] Evaluation failed (exit $eval_status) for model: $model_path, task: $task_path" >&2
+        FAILED_STATUS=$eval_status
+    else
+        echo "Evaluation finished for model: $model_path"
+    fi
 
     if [ -n "$JOB_TMP" ]; then
         rm -rf -- "$JOB_TMP"
         trap - EXIT ERR
     fi
 
-done
+done < <(tail -n +$((START_INDEX + 1)) "$CSV_PATH" | head -n $((END_INDEX - START_INDEX + 1)))
 
+if [ "$FAILED_STATUS" -ne 0 ]; then
+    echo "Job $SLURM_ARRAY_TASK_ID finished with failed evaluations." >&2
+    exit "$FAILED_STATUS"
+fi
 echo "Job $SLURM_ARRAY_TASK_ID finished."
