@@ -20,6 +20,8 @@ Two entry points:
 
 from __future__ import annotations
 
+import difflib
+import json
 import os
 import shutil
 import subprocess
@@ -133,6 +135,57 @@ def probe_import(python_bin: str | Path, module: str) -> tuple[bool, str]:
     return False, err_lines[-1] if err_lines else "import failed"
 
 
+def lmms_adapters_from_suites(suites: set[str] | list[str]) -> set[str]:
+    """Adapter names carried by ``lmms_eval:<adapter>`` suite strings."""
+    from oellm.runner import EvalRunner
+
+    out = set()
+    for s in suites:
+        head, sep, tail = str(s).partition(":")
+        if (
+            sep
+            and tail.strip()
+            and EvalRunner.canonical_name(head.strip().lower()) == "lmms_eval"
+        ):
+            out.add(tail.strip())
+    return out
+
+
+_LMMS_REGISTRY_PROBE = """
+import json
+import lmms_eval.models as m
+names = set()
+for attr in ("AVAILABLE_MODELS", "AVAILABLE_SIMPLE_MODELS", "AVAILABLE_CHAT_MODELS"):
+    v = getattr(m, attr, None)
+    if isinstance(v, dict):
+        names.update(v)
+reg = getattr(m, "MODEL_REGISTRY_V2", None)
+if reg is not None and hasattr(reg, "list_model_names"):
+    names.update(reg.list_model_names())
+print(json.dumps(sorted(names)))
+"""
+
+
+def lmms_registered_adapters(python_bin: str | Path) -> set[str] | None:
+    """Adapter names the venv's lmms-eval registers; ``None`` when unknowable."""
+    try:
+        r = subprocess.run(
+            [str(python_bin), "-c", _LMMS_REGISTRY_PROBE],
+            capture_output=True,
+            text=True,
+            timeout=_PROBE_TIMEOUT_S,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if r.returncode != 0:
+        return None
+    try:
+        names = json.loads(r.stdout.strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        return None
+    return set(names) or None
+
+
 def _find_executable(name: str, venv_path: str | Path | None) -> str | None:
     """Resolve *name* from the venv's bin dir first, then PATH."""
     if venv_path:
@@ -160,6 +213,7 @@ def collect_problems(
     problems: list[str] = []
     canonical = canonical_suites(suites)
     venv_python = Path(venv_path).expanduser() / "bin" / "python" if venv_path else None
+    lmms_importable = False
 
     for suite in sorted(canonical):
         req = _requirements_for_suite(suite)
@@ -181,13 +235,17 @@ def collect_problems(
             # the static container_ok flag is the contract.
             continue
 
+        modules_ok = True
         for module in req.modules:
             ok, detail = probe_import(venv_python, module)
             if not ok:
+                modules_ok = False
                 problems.append(
                     f"suite '{suite}': module '{module}' is not importable in "
                     f"venv {venv_path} ({detail}). {req.hint}"
                 )
+        if suite == "lmms_eval" and modules_ok:
+            lmms_importable = True
 
         for exe in req.executables:
             if _find_executable(exe, venv_path) is None:
@@ -208,6 +266,23 @@ def collect_problems(
                 problems.append(
                     f"suite '{suite}': {var}={value!r} does not exist on this "
                     f"filesystem. {req.hint}"
+                )
+
+    # LMMS_MODEL_ADAPTERS and the installed lmms-eval drift apart; an unknown
+    # adapter would otherwise fail on the node after the queue wait.
+    adapters = lmms_adapters_from_suites(suites)
+    if adapters and lmms_importable:
+        registered = lmms_registered_adapters(venv_python)
+        if registered is not None:
+            for adapter in sorted(adapters - registered):
+                close = difflib.get_close_matches(adapter, sorted(registered), n=3)
+                hint = f" Closest registered names: {', '.join(close)}." if close else ""
+                problems.append(
+                    f"suite 'lmms_eval': adapter '{adapter}' (resolved from the model "
+                    f"name) is not registered in the lmms-eval installed at "
+                    f"{venv_path} ({len(registered)} adapters available).{hint} "
+                    f"Fix LMMS_MODEL_ADAPTERS in oellm/constants.py or install an "
+                    f"lmms-eval that provides it."
                 )
 
     for group in group_names or []:

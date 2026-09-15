@@ -253,6 +253,10 @@ oellm-eval schedule \
 
 Results are written to `./oellm-output/<timestamp>/results/`.
 
+lmms-eval tasks (image, video, audio) target MPS automatically on macOS; set
+`LMMS_MODEL_ARGS` (for example `device=cpu,device_map=cpu`) to override the
+device arguments on any host. See [docs/VENV.md](docs/VENV.md).
+
 **Air-gapped cluster nodes (no internet):** batch jobs set `HF_HUB_OFFLINE=1` and get `HF_HOME` from your cluster env. With `--local`, the CLI defaults `HF_HOME` to `~/.cache/huggingface` if unset and would otherwise allow Hub access—so on a compute node without network, export your real cache and offline flag before running, for example:
 
 ```bash

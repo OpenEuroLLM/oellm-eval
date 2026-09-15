@@ -275,3 +275,72 @@ class TestDoctor:
         results = run_doctor_checks(venv_path=str(tmp_path / "nope"))
         venv_checks = [r for r in results if r.name == "venv"]
         assert venv_checks and venv_checks[0].status == FAIL
+
+
+class TestLmmsAdapterPreflight:
+    """The resolved lmms-eval adapter must exist in the venv that runs the job."""
+
+    @staticmethod
+    def _venv(tmp_path):
+        (tmp_path / "venv" / "bin").mkdir(parents=True)
+        (tmp_path / "venv" / "bin" / "python").touch()
+        return str(tmp_path / "venv")
+
+    def test_adapters_are_read_from_suite_strings(self):
+        from oellm.envcheck import lmms_adapters_from_suites
+
+        suites = {
+            "lmms_eval:llava_hf",
+            " LMMS_EVAL:qwen2_vl",
+            "lm_eval",
+            "spurious_robustness:x",
+        }
+        assert lmms_adapters_from_suites(suites) == {"llava_hf", "qwen2_vl"}
+
+    def test_unregistered_adapter_is_reported_with_close_matches(
+        self, tmp_path, monkeypatch
+    ):
+        import oellm.envcheck as envcheck
+
+        monkeypatch.setattr(envcheck, "probe_import", lambda py, mod: (True, "0.7.2"))
+        monkeypatch.setattr(
+            envcheck, "lmms_registered_adapters", lambda py: {"llava_hf", "idefics2"}
+        )
+        problems = envcheck.collect_problems(
+            {"lmms_eval:idefics3"}, venv_path=self._venv(tmp_path)
+        )
+        assert len(problems) == 1
+        assert "'idefics3'" in problems[0]
+        assert "idefics2" in problems[0]
+
+    def test_registered_adapter_passes(self, tmp_path, monkeypatch):
+        import oellm.envcheck as envcheck
+
+        monkeypatch.setattr(envcheck, "probe_import", lambda py, mod: (True, "0.7.2"))
+        monkeypatch.setattr(envcheck, "lmms_registered_adapters", lambda py: {"llava_hf"})
+        assert (
+            envcheck.collect_problems(
+                {"lmms_eval:llava_hf"}, venv_path=self._venv(tmp_path)
+            )
+            == []
+        )
+
+    def test_registry_is_not_probed_when_lmms_eval_is_missing(
+        self, tmp_path, monkeypatch
+    ):
+        import oellm.envcheck as envcheck
+
+        monkeypatch.setattr(
+            envcheck,
+            "probe_import",
+            lambda py, mod: (False, "No module named 'lmms_eval'"),
+        )
+        calls = []
+        monkeypatch.setattr(
+            envcheck, "lmms_registered_adapters", lambda py: calls.append(py) or set()
+        )
+        problems = envcheck.collect_problems(
+            {"lmms_eval:llava_hf"}, venv_path=self._venv(tmp_path)
+        )
+        assert not calls
+        assert len(problems) == 1 and "lmms_eval" in problems[0]

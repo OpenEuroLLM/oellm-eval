@@ -636,6 +636,7 @@ def schedule_evals(
         "slurm_mem": slurm_mem,
         "lighteval_model_args": additional_model_args,
         "max_num_frames": os.environ.get("MAX_NUM_FRAMES"),
+        "lmms_model_args": os.environ.get("LMMS_MODEL_ARGS"),
         "limit": limit,
         "venv_path": venv_path,
         "hf_hub_offline": _resolve_hf_hub_offline(local),

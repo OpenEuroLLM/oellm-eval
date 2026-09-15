@@ -237,8 +237,20 @@ do
             _lmms_adapter="${{eval_suite#*:}}"
             OUTPUT_JSON="{evals_dir}/$(openssl rand -hex 5).json"
 
+            # lmms-eval adapters default to device=cuda. LMMS_MODEL_ARGS (k=v,...)
+            # is appended verbatim; a --local run on macOS defaults to MPS.
+            if [ -n "${{LMMS_MODEL_ARGS:-}}" ]; then
+                case ",${{LMMS_MODEL_ARGS:-}}," in
+                    *,device_map=*) _lmms_extra_args=",${{LMMS_MODEL_ARGS:-}}" ;;
+                    *) _lmms_extra_args=",device_map=auto,${{LMMS_MODEL_ARGS:-}}" ;;
+                esac
+            elif [ "$(uname -s)" = "Darwin" ]; then
+                _lmms_extra_args=",device=mps,device_map=mps"
+            else
+                _lmms_extra_args=",device_map=auto"
+            fi
+
             # LLaVA adapters need model_name to avoid a missing-import bug in lmms-eval
-            _lmms_extra_args=""
             if [[ "$_lmms_adapter" == "llava_onevision" || "$_lmms_adapter" == "llava_vid" || "$_lmms_adapter" == "video_llava" ]]; then
                 _lmms_extra_args=",model_name=$(basename "$model_path")"
             fi
