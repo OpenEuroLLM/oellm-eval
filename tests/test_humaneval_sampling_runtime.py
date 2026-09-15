@@ -8,7 +8,7 @@ import sys
 import tempfile
 import unittest
 
-from oellm.humaneval_sampling import build_prompt,read_jsonl,summarize,write_jsonl,sampling_parameters
+from oellm.humaneval_sampling import build_prompt,read_jsonl,summarize,write_jsonl,sampling_parameters,stabilize_process_join
 
 BENCH=Path(os.environ.get('HUMANEVAL_BENCHMARK','/opt/evalchemy/eval/chat_benchmarks/HumanEval'))
 
@@ -41,6 +41,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(count,322)
 
     def test_native_grader_repeated_answers_and_timeout(self):
+        stabilize_process_join()
         sys.path.insert(0,str(BENCH))
         from human_eval.evaluation import evaluate_functional_correctness
         with tempfile.TemporaryDirectory() as temporary:

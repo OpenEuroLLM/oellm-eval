@@ -3,10 +3,29 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from oellm.humaneval_sampling import build_prompt,load_case,request_seed,sampling_parameters,summarize,validate_samples
+from oellm.humaneval_sampling import build_prompt,load_case,request_seed,sampling_parameters,summarize,validate_samples,deadline_join
 
 
 class SampledHumanEvalTests(unittest.TestCase):
+    def test_join_retries_premature_return_without_false_timeout(self):
+        from types import SimpleNamespace
+        process=SimpleNamespace(exitcode=None,calls=0)
+        def premature_then_reaped(p,timeout):
+            p.calls+=1
+            if p.calls==2:p.exitcode=0
+        deadline_join(premature_then_reaped,process,.1)
+        self.assertEqual(process.calls,2)
+        self.assertEqual(process.exitcode,0)
+
+    def test_join_keeps_real_deadline(self):
+        from types import SimpleNamespace
+        import time
+        process=SimpleNamespace(exitcode=None)
+        start=time.monotonic()
+        deadline_join(lambda p,t:time.sleep(t),process,.01)
+        self.assertGreaterEqual(time.monotonic()-start,.01)
+        self.assertIsNone(process.exitcode)
+
     def test_average_is_not_best_of_32(self):
         rows=[dict(task_id=t,completion_id=i,passed=i<n) for t,n in [('a',8),('b',24)] for i in range(32)]
         result=summarize(rows,{'a','b'},32)

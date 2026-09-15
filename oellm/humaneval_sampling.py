@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import statistics
 import sys
+import time
 
 
 def read_jsonl(path):
@@ -60,6 +61,30 @@ def summarize(rows, problem_ids, samples):
         problem_standard_error=statistics.stdev(per_problem.values())/math.sqrt(len(per_problem))
             if len(per_problem)>1 else None,
         note='Mean correctness across all samples per problem, then across problems; no best-of selection.')
+
+
+def deadline_join(original, process, timeout):
+    """A concurrent multiprocessing cleanup may make join return before exit.
+
+    Keep waiting until either a stable exit code or the actual monotonic deadline.
+    This does not extend the requested wait or change the benchmark test timer.
+    """
+    if timeout is None:return original(process,timeout)
+    deadline=time.monotonic()+max(0,timeout)
+    while True:
+        original(process,max(0,deadline-time.monotonic()))
+        if process.exitcode is not None or time.monotonic()>=deadline:return
+        time.sleep(min(.001,max(0,deadline-time.monotonic())))
+
+
+def stabilize_process_join():
+    """Scope the workaround to this standalone CPU grader interpreter."""
+    from multiprocessing.process import BaseProcess
+    original=BaseProcess.join
+    if getattr(original,'_humaneval_deadline_safe',False):return
+    def joined(self,timeout=None):return deadline_join(original,self,timeout)
+    joined._humaneval_deadline_safe=True
+    BaseProcess.join=joined
 
 
 def load_case(path):
@@ -200,9 +225,15 @@ def grade(case):
     """Use the installed audited multilingual execution runtime, on CPU only."""
     if os.environ.get('CUDA_VISIBLE_DEVICES') not in (None,'','-1'):
         raise ValueError('Grade in the CPU-only contained stage')
+    stabilize_process_join()
     root=Path(case['output']);receipt=json.loads((root/'generation-complete.json').read_text())
-    for key in ('samples','prompt','temperature','top_p','seed','max_new_tokens','context_length','problem_files','model_revision'):
+    for key in ('samples','prompt','temperature','top_p','seed','max_new_tokens','context_length','model_revision'):
         if case[key]!=receipt['case'][key]:raise ValueError('Grading case differs from generation: '+key)
+    if set(case['problem_files'])!=set(receipt['case']['problem_files']):raise ValueError('Grading languages differ')
+    for language,path in case['problem_files'].items():
+        original_path=receipt['case']['problem_files'][language]
+        if case['input_sha256'][path]!=receipt['case']['input_sha256'][original_path]:
+            raise ValueError('Grading dataset differs from generation')
     raw=root/'generations.jsonl'
     if sha(raw)!=receipt['raw_sha256']:raise ValueError('Saved generations changed')
     output=read_jsonl(raw);problems=problems_for(case);by_id={r['task_id']:r for r in problems}
