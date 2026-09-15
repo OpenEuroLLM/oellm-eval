@@ -1,0 +1,1334 @@
+{
+  "version": "v0.01",
+  "source_base": "70fa2a1f7288cf70b8d29f9bd08fb07ed3bcd013",
+  "runtime_audit": {
+    "published_revision": "70fa2a1f7288cf70b8d29f9bd08fb07ed3bcd013",
+    "installed_revision": "df9793006d22dd473ecb682a6fa1b5d6796ef0b4",
+    "standard_runtime_equivalent": true,
+    "changes": [
+      {
+        "status": "M",
+        "path": "containers/check_reference_results.py",
+        "classification": "installation acceptance checker; not a benchmark scorer"
+      },
+      {
+        "status": "A",
+        "path": "docs/humaneval_avg32.md",
+        "classification": "documentation or tests"
+      },
+      {
+        "status": "M",
+        "path": "docs/machines/jupiter/from-scratch.md",
+        "classification": "documentation or tests"
+      },
+      {
+        "status": "A",
+        "path": "oellm/humaneval_sampling.py",
+        "classification": "separate sampled HumanEval entry point; not imported by standard evaluator"
+      },
+      {
+        "status": "A",
+        "path": "tests/test_humaneval_sampling.py",
+        "classification": "documentation or tests"
+      },
+      {
+        "status": "A",
+        "path": "tests/test_humaneval_sampling_runtime.py",
+        "classification": "documentation or tests"
+      },
+      {
+        "status": "M",
+        "path": "tests/test_jupiter_bootstrap.py",
+        "classification": "documentation or tests"
+      }
+    ],
+    "image": "/e/fscratch/e-sta-openeurollm/jj1/eval_integrated_install_20260911/images/oellm-eval-complete-hf-limit.sif",
+    "image_sha256": "c05e2f86de179d5128adf6fab8da3d929398ebdadd9894d38e0f314e2febf4c1",
+    "control_probe": {
+      "oellm_files": 252
+    },
+    "image_probe": {
+      "complete_runtime_files": 19,
+      "manifest_sha256": "a89065789694bedea33b4ea1a16ebd5536f5755f50429ea9f180330d500b5d47"
+    },
+    "package_sha256": {
+      "__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "main.py": "dfbf67edd85cfad4453e098ff4492692012f0e7dc39c8d28a919b8e4ea0fcbef",
+      "resources/clusters.yaml": "f99367707f445a8ab0bb4353313f08857de9ffda5c54c3a21947f52c402dea73",
+      "resources/custom_lm_eval_tasks/arc_mt/arc_challenge_mt_bg.yaml": "984f32c5a8de5c2650e255509e06891f56055a2c41a5c01396c80bf59186d8de",
+      "resources/custom_lm_eval_tasks/arc_mt/arc_challenge_mt_cs.yaml": "0c44c2175bdfb46ce475f4775aa1eead72a564914cdf78f066e56e93120d3a9e",
+      "resources/custom_lm_eval_tasks/arc_mt/arc_challenge_mt_da.yaml": "9b83aa4f36b62bf42ef570d52e3ed2111db4ea675a51b5762a9aa7facaabdea2",
+      "resources/custom_lm_eval_tasks/arc_mt/arc_challenge_mt_de.yaml": "901464a5bd44f3c01a31ee0d79d8ee2ef09cc3aaea9678c8872058a9d38be454",
+      "resources/custom_lm_eval_tasks/arc_mt/arc_challenge_mt_el.yaml": "a1e9bca52f86381271dcdfedd7485f22f5f6a52de1e899c28b6e701f83d595a9",
+      "resources/custom_lm_eval_tasks/arc_mt/arc_challenge_mt_es.yaml": "d6486aa0de8c88d2142e8bac007bc4ff4104e4c6c96f4dfc3407b53fff6cd8e7",
+      "resources/custom_lm_eval_tasks/arc_mt/arc_challenge_mt_et.yaml": "e6a043ffe1a4c6efd54ee76ce1cdb9accdb893ef211027ee579ef6391403966e",
+      "resources/custom_lm_eval_tasks/arc_mt/arc_challenge_mt_fi.yaml": "71678184fab3e59a37054349775bf83f8677ba03c3518ab14ebe98d1f2bd6177",
+      "resources/custom_lm_eval_tasks/arc_mt/arc_challenge_mt_fr.yaml": "0a9ec31a634755dcb71c9f9c79800a81a44b20866a81eadd9d25f11028f78d5e",
+      "resources/custom_lm_eval_tasks/arc_mt/arc_challenge_mt_hu.yaml": "102254a6115b267e8445dd5affe46b320f9601bf9e648fc617d44fa0aa8b8166",
+      "resources/custom_lm_eval_tasks/arc_mt/arc_challenge_mt_is.yaml": "eb067ae4c4e57f1ecf55e0cf9a5e77b1b804d926d529edd809a7f2df0ab2b9b3",
+      "resources/custom_lm_eval_tasks/arc_mt/arc_challenge_mt_it.yaml": "9df7f9d4530c0150b1bc98129a40f7c21a860f21e541026cd0fa32efcc952413",
+      "resources/custom_lm_eval_tasks/arc_mt/arc_challenge_mt_lt.yaml": "a025a386c6f582b6fc5ab755f94590a4e169256feedd4e74fcfb53c574d2183b",
+      "resources/custom_lm_eval_tasks/arc_mt/arc_challenge_mt_lv.yaml": "05ad5be112bb7efbcb6f3fedbf56744d5c5d88b27c8db559fe004fca084a440e",
+      "resources/custom_lm_eval_tasks/arc_mt/arc_challenge_mt_nb.yaml": "053722c7df75d463886ca5301f04ae26fcebacb3f9bd1ae18f52239065abef3d",
+      "resources/custom_lm_eval_tasks/arc_mt/arc_challenge_mt_nl.yaml": "c351faf788bac99cd200d7def288ad6eff218f8494032ac009544746adbe1ab3",
+      "resources/custom_lm_eval_tasks/arc_mt/arc_challenge_mt_pl.yaml": "6ca7fcfa43f99d579d41f8f7afe60b394fc6ee77b8e0e90c87b47c35069df4ef",
+      "resources/custom_lm_eval_tasks/arc_mt/arc_challenge_mt_pt.yaml": "2ff43d14f9ef8d65b92f2b11a49bed5b3844bb0e01b4db3604a644d509209d4b",
+      "resources/custom_lm_eval_tasks/arc_mt/arc_challenge_mt_ro.yaml": "fc16f551b2bbc876a8e8bb8a7dedf84eb25a58a438371bab829dc5770cb66f35",
+      "resources/custom_lm_eval_tasks/arc_mt/arc_challenge_mt_sk.yaml": "944ba2e37665dfed75e7bbf3eca7528189a632363324d40389165b778be13a95",
+      "resources/custom_lm_eval_tasks/arc_mt/arc_challenge_mt_sl.yaml": "9d4099a77b26a6b278a801ededbdbcf69f52c4a97a184125e8152a32c94ef12f",
+      "resources/custom_lm_eval_tasks/arc_mt/arc_challenge_mt_sv.yaml": "39d612c201356c1f4eb957009e1fe23204e6913390ca312a9f8701524a004b40",
+      "resources/custom_lm_eval_tasks/bigbench_generate_until/_generate_until_template_yaml": "cda0fe7d1bc9f66eba1afdfc7fe5e6ab745675ce319d8efec997a924bcccb66c",
+      "resources/custom_lm_eval_tasks/bigbench_generate_until/cs_algorithms.yaml": "efe74fd2dec71888cba2ae90ca02dd4b2aa7be56798a8759dab3fe2b0f072b9d",
+      "resources/custom_lm_eval_tasks/bigbench_generate_until/dyck_languages.yaml": "be8d62768385932c2222a179f67a2d20e1898a7647fede624481cc72ee9d90d2",
+      "resources/custom_lm_eval_tasks/bigbench_generate_until/operators.yaml": "89a3d6fc7c36785f344105ca2b6583d6decf2debc7574d0c33561540f9d82308",
+      "resources/custom_lm_eval_tasks/bigbench_generate_until/qa_wikidata.yaml": "911f04548ef96f3799ff2251dfdfa173b3bf3fc34d619acbd95672738511d7ab",
+      "resources/custom_lm_eval_tasks/bigbench_generate_until/repeat_copy_logic.yaml": "1e9e740cd2bbab9468474b11b971780fa2d845ad62f1604bd50b43d5d3943f49",
+      "resources/custom_lm_eval_tasks/global_mgsm/_global_mgsm_template_yaml": "e6bf957678416a15a19f977748288c0c9f5a724ff61689a9c4eaa2ee062d37d3",
+      "resources/custom_lm_eval_tasks/global_mgsm/global_mgsm_ca.yaml": "3bcbd05fd1639f8e1e6f0aeb94287d7c77b5cde10011873bc7385308ba1693a1",
+      "resources/custom_lm_eval_tasks/global_mgsm/global_mgsm_cs.yaml": "5170074a54c5fbc87b561f65113ffe5610b97b93c84731e7f65f1896bea3fdee",
+      "resources/custom_lm_eval_tasks/global_mgsm/global_mgsm_de.yaml": "cbe4f6c29267b6b0b851295d7893942f2118475a79474601b5d5876610ad99d4",
+      "resources/custom_lm_eval_tasks/global_mgsm/global_mgsm_el.yaml": "c0f96621838c8036835b535bd7621faf998261530ad680161dfc65ef0f6b5980",
+      "resources/custom_lm_eval_tasks/global_mgsm/global_mgsm_en.yaml": "1d6bfe6c828a8b851412d38f9f05b065464a0757318c5636d4b2139402791edc",
+      "resources/custom_lm_eval_tasks/global_mgsm/global_mgsm_es.yaml": "0ae3a24f012af18ae7e777b01cd0d3e962c59be071e08f725a7a600424b08a9e",
+      "resources/custom_lm_eval_tasks/global_mgsm/global_mgsm_eu.yaml": "b89ce24f54c2c547c8f668218c5a2abb1eab645d51628235a5376c9b50acb168",
+      "resources/custom_lm_eval_tasks/global_mgsm/global_mgsm_fr.yaml": "44a57c37f5bcbeed4e7abfe1dd8d5e6248f5f4a7136f7706dc427fd18ff3e94b",
+      "resources/custom_lm_eval_tasks/global_mgsm/global_mgsm_gl.yaml": "34f481b5b8861e03627498f9f543162e54efcab5db3f6b8649d3f3d08c1786b5",
+      "resources/custom_lm_eval_tasks/global_mgsm/global_mgsm_hu.yaml": "058dd0e417c1ec5e3b99efdb3a295de029a2212abe07d2c9cd84bae722614636",
+      "resources/custom_lm_eval_tasks/global_mgsm/global_mgsm_sr.yaml": "808f632b95b2bca506c5ffaee7a9591dfd8670c36daf8f386b193adc01d96f86",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/_template": "96d61d1e69c0b310d050613306299c89af6e85357708c4b9dd8b15254fe5c955",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/als_latn.yaml": "06b67c9a4674f8f9a8b714484a7b7c4108b4289143e827d6a2227410b56b22b6",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/bos_latn.yaml": "d5d2e9627ebfd3f0e467e719837d36cdfc0e631f217c93d8e07a7acb49227494",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/bul_cyrl.yaml": "9c5826f3dfc9fe5f71890f7505860ceb01adf530304fdde2092216a687c1ccdd",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/cat_latn.yaml": "a8ba8e27707fd57a15484d8393a1ebe1d63ac687beabb9315c0ec0f3cd774e87",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/ces_latn.yaml": "df53c8dd91e2d07c2471c7c5503956a2df980ac3ad579a8659b25a3a118a2f71",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/deu_latn.yaml": "38d084675129ba9de5df7557f249d435c26cab31eed7368d9d0c0aeb7337a579",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/ekk_latn.yaml": "522fff12f745490cf86a00d7587d2f44ed0dfc6e1814e68701a588c307129dea",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/ell_grek.yaml": "34237444f70962db635f55956cdf0276e286bed6c75ee50b9bd4f6c558abf549",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/eng_latn.yaml": "87d9edc26f567f986a41812187fcbe976df524734ca68037cefd262bb42b5abb",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/fin_latn.yaml": "1fe09a93b41dbcd0516b5e831e350bb3c1b5d3aeba42d768b290d43111e10907",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/fra_latn_fran.yaml": "e915b3ca3656056dfa15385141e40d8f02857ccb97a942583ff802fb08c1434a",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/glg_latn.yaml": "c0fc297fedcd969d4f65c830006a8c45a862fddcef663a1aec5fd0dcb6c6ffd6",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/hrv_latn.yaml": "d1fbbdcfd9ef7b64a0b9b4d9456db5650bd91b7bf65b7634b8b83ed29af2215e",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/hun_latn.yaml": "40a13ff1c0e9f15a1f5df04bac3609a799f9117057e61e41e4a3df5c262a9708",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/isl_latn.yaml": "d63064cadcf381fe060d93a62e4698cb9c37916230d94b23bee79711995c74ca",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/ita_latn.yaml": "e68e2c273f9948c46974e99c89f5ff35029fe5b296660081438a1d7efc9bf13d",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/kat_geor.yaml": "11b2bd1cbc2c2912eba55181b6f9de5905dc304a5f8980643ce29b4c5c38ec38",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/lit_latn.yaml": "c3cbba9e1d184e2010b0f57bd173f51538cc3da9a467a0cf52def6bbdb70d748",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/mkd_cyrl.yaml": "d1b39aa7da9cc86e6f3340268dd1a246e035b871ed8e9e7bf20c8f8f2aee5b5e",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/nld_latn.yaml": "0f27f326b1d43cca1991a83887fd0fd48fe2e9c93aa3ba7bf94c3cad6468d562",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/nno_latn.yaml": "99487190f8e56fb71e0c09fa06c5c7f1e749333cc8cb9b981b2ea9593cfa9b07",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/nob_latn.yaml": "f4bf6d3a4c2fafcfb0772c71814035af6369f4b5f4df59026a9b0d655bb90302",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/pol_latn.yaml": "5c5895e176dc73a1c8f856e9dae909a271c1559ae6e9c9e7b55932020d110fdd",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/por_latn_port.yaml": "e26f7486d8602ab6e3b392ec1da4f0881d60530120a50d8ecf9a660bfa03dae3",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/ron_latn.yaml": "f31255146409e6e526288d2587f94d2605c93049a03d2bf8e7f20c8e5d611c84",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/slk_latn.yaml": "1e78fefade0b600485b5f34098c5fcf84b0c1de9313649a948d649c57b936baf",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/slv_latn.yaml": "b90fc62c641ca27da21ff91861084137adba0413297f22f64afcb9f41ba65b7d",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/spa_latn_spai.yaml": "33f5e932dc3f30440a1e60946ee9209a83b2e7f3f4915d4a5795a8f9ec4226e3",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/srp_cyrl.yaml": "b42a5d2542c12610d874521fcf518f46c5c92f59e84c834aa26c9f80226c50b1",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/swe_latn.yaml": "abbd057d52c9ff4b62f084c4e5e48ce1e40d303df6d49e36a558a52e7ef2cd1d",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/tur_latn.yaml": "4f0b3ea5e8dd170e9495ab583e84d6a7cf046a42b0d096ad87918d7c131741d4",
+      "resources/custom_lm_eval_tasks/global_piqa/completions/ukr_cyrl.yaml": "86aee57927de91e3b852977b7931b13a1e7b6fcac47d3f31f3f9f2393863c328",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/_template": "85f0fdcb15f3498f674be1a0c2033ce54c83fa494b607fe12a8a6386650da4b9",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/als_latn.yaml": "83cf1ce26692a84df7193cb653a1d8ffbc06b77ff45b364ba4463c9380bef903",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/bos_latn.yaml": "499fc433de215d55ca7655dc57c4d1c9cbb7e6c49988bb13297c50f42ac40dae",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/bul_cyrl.yaml": "8ab2c2b5feba2b13dc7cf2241760788151937e5a99235607da128bf377ea1bc3",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/cat_latn.yaml": "57caaa5113bdfdb83e04aefeaf3a39a41863ce7cb2eb192ff397704d6de034c1",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/ces_latn.yaml": "2a262cacaa89560fe65f21f22e62da4a9c049f694d87413b67ff2bbcd4e42106",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/deu_latn.yaml": "15b6bcfd1d84d5c6b47258964cd9faa75f6d0d5207083d43050fe41e7d0e1af4",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/ekk_latn.yaml": "198728166c53c85c6e1febe1ad4467f638e6bca52ce98d7bddd1b78abf95899a",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/ell_grek.yaml": "709013d8b0b899047bde57af4fd1b99a0a5240df08a246e9a4611c55e321fa33",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/eng_latn.yaml": "39abf6cbf57c8abc0ebe56e9c7a04c53a7d2708b6c5add64e01ac32c9b6dff79",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/fin_latn.yaml": "cfac4cd3089f2a2da10b5cf5820805af9d4a688210272a0922d1d03177732af8",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/fra_latn_fran.yaml": "a3cb78bde27780905478b5b999c38432a8e6ebee354cc19f5d3550d711b3d9fc",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/glg_latn.yaml": "65f9d05fddd6d5a76cc34caeaf6eef50f844b31d50b33c553202eaf8717b05ca",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/hrv_latn.yaml": "7426bceee57cc824fdabf99df4893e150c14afdf086e19b0e36f05ee750ae163",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/hun_latn.yaml": "24bf935ec831bb9b6a17d1c24f0f7e6585d0aab8a3e10e79d7f0df29d3d04bbd",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/isl_latn.yaml": "ca4d3f4cf060ed741f96948b8f6668c276a82f6b9d5b40713c0cda426c85bdba",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/ita_latn.yaml": "33e6a6d71b47a7305e3ced6254b0604b24290d5816e552600f9fd847e8ff6e1f",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/kat_geor.yaml": "e8d7e67b8f940886f9363b87ef3975fb9031792c61a7f4ae5c527053964c00b9",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/lit_latn.yaml": "08de265470b4b4a13afe4789f68d5a42ead95fd59ae9613c650297aef549cc5a",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/mkd_cyrl.yaml": "43cdcebd0c7d783676bf749bd846286f721b3cdbc62efc65e2629e3d0fd6ed7b",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/nld_latn.yaml": "4e8012956ff94e9a101d9b4bb692390fea776beca89cb5237abe4da22f647db8",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/nno_latn.yaml": "d2c1396c192b9ab90c80299810a4596f941f48b67a0e388caf0646f2e1984b1a",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/nob_latn.yaml": "3543bed199bb42f3a1d15a7fbd0759922ad87f1ed5d12a7fddc3937008cf8a5f",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/pol_latn.yaml": "82cfe008307714cafb149601f2f26b6335673518823bf2f1a5fccc4425a83098",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/por_latn_port.yaml": "187ad3747f2c01a16d06acbf4fb724c8a1692bc1f25d338c0232c80a8478b4e6",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/ron_latn.yaml": "caba67b0ca4bd8c7de75f66c515ea86e3248ee301370d7e1d02bd8d63e8620ba",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/slk_latn.yaml": "dc9bf3749e0d10583b0a4d08b897df9b4e91dc348b0a4028039c53ad308d0f2b",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/slv_latn.yaml": "ae5d62e1c7cba92d86aec66de592174008078bd9d22da57b94197f8f0c64abc9",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/spa_latn_spai.yaml": "06ed621f1ee843dd233e8833deefb644f91d177c51e3238a37d050d3d5bbbd4c",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/srp_cyrl.yaml": "be4b9f4e8823ba950dfa4631c9bd7e7426c6b0d359bcc6e274312fd2a40c2d0c",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/swe_latn.yaml": "1d1b50d293abd9f538e1a75683331d327562e1ea0f4620d5e03db796dd8d6ef8",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/tur_latn.yaml": "b6e14ea26d6c9d7f8eb054f9e6f4d4bb9f6e7b5d7ded291c167a50fc6e2226d8",
+      "resources/custom_lm_eval_tasks/global_piqa/prompted/ukr_cyrl.yaml": "9acba211f07fde75f7066d466de5ac9fad3216230c62ac1bb10c345964e929df",
+      "resources/custom_lm_eval_tasks/jeopardy.yaml": "b0e869d1f996eacedf83ee471370d8d9b65e4043391fa451255e1c994660f29f",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/_opensubtitles_multi40_common.yaml": "4394e5e192d232d292661728acb54803bcc3fc6062cfacd6dc127318bbb57541",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/bg_to_en.yaml": "09120a2161fd01f55641b73217a9bd65c82da3f610b0645ec74898e97b9cedf9",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/cs_to_en.yaml": "41bd9c210d67a4c24a6d515c003ed2086f5bcffa153cb05edd41f6094aeb0dca",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/da_to_en.yaml": "1a5b6fe0d71319cc9ebbbaa7a8fe1bb5fd471ef581028d68d8ae315b7ee9741c",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/de_to_en.yaml": "267d2787f381a8c551e222f8633316e35dbbcd1b9d9cf510b849fdff4e9555c3",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/el_to_en.yaml": "59959ef1621b7a27dd5cae5a0c3198808639f6109fe3e60f95f6d60facf2f089",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/en_to_bg.yaml": "5adaba0747e2c61abf191fa74683939c17171be28a76eeeb9c342a8ee289e2f7",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/en_to_cs.yaml": "c75b7e1af064d79d85d5bfdca4eab211cf52a03cde278e203fc4af08f0c47648",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/en_to_da.yaml": "960d21e0b242826051dbf3cd7814d5d4e461ada0ca58ceaf17b4614ef8c66339",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/en_to_de.yaml": "60bc125f1cb64302ed38dc775b79e123203db5605d633d6864ec632cedb83f6a",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/en_to_el.yaml": "0174a0585ba2905a0ef823d4fe063127872eb82e7533c69592f7fe0fc6b3b6b9",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/en_to_es.yaml": "ef23e6c7f303a4d9fe18bf48d9bbf1df0e6181cb7775acf8d5450928855e26f0",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/en_to_et.yaml": "c9505ff12161829aefc2fb04dd8ac5c2d79aa3b6ac4638570ae553c017f371ea",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/en_to_fi.yaml": "5af106aab14ac77ec1d2036c2ec85cee19a6c37050d08d71f413212307f5f9df",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/en_to_fr.yaml": "60d4d5f741fb88517bddd839b0a6646abb203c46b6918bb7edd6fb4f8b2dc386",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/en_to_hr.yaml": "c8a282f865a7debdc803aefefd3011492ff93cb5f2909b41d6dc82b58b33f291",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/en_to_hu.yaml": "ca28b53597560a442d014b93adf8cb5fe0e58816801e16b726c4d4ae7ea52898",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/en_to_it.yaml": "595ec1b2c1fe6e06232fa76984076babf945bd7713bdefaa5c6f43f56f569ff4",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/en_to_lt.yaml": "1271142c8ad67d594acd1915dc880f926c9ffa4b2e13cd136f263872bb10e5a9",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/en_to_lv.yaml": "84cb07e6ab447af442d6a9cc1ed083e7db3623c7710a03c5e69f302aceb5556a",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/en_to_nl.yaml": "861c94e02b9a0ca300814d95a74c16a64e74e4c8b28418ac3e5e40edd3dd92e2",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/en_to_no.yaml": "e2d15f72c48e14a21b7ac4a771a2707ef706b0f5b3990ae882c7e9cf05e9df2c",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/en_to_pl.yaml": "0ffe17a8e3bbd647365a4654a988bb34f905c86ed73c9c7316a9e0a1b8ef637a",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/en_to_pt.yaml": "21dad19dbc55ac7dec53e9ddff3578b75de1c7d013a12831a86e65ccbbd1161c",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/en_to_ro.yaml": "11ad3b8682d7e802a07cdf2e5a5da8840f86919b086f40754ae602818d999868",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/en_to_sk.yaml": "875e663b0cd7500150bc74488452edfefcff53609d47bb55e0bd00556e453e31",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/en_to_sl.yaml": "4fe3c484350ffb132f70558a3af1af74bbf3cfc4c50c1543134fd3e86fd20aa5",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/en_to_sr.yaml": "5284257c96d181a692f4e702d4bd95759211e237eb155f6724d18108389f83ae",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/en_to_sv.yaml": "3c0050d538524caaf193cec9d9d83f68ed536e4e4655c5732be35ee5a5af0f26",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/en_to_tr.yaml": "b37578f6470f14dd974ec033b70b28a3b268bf85c1b32e58e8f239aacea17d49",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/en_to_uk.yaml": "733556232e61188d3fe9ece0ebbedc406749ed7eeed5a5d7e0c6046a3117ea79",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/es_to_en.yaml": "1305c9afa22dc499c8ef5029ed055f9dfb3a2fa12663ff5e487222417af8ec7a",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/et_to_en.yaml": "edb089b0786b99992fb54dd803f611aec232039960d31b3cd42c1805ef545869",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/fi_to_en.yaml": "2043c10bf360e2406119581376e0a476df9e768e1e9e672feda204177efe1dda",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/fr_to_en.yaml": "1557c7645d8407dd84a357bf3a5fd4535bdf5b874bba62299ae5281b332c8e7d",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/hr_to_en.yaml": "3e52644a6d7ab6edc071682e56a5fa7f09b590a015b0c3907e103b38df537bc2",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/hu_to_en.yaml": "433b54b08f979c7a0359a35c1b1fd96de91b15ea868a5ce5521ec839006f7cce",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/it_to_en.yaml": "e1412a3338af3e5a15c8a94b37bcfd81b3a7afda17fe9dbb11ed0fbb6295af0c",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/lt_to_en.yaml": "ca4e99ffdd5233386c6a392b938402187a5843399d6d33fea3f83d404cdf3d62",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/lv_to_en.yaml": "4f3871beb53c5c0767931766c7000c923277e8161896c2a42c7b8f8d67251d2b",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/nl_to_en.yaml": "def568508e34760769e3852f79ffbb5f66450e9c1964f7c5929685f01743a8d2",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/no_to_en.yaml": "764520348eab472b3c8222edc2cd85de16906c78980e271b6e31b470363c0974",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/pl_to_en.yaml": "516f8dae4e80edd49389cea83eb9053cffea36c2506293b599adbff277e02969",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/pt_to_en.yaml": "7da58abe16206b30e85d726746f5a1299559263ad2b0e408aa86f1e820544e8c",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/ro_to_en.yaml": "1fd19a9aac6ffa0325f029a287b0dbe468ebe85601dae1603e70577ceadc965c",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/sk_to_en.yaml": "a8bb71c3f4e5181b3e692167112fe6c7b9064c324ddc9ecfda1f864bce529a98",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/sl_to_en.yaml": "839419b0dae1f0b6d9d792faa11182b43c2b2a4473968e4868880b8159fda79a",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/sr_to_en.yaml": "a00ffa176bb07176907c475be8954181748176ccd76dc337db1eb50a27481e38",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/sv_to_en.yaml": "16a9bdb74c7a71ab3cac20aae4eafc6ac049eed8367f002ae49045d53ea033a1",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/tr_to_en.yaml": "d779f50d7f83109fa1d3256508acaef3f5439d2726927a338ded0cc41231add8",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/pairs/uk_to_en.yaml": "fdec206b535106c3c39cedf2bd8fa2ac4eb99073aa11ff9f5faabac351fd0059",
+      "resources/custom_lm_eval_tasks/opensubtitles_multi40/utils.py": "cad922d2138ae75d0719fb2ec02bc5721978918624ec01457619530129cd4ad5",
+      "resources/custom_lm_eval_tasks/pawsx/_default_template_yaml": "709a92434c3407a4924e99d76216730627773143b2347d724c880f1403de2105",
+      "resources/custom_lm_eval_tasks/pawsx/pawsx_deu_Latn.yaml": "671aff433f8c414e6d411dccd59fd5f257dc48a5024a0aaf21f604b6cf70e5c5",
+      "resources/custom_lm_eval_tasks/pawsx/pawsx_eng_Latn.yaml": "9a5d695e854319672ae7fde0c206dd3c1cdb52aa93713745ca4ab7960f9913fc",
+      "resources/custom_lm_eval_tasks/pawsx/pawsx_fra_Latn.yaml": "bd2f88c21c7f972259b2cd9eca598b63a9b9c890f4fb587499dfbe890d234280",
+      "resources/custom_lm_eval_tasks/pawsx/pawsx_spa_Latn.yaml": "956429ebe46ceb466b5c68696575965aba974e28055ffec889ff61f9e35fcf28",
+      "resources/custom_lm_eval_tasks/pawsx/utils.py": "1e26411173be052384f1d7d3308e6c5bd19af13702bc270bfd0adf08b91c66da",
+      "resources/custom_lm_eval_tasks/polymath/_default_template_yaml": "3441d21b094085881044c35965830a7ce4b032456fb73ce3992c972e16517e72",
+      "resources/custom_lm_eval_tasks/polymath/polymath_de_high.yaml": "77dd97cd99ecdf679ce4efd7899a9402d50684b589e238e57bd162dd5f8d4eb6",
+      "resources/custom_lm_eval_tasks/polymath/polymath_de_low.yaml": "253e8966a18ff4809bbf4ca79ff2818b312b76db54392a82d65ea073934ee1d6",
+      "resources/custom_lm_eval_tasks/polymath/polymath_de_medium.yaml": "175a9682501142e77f3cbf0617fe64eed87da02e9df2724e1eceec500c4876d1",
+      "resources/custom_lm_eval_tasks/polymath/polymath_de_top.yaml": "0023fa0dfe962733b0fe21b2b668bdf2bfe4451df326174af9194725f8b53952",
+      "resources/custom_lm_eval_tasks/polymath/polymath_en_high.yaml": "51c854d430826cd3bf604a0b9b54fcfb16042b1ebbc8f05a027e7548f53bed6f",
+      "resources/custom_lm_eval_tasks/polymath/polymath_en_low.yaml": "7317659454c3664ed2bd92f7ee38b92b87ab65b91155f29e30b398f594c81486",
+      "resources/custom_lm_eval_tasks/polymath/polymath_en_medium.yaml": "9eeb6a1d5784eaea87dbcbba79f0522b0c4da57f7be6bdb2ca847c2047078748",
+      "resources/custom_lm_eval_tasks/polymath/polymath_en_top.yaml": "38a2d5d56111ac3c8d190709e0a24ea063ab35db0a841efda2295c2412b85c48",
+      "resources/custom_lm_eval_tasks/polymath/polymath_es_high.yaml": "b4c15cb6881892eb4b33547020c252c713061d5cd352a8bbd2c8cb09a6a184cf",
+      "resources/custom_lm_eval_tasks/polymath/polymath_es_low.yaml": "b515d036993e8d5f9c5aefd80417a262fb66aa85783ee3ded71428d58dea5c7b",
+      "resources/custom_lm_eval_tasks/polymath/polymath_es_medium.yaml": "018c129315e51d0514ff992bc336274a7928df2cde0c729929e0dbe8f621a4df",
+      "resources/custom_lm_eval_tasks/polymath/polymath_es_top.yaml": "ddf79be1105c7247b9f47ed08c0752ec6d92729cad9de051287925a5254ffbd1",
+      "resources/custom_lm_eval_tasks/polymath/polymath_eval.py": "42fb97fe9e58a23777d374e7b45a92ccbbd4bfbcaf435bd99ab88e5023b40fdc",
+      "resources/custom_lm_eval_tasks/polymath/polymath_fr_high.yaml": "f7584a58c51753bd294c09bdbc93811c2f0f20b00cf7b36b002d45b0d688b328",
+      "resources/custom_lm_eval_tasks/polymath/polymath_fr_low.yaml": "a015bfb922b6c813ef7a6de0a526892840b761bd46f691118cdff0023f4a32c6",
+      "resources/custom_lm_eval_tasks/polymath/polymath_fr_medium.yaml": "599d2d17c1368fdfd4eb7343dfd8424af933ccc9ba7700ec8fdf3b161cb7abfd",
+      "resources/custom_lm_eval_tasks/polymath/polymath_fr_top.yaml": "c849a4220708c27b0ce4cc3da587999aff19e06349934ebaf54423d96c64b5eb",
+      "resources/custom_lm_eval_tasks/polymath/polymath_it_high.yaml": "a4a56fbadfe46acab3b00f7c6e19c03038a245f51d795dcce37cd97f96c0c7f4",
+      "resources/custom_lm_eval_tasks/polymath/polymath_it_low.yaml": "3f81b3d8fcf3ca9dbd123d1ef2ad9a584ae3ae9f9c47a81838acb2cd63493c2d",
+      "resources/custom_lm_eval_tasks/polymath/polymath_it_medium.yaml": "e9f612c2b4a82ceed0017d167b8937a62553cbab8ad1eefe9c3d3b0f24874433",
+      "resources/custom_lm_eval_tasks/polymath/polymath_it_top.yaml": "0d74952fd40d749b86720622cf8563c5e39fbcfd83c8442789991c7509c11a99",
+      "resources/custom_lm_eval_tasks/polymath/polymath_pt_high.yaml": "45163826fa59deef35ca6c0929d935250d71596d80cc915ca996aff019e86b3d",
+      "resources/custom_lm_eval_tasks/polymath/polymath_pt_low.yaml": "faccc1c5a35a7db81c01b5df9b63c6f46933dae554fc28c17b192e38f822c4aa",
+      "resources/custom_lm_eval_tasks/polymath/polymath_pt_medium.yaml": "6a26455f99cc7f2d9539d612b5632000115ce2728579e4b66071bc4c20cd57d4",
+      "resources/custom_lm_eval_tasks/polymath/polymath_pt_top.yaml": "b224a26530d3a95e3c3c81b190690919d2be6d7d75080f27c490db93e43096b1",
+      "resources/custom_lm_eval_tasks/polymath/utils.py": "7933c1d845f82bfb89012a5542af9e5e3c0a94e8a9f1d1e65f389a3aa8d88205",
+      "resources/custom_lm_eval_tasks/sib200/_default_template_yaml": "28266fa340160554c335b97d22e37545da9536f95ba16206f6919c4e4675e249",
+      "resources/custom_lm_eval_tasks/sib200/sib200_als_Latn.yaml": "41bd30befcf5497bbffa28bae44483157abdfca0ea299fe4159afc19d18526ef",
+      "resources/custom_lm_eval_tasks/sib200/sib200_bos_Latn.yaml": "96ee922c1dce66537315c393610a0f43ce75f9727317e6914b17b06e069e0bc6",
+      "resources/custom_lm_eval_tasks/sib200/sib200_bul_Cyrl.yaml": "071961c815442a148db3b19cfd2b3cdba51447f529f83bd2cf2b7ece408cc955",
+      "resources/custom_lm_eval_tasks/sib200/sib200_cat_Latn.yaml": "eb33de377fe9c01a038da6f50c85c9def5e7afe1b0dfb4ce9fd00f108ea99a1c",
+      "resources/custom_lm_eval_tasks/sib200/sib200_ces_Latn.yaml": "003bb21cda7439000d8ff8ab0d265f3aed10911ca6d061f4e794d50822816cf6",
+      "resources/custom_lm_eval_tasks/sib200/sib200_dan_Latn.yaml": "ec6e9a5f1cee168f5f670396c0443497a4dd1d4a1873b732210da928187468a8",
+      "resources/custom_lm_eval_tasks/sib200/sib200_deu_Latn.yaml": "7dda0de17a7484ebaf4ea3f4705c5944aed06d72317f3240063ac6f9e7828813",
+      "resources/custom_lm_eval_tasks/sib200/sib200_ell_Grek.yaml": "8ef214f637e474630dee05d744fc1ea72bc0f9a47660b0f4c1905398fa54c536",
+      "resources/custom_lm_eval_tasks/sib200/sib200_eng_Latn.yaml": "09904b9d63c32f2de94baac3d52b191657eb874ce9a02d02eb0b1dcccb0dddb3",
+      "resources/custom_lm_eval_tasks/sib200/sib200_est_Latn.yaml": "335badb951a120fc0dc247142fcd747cd213f0b6f67b74e78218c62cb1a40bd8",
+      "resources/custom_lm_eval_tasks/sib200/sib200_eus_Latn.yaml": "82a849e35c0c6878ad76dd0154d2fe315a17ee4090ba9112f86fa42e7d2a57f3",
+      "resources/custom_lm_eval_tasks/sib200/sib200_fin_Latn.yaml": "df4ecc2cd481f57e5850513731bfdeeff1e438194a10b0ab9fc303cc21b3e52f",
+      "resources/custom_lm_eval_tasks/sib200/sib200_fra_Latn.yaml": "99f35fc9269b675ac153f61e419e465032d9371c48be603e8f494a1aa2f702b3",
+      "resources/custom_lm_eval_tasks/sib200/sib200_gle_Latn.yaml": "e317175df07394e2ad4fc61515d67bc878b217290dbebb1cf2dce8a9a35e71a2",
+      "resources/custom_lm_eval_tasks/sib200/sib200_glg_Latn.yaml": "06043b89f48fa9127f6c0f2038431f5cb0b7c5dc0f82a0459e4c5167725f9642",
+      "resources/custom_lm_eval_tasks/sib200/sib200_hrv_Latn.yaml": "04c80d889574b1b50a9dc511c8f6888de838e145e941c57920acaf5393733841",
+      "resources/custom_lm_eval_tasks/sib200/sib200_hun_Latn.yaml": "b832021e6b4a0cfe8526052f32c6301a01a09c226cfdf0cb708bb7f6e3b19345",
+      "resources/custom_lm_eval_tasks/sib200/sib200_isl_Latn.yaml": "18ff1884ebd627793c7747c122400d04e7ecba3435b91d672e1c6197d21d3dba",
+      "resources/custom_lm_eval_tasks/sib200/sib200_ita_Latn.yaml": "480f0992b23cabb8ab1fe2b390b13e1a4db3941155eb32120ba3b105f17b4048",
+      "resources/custom_lm_eval_tasks/sib200/sib200_kat_Geor.yaml": "5c0c886578672814e8bd8f1bad6e8217793bf287e8b82cc645c686f2f8728b4d",
+      "resources/custom_lm_eval_tasks/sib200/sib200_lit_Latn.yaml": "d75c0ad1c3f7d001b0b43fe62d68b01bf511a53296fd934951cf3b917632440e",
+      "resources/custom_lm_eval_tasks/sib200/sib200_lvs_Latn.yaml": "1b484c31a12dd749dcd925d101b2a572226633f595f777fbe6bef000cfc6f56a",
+      "resources/custom_lm_eval_tasks/sib200/sib200_mkd_Cyrl.yaml": "6daee80b73bfc9e521d6b1cfab021ad33382754935d2bb3e364a0c329f3f91d0",
+      "resources/custom_lm_eval_tasks/sib200/sib200_mlt_Latn.yaml": "a380d7a642aae740166eae567f69488d43c175a40ec113de0e4ffd11351d5da8",
+      "resources/custom_lm_eval_tasks/sib200/sib200_nld_Latn.yaml": "72abc43845d14bbcaf4fe0d308967ae4077dadc9b11fc3b523dcc0559e8b180e",
+      "resources/custom_lm_eval_tasks/sib200/sib200_nob_Latn.yaml": "0e758c6b4c63ff61aecddfe77483c85980f85b0a54368374bb1cfec4a0916e32",
+      "resources/custom_lm_eval_tasks/sib200/sib200_pol_Latn.yaml": "0088fce4a078794d14d05334d41ba0158553c053c83d1a57b80a8953c31ccab4",
+      "resources/custom_lm_eval_tasks/sib200/sib200_por_Latn.yaml": "a5bf0252d8ff89fcfa4e44d2c6ffa67a27a0e4cac8f90c89ba7fa7b078a03dce",
+      "resources/custom_lm_eval_tasks/sib200/sib200_ron_Latn.yaml": "93eb9159d6b182213f7904bebf6ef51bf06f5391961512f57d26acf8fb7c7c6f",
+      "resources/custom_lm_eval_tasks/sib200/sib200_slk_Latn.yaml": "6c4ab71c2dfcf22836d0c44c22f145e8b6011ec1702dcb61abf4843c2332900b",
+      "resources/custom_lm_eval_tasks/sib200/sib200_slv_Latn.yaml": "fa72e6f65e41e96770b60bc7e13f6d5bb1b0de9101355b7afdd6e2c1ce14698d",
+      "resources/custom_lm_eval_tasks/sib200/sib200_spa_Latn.yaml": "2492e0850e9f190d5e05b6a30b8dd4bb0cbce31076ea5a6400fe08c3f62a2582",
+      "resources/custom_lm_eval_tasks/sib200/sib200_srp_Cyrl.yaml": "d490b48e557069659f8abb89992558a7c18d0f32d76814ca07d56fe3015d182a",
+      "resources/custom_lm_eval_tasks/sib200/sib200_swe_Latn.yaml": "20139819ed8c146cc2f4c584d24bafb2c1a2c2993f8cc8cd93b7887b8f9cc9b2",
+      "resources/custom_lm_eval_tasks/sib200/sib200_tur_Latn.yaml": "d1d52c5ebd1f57bf042ecf73e7b5b3120da6b56e81ccd9657bc0151b6dc1d13d",
+      "resources/custom_lm_eval_tasks/sib200/sib200_ukr_Cyrl.yaml": "a6f727f946085af06ec98948723c26c0d218e1464485434509a8211ef3de726a",
+      "resources/custom_lm_eval_tasks/xcsqa/_default_template_yaml": "bf9b64452665b3eec97c1f3f2d80c0dfc4ef89b3d5799c3a770030e2f6414983",
+      "resources/custom_lm_eval_tasks/xcsqa/xcsqa_deu_Latn.yaml": "783684adf3b3fa0c32a88ee0ebc65caa01ffc579b6d97b53a86163d80c01333a",
+      "resources/custom_lm_eval_tasks/xcsqa/xcsqa_eng_Latn.yaml": "278018f73b5e63969517dfedfd19d62a16edb3bd8e7ad155879a56bd93736b0d",
+      "resources/custom_lm_eval_tasks/xcsqa/xcsqa_fra_Latn.yaml": "2a5f540c8cd577742e8a3da62b64de634a629ac329d9609880fe856a57af9d37",
+      "resources/custom_lm_eval_tasks/xcsqa/xcsqa_ita_Latn.yaml": "73e7e5168e66e8846c932e0233a32ee3b98df24a2e86c8f2498ab86386557477",
+      "resources/custom_lm_eval_tasks/xcsqa/xcsqa_nld_Latn.yaml": "1a8af8e2972f731b2d88c69e5a69aa054f5a93f667d85b9404062f20a21c24ac",
+      "resources/custom_lm_eval_tasks/xcsqa/xcsqa_pol_Latn.yaml": "ecb22ef255276b0434fca49fe84e3ecd76ca605842c200a852e83a3eae95f31d",
+      "resources/custom_lm_eval_tasks/xcsqa/xcsqa_por_Latn.yaml": "1c3870daf0db155ee72ee056ef24f5bf66da544d9af59ca9e7fc39beed1bc47c",
+      "resources/custom_lm_eval_tasks/xcsqa/xcsqa_spa_Latn.yaml": "27841fe3dc404b0fe8b92752577c7a40590f427c9d0d38be55c58fce19c44805",
+      "resources/custom_lm_eval_tasks/xnli/_default_template_yaml": "90a188fd5a948473b9c1fd3e5e725bc625ccb8260fdf39cb949662b38dacb749",
+      "resources/custom_lm_eval_tasks/xnli/xnli_bul_Cyrl.yaml": "e1d29890f6058864bff16b583786c7a8e468b4640b3987c4243bc65dbfec14d6",
+      "resources/custom_lm_eval_tasks/xnli/xnli_deu_Latn.yaml": "6ca5312c011b9d02fe64dfa79cb03ff2454082fd74d088e567c192840ece5673",
+      "resources/custom_lm_eval_tasks/xnli/xnli_ell_Grek.yaml": "25ac166bdefd625ff37c326cd874304145c002008b61b341df6a0701fe11e8eb",
+      "resources/custom_lm_eval_tasks/xnli/xnli_eng_Latn.yaml": "d1e65cb95a39f657012364d4c82069f0217308825ca6e855bdbe19f638d3e432",
+      "resources/custom_lm_eval_tasks/xnli/xnli_fra_Latn.yaml": "519f3d8c7868c98280071f5442286fb7ce845eaeaa37aca4d39e790cc2c18f13",
+      "resources/custom_lm_eval_tasks/xnli/xnli_spa_Latn.yaml": "ca6ecb3b572dc575a7e835a140521509b7e480c0018f1c8d6b8a6beb547f2966",
+      "resources/task-groups.yaml": "d43470429608805270d566649b85650d6f41bf94355035b2741c4c2c8c1f72cb",
+      "resources/template.sbatch": "b4cde4c3be007508f7fce0f6b50ba9c31704d045b6bed4bb9fa16ad58d132dbf",
+      "task_groups.py": "349e2cea5bde47161caf8db36d476d2b04bd864abc9b988a35ad2fc4121b16ce",
+      "utils.py": "79bc976d7e534ff2958a440fdb04ddb1067427fa374bf9053eae3ef813bd95be"
+    },
+    "profile": "/e/scratch/e-ext-2025e02-108/jitsev1/eval_ext/external_trajectory_20260915-v2/base-profile.json",
+    "limitation": "Equivalence of the standard evaluator, not execution of the new optional avg@32 protocol and not reproduction of model-author scores."
+  },
+  "standard_suite": {
+    "checkpoint": "regular B1/B2 64k\u201378k",
+    "source_revision": "df9793006d22dd473ecb682a6fa1b5d6796ef0b4",
+    "groups": [
+      "open-sci-0.01",
+      "dclm-core-22",
+      "belebele-eu-5-shot",
+      "global-mmlu-eu",
+      "reasoning"
+    ],
+    "tasks": [
+      {
+        "task": "copa",
+        "n_shot": 0,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "open-sci-0.01",
+          "dclm-core-22"
+        ],
+        "registry": {
+          "task": "copa",
+          "n_shot": 0,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "social_iqa",
+        "n_shot": 0,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "open-sci-0.01"
+        ],
+        "registry": {
+          "task": "social_iqa",
+          "n_shot": 0,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "openbookqa",
+        "n_shot": 0,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "open-sci-0.01",
+          "dclm-core-22"
+        ],
+        "registry": {
+          "task": "openbookqa",
+          "n_shot": 0,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "lambada_openai",
+        "n_shot": 0,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "open-sci-0.01",
+          "dclm-core-22"
+        ],
+        "registry": {
+          "task": "lambada_openai",
+          "n_shot": 0,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "winogrande",
+        "n_shot": 0,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "open-sci-0.01",
+          "dclm-core-22"
+        ],
+        "registry": {
+          "task": "winogrande",
+          "n_shot": 0,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "mmlu",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "open-sci-0.01"
+        ],
+        "registry": {
+          "task": "mmlu",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "hellaswag",
+        "n_shot": 10,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "open-sci-0.01",
+          "dclm-core-22"
+        ],
+        "registry": {
+          "task": "hellaswag",
+          "n_shot": 10,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "arc_easy",
+        "n_shot": 10,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "open-sci-0.01",
+          "dclm-core-22"
+        ],
+        "registry": {
+          "task": "arc_easy",
+          "n_shot": 10,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "arc_challenge",
+        "n_shot": 10,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "open-sci-0.01",
+          "dclm-core-22"
+        ],
+        "registry": {
+          "task": "arc_challenge",
+          "n_shot": 10,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "commonsense_qa",
+        "n_shot": 10,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "open-sci-0.01",
+          "dclm-core-22"
+        ],
+        "registry": {
+          "task": "commonsense_qa",
+          "n_shot": 10,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "piqa",
+        "n_shot": 10,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "open-sci-0.01",
+          "dclm-core-22"
+        ],
+        "registry": {
+          "task": "piqa",
+          "n_shot": 10,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "boolq",
+        "n_shot": 10,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "open-sci-0.01",
+          "dclm-core-22"
+        ],
+        "registry": {
+          "task": "boolq",
+          "n_shot": 10,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "agieval_lsat_ar",
+        "n_shot": 3,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "dclm-core-22"
+        ],
+        "registry": {
+          "task": "agieval_lsat_ar",
+          "n_shot": 3,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "hellaswag",
+        "n_shot": 0,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "dclm-core-22"
+        ],
+        "registry": {
+          "task": "hellaswag",
+          "n_shot": 0,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "bigbench_language_identification_multiple_choice",
+        "n_shot": 10,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "dclm-core-22"
+        ],
+        "registry": {
+          "task": "bigbench_language_identification_multiple_choice",
+          "n_shot": 10,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "wsc273",
+        "n_shot": 0,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "dclm-core-22"
+        ],
+        "registry": {
+          "task": "wsc273",
+          "n_shot": 0,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "bigbench_qa_wikidata_generate_until",
+        "n_shot": 10,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "dclm-core-22"
+        ],
+        "registry": {
+          "task": "bigbench_qa_wikidata_generate_until",
+          "n_shot": 10,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "bigbench_dyck_languages_generate_until",
+        "n_shot": 10,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "dclm-core-22"
+        ],
+        "registry": {
+          "task": "bigbench_dyck_languages_generate_until",
+          "n_shot": 10,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "bigbench_operators_generate_until",
+        "n_shot": 10,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "dclm-core-22"
+        ],
+        "registry": {
+          "task": "bigbench_operators_generate_until",
+          "n_shot": 10,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "bigbench_repeat_copy_logic_generate_until",
+        "n_shot": 10,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "dclm-core-22"
+        ],
+        "registry": {
+          "task": "bigbench_repeat_copy_logic_generate_until",
+          "n_shot": 10,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "bigbench_cs_algorithms_generate_until",
+        "n_shot": 10,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "dclm-core-22"
+        ],
+        "registry": {
+          "task": "bigbench_cs_algorithms_generate_until",
+          "n_shot": 10,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "coqa",
+        "n_shot": 0,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "dclm-core-22"
+        ],
+        "registry": {
+          "task": "coqa",
+          "n_shot": 0,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "squadv2",
+        "n_shot": 10,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "dclm-core-22"
+        ],
+        "registry": {
+          "task": "squadv2",
+          "n_shot": 10,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "jeopardy",
+        "n_shot": 10,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "dclm-core-22"
+        ],
+        "registry": {
+          "task": "jeopardy",
+          "n_shot": 10,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "belebele_bul_Cyrl",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "belebele-eu-5-shot"
+        ],
+        "registry": {
+          "task": "belebele_bul_Cyrl",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "belebele_hrv_Latn",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "belebele-eu-5-shot"
+        ],
+        "registry": {
+          "task": "belebele_hrv_Latn",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "belebele_ces_Latn",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "belebele-eu-5-shot"
+        ],
+        "registry": {
+          "task": "belebele_ces_Latn",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "belebele_dan_Latn",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "belebele-eu-5-shot"
+        ],
+        "registry": {
+          "task": "belebele_dan_Latn",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "belebele_nld_Latn",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "belebele-eu-5-shot"
+        ],
+        "registry": {
+          "task": "belebele_nld_Latn",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "belebele_eng_Latn",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "belebele-eu-5-shot"
+        ],
+        "registry": {
+          "task": "belebele_eng_Latn",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "belebele_est_Latn",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "belebele-eu-5-shot"
+        ],
+        "registry": {
+          "task": "belebele_est_Latn",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "belebele_fin_Latn",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "belebele-eu-5-shot"
+        ],
+        "registry": {
+          "task": "belebele_fin_Latn",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "belebele_fra_Latn",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "belebele-eu-5-shot"
+        ],
+        "registry": {
+          "task": "belebele_fra_Latn",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "belebele_deu_Latn",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "belebele-eu-5-shot"
+        ],
+        "registry": {
+          "task": "belebele_deu_Latn",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "belebele_ell_Grek",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "belebele-eu-5-shot"
+        ],
+        "registry": {
+          "task": "belebele_ell_Grek",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "belebele_hun_Latn",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "belebele-eu-5-shot"
+        ],
+        "registry": {
+          "task": "belebele_hun_Latn",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "belebele_ita_Latn",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "belebele-eu-5-shot"
+        ],
+        "registry": {
+          "task": "belebele_ita_Latn",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "belebele_lvs_Latn",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "belebele-eu-5-shot"
+        ],
+        "registry": {
+          "task": "belebele_lvs_Latn",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "belebele_lit_Latn",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "belebele-eu-5-shot"
+        ],
+        "registry": {
+          "task": "belebele_lit_Latn",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "belebele_mlt_Latn",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "belebele-eu-5-shot"
+        ],
+        "registry": {
+          "task": "belebele_mlt_Latn",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "belebele_pol_Latn",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "belebele-eu-5-shot"
+        ],
+        "registry": {
+          "task": "belebele_pol_Latn",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "belebele_por_Latn",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "belebele-eu-5-shot"
+        ],
+        "registry": {
+          "task": "belebele_por_Latn",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "belebele_ron_Latn",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "belebele-eu-5-shot"
+        ],
+        "registry": {
+          "task": "belebele_ron_Latn",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "belebele_slk_Latn",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "belebele-eu-5-shot"
+        ],
+        "registry": {
+          "task": "belebele_slk_Latn",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "belebele_slv_Latn",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "belebele-eu-5-shot"
+        ],
+        "registry": {
+          "task": "belebele_slv_Latn",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "belebele_spa_Latn",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "belebele-eu-5-shot"
+        ],
+        "registry": {
+          "task": "belebele_spa_Latn",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "belebele_swe_Latn",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "belebele-eu-5-shot"
+        ],
+        "registry": {
+          "task": "belebele_swe_Latn",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "belebele_nob_Latn",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "belebele-eu-5-shot"
+        ],
+        "registry": {
+          "task": "belebele_nob_Latn",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "global_mmlu_full_cs",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "global-mmlu-eu"
+        ],
+        "registry": {
+          "task": "global_mmlu_full_cs",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "global_mmlu_full_de",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "global-mmlu-eu"
+        ],
+        "registry": {
+          "task": "global_mmlu_full_de",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "global_mmlu_full_el",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "global-mmlu-eu"
+        ],
+        "registry": {
+          "task": "global_mmlu_full_el",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "global_mmlu_full_en",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "global-mmlu-eu"
+        ],
+        "registry": {
+          "task": "global_mmlu_full_en",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "global_mmlu_full_es",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "global-mmlu-eu"
+        ],
+        "registry": {
+          "task": "global_mmlu_full_es",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "global_mmlu_full_fr",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "global-mmlu-eu"
+        ],
+        "registry": {
+          "task": "global_mmlu_full_fr",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "global_mmlu_full_it",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "global-mmlu-eu"
+        ],
+        "registry": {
+          "task": "global_mmlu_full_it",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "global_mmlu_full_lt",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "global-mmlu-eu"
+        ],
+        "registry": {
+          "task": "global_mmlu_full_lt",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "global_mmlu_full_nl",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "global-mmlu-eu"
+        ],
+        "registry": {
+          "task": "global_mmlu_full_nl",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "global_mmlu_full_pl",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "global-mmlu-eu"
+        ],
+        "registry": {
+          "task": "global_mmlu_full_pl",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "global_mmlu_full_pt",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "global-mmlu-eu"
+        ],
+        "registry": {
+          "task": "global_mmlu_full_pt",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "global_mmlu_full_ro",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "global-mmlu-eu"
+        ],
+        "registry": {
+          "task": "global_mmlu_full_ro",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "global_mmlu_full_ru",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "global-mmlu-eu"
+        ],
+        "registry": {
+          "task": "global_mmlu_full_ru",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "global_mmlu_full_sr",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "global-mmlu-eu"
+        ],
+        "registry": {
+          "task": "global_mmlu_full_sr",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "global_mmlu_full_sv",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "global-mmlu-eu"
+        ],
+        "registry": {
+          "task": "global_mmlu_full_sv",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "global_mmlu_full_tr",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "global-mmlu-eu"
+        ],
+        "registry": {
+          "task": "global_mmlu_full_tr",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "global_mmlu_full_uk",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "global-mmlu-eu"
+        ],
+        "registry": {
+          "task": "global_mmlu_full_uk",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "global_mmlu_full_he",
+        "n_shot": 5,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "global-mmlu-eu"
+        ],
+        "registry": {
+          "task": "global_mmlu_full_he",
+          "n_shot": 5,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "gsm8k",
+        "n_shot": 4,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "reasoning"
+        ],
+        "registry": {
+          "task": "gsm8k",
+          "n_shot": 4,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "ifeval",
+        "n_shot": 0,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "reasoning"
+        ],
+        "registry": {
+          "task": "ifeval",
+          "n_shot": 0,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "mbpp",
+        "n_shot": 3,
+        "suite": "lm-eval-harness",
+        "groups": [
+          "reasoning"
+        ],
+        "registry": {
+          "task": "mbpp",
+          "n_shot": 3,
+          "suite": "lm-eval-harness"
+        }
+      },
+      {
+        "task": "GPQADiamond",
+        "n_shot": 0,
+        "suite": "evalchemy",
+        "groups": [
+          "reasoning"
+        ],
+        "registry": {
+          "task": "GPQADiamond",
+          "n_shot": 0,
+          "suite": "evalchemy"
+        }
+      },
+      {
+        "task": "MATH500",
+        "n_shot": 0,
+        "suite": "evalchemy",
+        "groups": [
+          "reasoning"
+        ],
+        "registry": {
+          "task": "MATH500",
+          "n_shot": 0,
+          "suite": "evalchemy"
+        }
+      },
+      {
+        "task": "LiveCodeBench",
+        "n_shot": 0,
+        "suite": "evalchemy",
+        "groups": [
+          "reasoning"
+        ],
+        "registry": {
+          "task": "LiveCodeBench",
+          "n_shot": 0,
+          "suite": "evalchemy"
+        }
+      },
+      {
+        "task": "HumanEval",
+        "n_shot": 0,
+        "suite": "evalchemy",
+        "groups": [
+          "reasoning"
+        ],
+        "registry": {
+          "task": "HumanEval",
+          "n_shot": 0,
+          "suite": "evalchemy"
+        }
+      },
+      {
+        "task": "AIME24",
+        "n_shot": 0,
+        "suite": "evalchemy",
+        "groups": [
+          "reasoning"
+        ],
+        "registry": {
+          "task": "AIME24",
+          "n_shot": 0,
+          "suite": "evalchemy"
+        }
+      },
+      {
+        "task": "AIME25",
+        "n_shot": 0,
+        "suite": "evalchemy",
+        "groups": [
+          "reasoning"
+        ],
+        "registry": {
+          "task": "AIME25",
+          "n_shot": 0,
+          "suite": "evalchemy"
+        }
+      },
+      {
+        "task": "AMC23",
+        "n_shot": 0,
+        "suite": "evalchemy",
+        "groups": [
+          "reasoning"
+        ],
+        "registry": {
+          "task": "AMC23",
+          "n_shot": 0,
+          "suite": "evalchemy"
+        }
+      },
+      {
+        "task": "JEEBench",
+        "n_shot": 0,
+        "suite": "evalchemy",
+        "groups": [
+          "production-extra"
+        ],
+        "registry": {
+          "source": "Existing production JEEBench CSV; standard Evalchemy JEEBench defaults"
+        }
+      }
+    ]
+  },
+  "scope": "Existing standard checkpoint campaigns; diagnostic variants are separate. No scoring/runtime changes in the release commit."
+}
