@@ -1,609 +1,8 @@
-task_metrics:
-  mmlu: acc
-  mmlu_prox_cs: exact_match
-  mmlu_prox_de: exact_match
-  mmlu_prox_en: exact_match
-  mmlu_prox_es: exact_match
-  mmlu_prox_fr: exact_match
-  mmlu_prox_hu: exact_match
-  mmlu_prox_it: exact_match
-  mmlu_prox_pt: exact_match
-  mmlu_prox_sr: exact_match
-  mmlu_prox_uk: exact_match
-  mmmlu_de_de: acc
-  mmmlu_es_la: acc
-  mmmlu_fr_fr: acc
-  mmmlu_it_it: acc
-  mmmlu_pt_br: acc
-  sib200_bul_Cyrl: acc_norm
-  sib200_hrv_Latn: acc_norm
-  sib200_ces_Latn: acc_norm
-  sib200_dan_Latn: acc_norm
-  sib200_nld_Latn: acc_norm
-  sib200_eng_Latn: acc_norm
-  sib200_est_Latn: acc_norm
-  sib200_fin_Latn: acc_norm
-  sib200_fra_Latn: acc_norm
-  sib200_deu_Latn: acc_norm
-  sib200_ell_Grek: acc_norm
-  sib200_hun_Latn: acc_norm
-  sib200_gle_Latn: acc_norm
-  sib200_ita_Latn: acc_norm
-  sib200_lvs_Latn: acc_norm
-  sib200_lit_Latn: acc_norm
-  sib200_mlt_Latn: acc_norm
-  sib200_pol_Latn: acc_norm
-  sib200_por_Latn: acc_norm
-  sib200_ron_Latn: acc_norm
-  sib200_slk_Latn: acc_norm
-  sib200_slv_Latn: acc_norm
-  sib200_spa_Latn: acc_norm
-  sib200_swe_Latn: acc_norm
-  sib200_cat_Latn: acc_norm
-  sib200_eus_Latn: acc_norm
-  sib200_glg_Latn: acc_norm
-  sib200_bos_Latn: acc_norm
-  sib200_kat_Geor: acc_norm
-  sib200_mkd_Cyrl: acc_norm
-  sib200_als_Latn: acc_norm
-  sib200_srp_Cyrl: acc_norm
-  sib200_tur_Latn: acc_norm
-  sib200_ukr_Cyrl: acc_norm
-  sib200_isl_Latn: acc_norm
-  sib200_nob_Latn: acc_norm
-  belebele_bul_Cyrl_cf: acc_norm
-  belebele_hrv_Latn_cf: acc_norm
-  belebele_ces_Latn_cf: acc_norm
-  belebele_dan_Latn_cf: acc_norm
-  belebele_nld_Latn_cf: acc_norm
-  belebele_eng_Latn_cf: acc_norm
-  belebele_est_Latn_cf: acc_norm
-  belebele_fin_Latn_cf: acc_norm
-  belebele_fra_Latn_cf: acc_norm
-  belebele_deu_Latn_cf: acc_norm
-  belebele_ell_Grek_cf: acc_norm
-  belebele_hun_Latn_cf: acc_norm
-  belebele_ita_Latn_cf: acc_norm
-  belebele_lvs_Latn_cf: acc_norm
-  belebele_lit_Latn_cf: acc_norm
-  belebele_mlt_Latn_cf: acc_norm
-  belebele_pol_Latn_cf: acc_norm
-  belebele_por_Latn_cf: acc_norm
-  belebele_ron_Latn_cf: acc_norm
-  belebele_slk_Latn_cf: acc_norm
-  belebele_slv_Latn_cf: acc_norm
-  belebele_spa_Latn_cf: acc_norm
-  belebele_swe_Latn_cf: acc_norm
-  belebele_nob_Latn_cf: acc_norm
-  belebele_eus_Latn_cf: acc_norm
-  belebele_cat_Latn_cf: acc_norm
-  xcsqa_deu_Latn: acc_norm
-  xcsqa_eng_Latn: acc_norm
-  xcsqa_spa_Latn: acc_norm
-  xcsqa_fra_Latn: acc_norm
-  xcsqa_ita_Latn: acc_norm
-  xcsqa_nld_Latn: acc_norm
-  xcsqa_pol_Latn: acc_norm
-  xcsqa_por_Latn: acc_norm
-  pawsx_deu_Latn: acc
-  pawsx_eng_Latn: acc
-  pawsx_spa_Latn: acc
-  pawsx_fra_Latn: acc
-  xnli_bul_Cyrl: acc
-  xnli_deu_Latn: acc
-  xnli_ell_Grek: acc
-  xnli_eng_Latn: acc
-  xnli_spa_Latn: acc
-  xnli_fra_Latn: acc
-  copa: acc
-  lambada_openai: acc
-  openbookqa: acc_norm
-  winogrande: acc
-  arc_challenge: acc_norm
-  arc_easy: acc_norm
-  arc_challenge_mt_bg: acc_norm
-  arc_challenge_mt_cs: acc_norm
-  arc_challenge_mt_da: acc_norm
-  arc_challenge_mt_nl: acc_norm
-  arc_challenge_mt_et: acc_norm
-  arc_challenge_mt_fi: acc_norm
-  arc_challenge_mt_fr: acc_norm
-  arc_challenge_mt_de: acc_norm
-  arc_challenge_mt_el: acc_norm
-  arc_challenge_mt_hu: acc_norm
-  arc_challenge_mt_it: acc_norm
-  arc_challenge_mt_lv: acc_norm
-  arc_challenge_mt_lt: acc_norm
-  arc_challenge_mt_pl: acc_norm
-  arc_challenge_mt_pt: acc_norm
-  arc_challenge_mt_ro: acc_norm
-  arc_challenge_mt_sk: acc_norm
-  arc_challenge_mt_sl: acc_norm
-  arc_challenge_mt_es: acc_norm
-  arc_challenge_mt_sv: acc_norm
-  arc_challenge_mt_is: acc_norm
-  arc_challenge_mt_nb: acc_norm
-  boolq: acc
-  commonsense_qa: acc
-  # global-mgsm (CohereLabs/global-mgsm): flexible-extract exact_match
-  global_mgsm_ca: exact_match
-  global_mgsm_cs: exact_match
-  global_mgsm_de: exact_match
-  global_mgsm_el: exact_match
-  global_mgsm_en: exact_match
-  global_mgsm_es: exact_match
-  global_mgsm_eu: exact_match
-  global_mgsm_fr: exact_match
-  global_mgsm_gl: exact_match
-  global_mgsm_hu: exact_match
-  global_mgsm_sr: exact_match
-  hellaswag: acc_norm
-  # okapi/hellaswag_multilingual (lm-eval): machine-translated HellaSwag
-  hellaswag_da: acc_norm
-  hellaswag_nl: acc_norm
-  hellaswag_fr: acc_norm
-  hellaswag_de: acc_norm
-  hellaswag_hu: acc_norm
-  hellaswag_it: acc_norm
-  hellaswag_pt: acc_norm
-  hellaswag_ro: acc_norm
-  hellaswag_sk: acc_norm
-  hellaswag_es: acc_norm
-  hellaswag_sv: acc_norm
-  hellaswag_hr: acc_norm
-  hellaswag_ca: acc_norm
-  hellaswag_eu: acc_norm
-  hellaswag_sr: acc_norm
-  hellaswag_uk: acc_norm
-  piqa: acc_norm
-  social_iqa: acc
-  agieval_lsat_ar: acc
-  wsc273: acc
-  bigbench_language_identification_multiple_choice: acc
-  squadv2: f1
-  coqa: f1
-  bigbench_qa_wikidata_generate_until: exact_match
-  bigbench_dyck_languages_generate_until: exact_match
-  bigbench_operators_generate_until: exact_match
-  bigbench_repeat_copy_logic_generate_until: exact_match
-  bigbench_cs_algorithms_generate_until: exact_match
-  # lmms-eval image benchmark metrics.
-  # NOTE: `exact_match` for vqav2/textvqa is a lmms-eval misnomer — it's
-  # the soft VQA accuracy `min(matching/3, 1)`, not strict equality.
-  vqav2_val: exact_match
-  mme: mme_cognition_score
-  mmbench_en_dev: gpt_eval_score
-  mmmu_val: mmmu_acc
-  chartqa: relaxed_overall
-  docvqa_val: anls
-  textvqa_val: exact_match
-  ocrbench: ocrbench_accuracy
-  # MathVista: schedule the 3 leaves (cot / format / solution), not the group.
-  mathvista_testmini_cot: llm_as_judge_eval
-  mathvista_testmini_format: llm_as_judge_eval
-  mathvista_testmini_solution: llm_as_judge_eval
-  # Additional lmms-eval image benchmarks (rule-based, air-gap safe).
-  ocrbench_v2: ocrbench_v2_accuracy
-  realworldqa: exact_match
-  mmerealworld: mme_realworld_score
-  mmstar: average
-  ai2d: exact_match
-  mathvision_test: mathvision_standard_eval
-  seedbench: seed_image
-  # lmms-eval video benchmark metrics. `video_mmmu` is a group of 3 leaves.
-  video_mmmu_perception: mmmu_acc
-  video_mmmu_comprehension: mmmu_acc
-  video_mmmu_adaptation: mmmu_acc
-  # EgoSchema: use `egoschema_subset` (val split with ground truth).
-  # The bare `egoschema` task is Kaggle-submission-only.
-  egoschema_subset: score
-  # MVBench: `mvbench` is a group of 20 subtasks; collect_results
-  # aggregates per-subtask `mvbench_accuracy` into a synthetic row.
-  mvbench: mvbench_accuracy
-  # `videomme_perception_score` IS the overall accuracy despite the name.
-  videomme: videomme_perception_score
-  # ActivityNet-QA requires GPT API access for evaluation (LLM-as-judge)
-  activitynetqa: gpt_eval_accuracy
-  longvideobench_val_v: lvb_acc
-  librispeech_dev_clean: wer
-  librispeech_dev_other: wer
-  librispeech_test_clean: wer
-  librispeech_test_other: wer
-  common_voice_15_en: wer
-  common_voice_15_fr: wer
-  common_voice_15_zh-CN: wer
-  gigaspeech_test: wer
-  tedlium_dev_test: wer
-  people_speech_val: wer
-  voxpopuli_en: wer
-  ami_test: wer
-  wenet_speech_test_meeting: mer
-  wenet_speech_test_net: mer
-  covost2_en_zh_test: bleu
-  fleurs_en: wer
-  fleurs_cmn_hans_cn: wer
-  fleurs_yue_hant_hk: wer
-  alpaca_audio: gpt_eval
-  clotho_aqa_test: exact_match
-  openhermes: gpt_eval
-  wavcaps: gpt_eval
-  air_bench_chat_sound: gpt_eval
-  air_bench_chat_music: gpt_eval
-  air_bench_chat_speech: gpt_eval
-  air_bench_chat_mixed: gpt_eval
-  air_bench_foundation_sound: accuracy
-  air_bench_foundation_music: accuracy
-  air_bench_foundation_speech: accuracy
-  muchomusic: accuracy
-  vocalsound_test: accuracy
-  step2_audio_paralinguistic_age: semantic_match
-  step2_audio_paralinguistic_emotions: semantic_match
-  step2_audio_paralinguistic_event: semantic_match
-  step2_audio_paralinguistic_gender: semantic_match
-  step2_audio_paralinguistic_pitch: semantic_match
-  step2_audio_paralinguistic_rhythm: semantic_match
-  step2_audio_paralinguistic_scene: semantic_match
-  step2_audio_paralinguistic_speed: semantic_match
-  step2_audio_paralinguistic_vocalsound: semantic_match
-  step2_audio_paralinguistic_voice_styles: semantic_match
-  step2_audio_paralinguistic_voice_tone: semantic_match
-  cn_college_listen_mcq_test: accuracy
-  dream_tts_mcq_test: accuracy
-  voicebench_commoneval: llm_as_judge_eval
-  opensubtitles_multi40_en_to_bg: bleu
-  opensubtitles_multi40_en_to_hr: bleu
-  opensubtitles_multi40_en_to_cs: bleu
-  opensubtitles_multi40_en_to_da: bleu
-  opensubtitles_multi40_en_to_nl: bleu
-  opensubtitles_multi40_en_to_et: bleu
-  opensubtitles_multi40_en_to_fi: bleu
-  opensubtitles_multi40_en_to_fr: bleu
-  opensubtitles_multi40_en_to_de: bleu
-  opensubtitles_multi40_en_to_el: bleu
-  opensubtitles_multi40_en_to_hu: bleu
-  opensubtitles_multi40_en_to_it: bleu
-  opensubtitles_multi40_en_to_lv: bleu
-  opensubtitles_multi40_en_to_lt: bleu
-  opensubtitles_multi40_en_to_pl: bleu
-  opensubtitles_multi40_en_to_pt: bleu
-  opensubtitles_multi40_en_to_ro: bleu
-  opensubtitles_multi40_en_to_sk: bleu
-  opensubtitles_multi40_en_to_sl: bleu
-  opensubtitles_multi40_en_to_es: bleu
-  opensubtitles_multi40_en_to_sv: bleu
-  opensubtitles_multi40_en_to_sr: bleu
-  opensubtitles_multi40_en_to_tr: bleu
-  opensubtitles_multi40_en_to_uk: bleu
-  opensubtitles_multi40_en_to_no: bleu
-  opensubtitles_multi40_bg_to_en: bleu
-  opensubtitles_multi40_hr_to_en: bleu
-  opensubtitles_multi40_cs_to_en: bleu
-  opensubtitles_multi40_da_to_en: bleu
-  opensubtitles_multi40_nl_to_en: bleu
-  opensubtitles_multi40_et_to_en: bleu
-  opensubtitles_multi40_fi_to_en: bleu
-  opensubtitles_multi40_fr_to_en: bleu
-  opensubtitles_multi40_de_to_en: bleu
-  opensubtitles_multi40_el_to_en: bleu
-  opensubtitles_multi40_hu_to_en: bleu
-  opensubtitles_multi40_it_to_en: bleu
-  opensubtitles_multi40_lv_to_en: bleu
-  opensubtitles_multi40_lt_to_en: bleu
-  opensubtitles_multi40_pl_to_en: bleu
-  opensubtitles_multi40_pt_to_en: bleu
-  opensubtitles_multi40_ro_to_en: bleu
-  opensubtitles_multi40_sk_to_en: bleu
-  opensubtitles_multi40_sl_to_en: bleu
-  opensubtitles_multi40_es_to_en: bleu
-  opensubtitles_multi40_sv_to_en: bleu
-  opensubtitles_multi40_sr_to_en: bleu
-  opensubtitles_multi40_tr_to_en: bleu
-  opensubtitles_multi40_uk_to_en: bleu
-  opensubtitles_multi40_no_to_en: bleu
-  # flores200 (lighteval) translation: chrf++ is the primary metric
-  flores200:bul_Cyrl-eng_Latn: chrf++
-  flores200:hrv_Latn-eng_Latn: chrf++
-  flores200:ces_Latn-eng_Latn: chrf++
-  flores200:dan_Latn-eng_Latn: chrf++
-  flores200:nld_Latn-eng_Latn: chrf++
-  flores200:est_Latn-eng_Latn: chrf++
-  flores200:fin_Latn-eng_Latn: chrf++
-  flores200:fra_Latn-eng_Latn: chrf++
-  flores200:deu_Latn-eng_Latn: chrf++
-  flores200:ell_Grek-eng_Latn: chrf++
-  flores200:hun_Latn-eng_Latn: chrf++
-  flores200:gle_Latn-eng_Latn: chrf++
-  flores200:ita_Latn-eng_Latn: chrf++
-  flores200:lvs_Latn-eng_Latn: chrf++
-  flores200:lit_Latn-eng_Latn: chrf++
-  flores200:mlt_Latn-eng_Latn: chrf++
-  flores200:pol_Latn-eng_Latn: chrf++
-  flores200:por_Latn-eng_Latn: chrf++
-  flores200:ron_Latn-eng_Latn: chrf++
-  flores200:slk_Latn-eng_Latn: chrf++
-  flores200:slv_Latn-eng_Latn: chrf++
-  flores200:spa_Latn-eng_Latn: chrf++
-  flores200:swe_Latn-eng_Latn: chrf++
-  flores200:cat_Latn-eng_Latn: chrf++
-  flores200:eus_Latn-eng_Latn: chrf++
-  flores200:glg_Latn-eng_Latn: chrf++
-  flores200:bos_Latn-eng_Latn: chrf++
-  flores200:kat_Geor-eng_Latn: chrf++
-  flores200:mkd_Cyrl-eng_Latn: chrf++
-  flores200:als_Latn-eng_Latn: chrf++
-  flores200:srp_Cyrl-eng_Latn: chrf++
-  flores200:tur_Latn-eng_Latn: chrf++
-  flores200:ukr_Cyrl-eng_Latn: chrf++
-  flores200:isl_Latn-eng_Latn: chrf++
-  flores200:nob_Latn-eng_Latn: chrf++
-  flores200:eng_Latn-bul_Cyrl: chrf++
-  flores200:eng_Latn-hrv_Latn: chrf++
-  flores200:eng_Latn-ces_Latn: chrf++
-  flores200:eng_Latn-dan_Latn: chrf++
-  flores200:eng_Latn-nld_Latn: chrf++
-  flores200:eng_Latn-est_Latn: chrf++
-  flores200:eng_Latn-fin_Latn: chrf++
-  flores200:eng_Latn-fra_Latn: chrf++
-  flores200:eng_Latn-deu_Latn: chrf++
-  flores200:eng_Latn-ell_Grek: chrf++
-  flores200:eng_Latn-hun_Latn: chrf++
-  flores200:eng_Latn-gle_Latn: chrf++
-  flores200:eng_Latn-ita_Latn: chrf++
-  flores200:eng_Latn-lvs_Latn: chrf++
-  flores200:eng_Latn-lit_Latn: chrf++
-  flores200:eng_Latn-mlt_Latn: chrf++
-  flores200:eng_Latn-pol_Latn: chrf++
-  flores200:eng_Latn-por_Latn: chrf++
-  flores200:eng_Latn-ron_Latn: chrf++
-  flores200:eng_Latn-slk_Latn: chrf++
-  flores200:eng_Latn-slv_Latn: chrf++
-  flores200:eng_Latn-spa_Latn: chrf++
-  flores200:eng_Latn-swe_Latn: chrf++
-  flores200:eng_Latn-cat_Latn: chrf++
-  flores200:eng_Latn-eus_Latn: chrf++
-  flores200:eng_Latn-glg_Latn: chrf++
-  flores200:eng_Latn-bos_Latn: chrf++
-  flores200:eng_Latn-kat_Geor: chrf++
-  flores200:eng_Latn-mkd_Cyrl: chrf++
-  flores200:eng_Latn-als_Latn: chrf++
-  flores200:eng_Latn-srp_Cyrl: chrf++
-  flores200:eng_Latn-tur_Latn: chrf++
-  flores200:eng_Latn-ukr_Cyrl: chrf++
-  flores200:eng_Latn-isl_Latn: chrf++
-  flores200:eng_Latn-nob_Latn: chrf++
-  multiblimp_bul: acc_norm
-  multiblimp_ces: acc_norm
-  multiblimp_dan: acc_norm
-  multiblimp_nld: acc_norm
-  multiblimp_eng: acc_norm
-  multiblimp_est: acc_norm
-  multiblimp_fin: acc_norm
-  multiblimp_fra: acc_norm
-  multiblimp_deu: acc_norm
-  multiblimp_ell: acc_norm
-  multiblimp_hun: acc_norm
-  multiblimp_gle: acc_norm
-  multiblimp_ita: acc_norm
-  multiblimp_lav: acc_norm
-  multiblimp_lit: acc_norm
-  multiblimp_pol: acc_norm
-  multiblimp_por: acc_norm
-  multiblimp_ron: acc_norm
-  multiblimp_slk: acc_norm
-  multiblimp_slv: acc_norm
-  multiblimp_spa: acc_norm
-  multiblimp_swe: acc_norm
-  multiblimp_cat: acc_norm
-  multiblimp_eus: acc_norm
-  multiblimp_glg: acc_norm
-  multiblimp_kat: acc_norm
-  multiblimp_mkd: acc_norm
-  multiblimp_sqi: acc_norm
-  multiblimp_hbs: acc_norm
-  multiblimp_tur: acc_norm
-  multiblimp_ukr: acc_norm
-  multiblimp_isl: acc_norm
-  xcopa:et: acc
-  xcopa:it: acc
-  xcopa:tr: acc
-  global_piqa_completions_als_latn: acc_norm
-  global_piqa_completions_bos_latn: acc_norm
-  global_piqa_completions_bul_cyrl: acc_norm
-  global_piqa_completions_cat_latn: acc_norm
-  global_piqa_completions_ces_latn: acc_norm
-  global_piqa_completions_deu_latn: acc_norm
-  global_piqa_completions_ekk_latn: acc_norm
-  global_piqa_completions_ell_grek: acc_norm
-  global_piqa_completions_eng_latn: acc_norm
-  global_piqa_completions_fin_latn: acc_norm
-  global_piqa_completions_fra_latn_fran: acc_norm
-  global_piqa_completions_glg_latn: acc_norm
-  global_piqa_completions_hrv_latn: acc_norm
-  global_piqa_completions_hun_latn: acc_norm
-  global_piqa_completions_isl_latn: acc_norm
-  global_piqa_completions_ita_latn: acc_norm
-  global_piqa_completions_kat_geor: acc_norm
-  global_piqa_completions_lit_latn: acc_norm
-  global_piqa_completions_mkd_cyrl: acc_norm
-  global_piqa_completions_nld_latn: acc_norm
-  global_piqa_completions_nno_latn: acc_norm
-  global_piqa_completions_nob_latn: acc_norm
-  global_piqa_completions_pol_latn: acc_norm
-  global_piqa_completions_por_latn_port: acc_norm
-  global_piqa_completions_ron_latn: acc_norm
-  global_piqa_completions_slk_latn: acc_norm
-  global_piqa_completions_slv_latn: acc_norm
-  global_piqa_completions_spa_latn_spai: acc_norm
-  global_piqa_completions_srp_cyrl: acc_norm
-  global_piqa_completions_swe_latn: acc_norm
-  global_piqa_completions_tur_latn: acc_norm
-  global_piqa_completions_ukr_cyrl: acc_norm
-  global_piqa_prompted_als_latn: exact_match
-  global_piqa_prompted_bos_latn: exact_match
-  global_piqa_prompted_bul_cyrl: exact_match
-  global_piqa_prompted_cat_latn: exact_match
-  global_piqa_prompted_ces_latn: exact_match
-  global_piqa_prompted_deu_latn: exact_match
-  global_piqa_prompted_ekk_latn: exact_match
-  global_piqa_prompted_ell_grek: exact_match
-  global_piqa_prompted_eng_latn: exact_match
-  global_piqa_prompted_fin_latn: exact_match
-  global_piqa_prompted_fra_latn_fran: exact_match
-  global_piqa_prompted_glg_latn: exact_match
-  global_piqa_prompted_hrv_latn: exact_match
-  global_piqa_prompted_hun_latn: exact_match
-  global_piqa_prompted_isl_latn: exact_match
-  global_piqa_prompted_ita_latn: exact_match
-  global_piqa_prompted_kat_geor: exact_match
-  global_piqa_prompted_lit_latn: exact_match
-  global_piqa_prompted_mkd_cyrl: exact_match
-  global_piqa_prompted_nld_latn: exact_match
-  global_piqa_prompted_nno_latn: exact_match
-  global_piqa_prompted_nob_latn: exact_match
-  global_piqa_prompted_pol_latn: exact_match
-  global_piqa_prompted_por_latn_port: exact_match
-  global_piqa_prompted_ron_latn: exact_match
-  global_piqa_prompted_slk_latn: exact_match
-  global_piqa_prompted_slv_latn: exact_match
-  global_piqa_prompted_spa_latn_spai: exact_match
-  global_piqa_prompted_srp_cyrl: exact_match
-  global_piqa_prompted_swe_latn: exact_match
-  global_piqa_prompted_tur_latn: exact_match
-  global_piqa_prompted_ukr_cyrl: exact_match
-  polymath_de_low: exact_match
-  polymath_de_medium: exact_match
-  polymath_de_high: exact_match
-  polymath_de_top: exact_match
-  polymath_en_low: exact_match
-  polymath_en_medium: exact_match
-  polymath_en_high: exact_match
-  polymath_en_top: exact_match
-  polymath_es_low: exact_match
-  polymath_es_medium: exact_match
-  polymath_es_high: exact_match
-  polymath_es_top: exact_match
-  polymath_fr_low: exact_match
-  polymath_fr_medium: exact_match
-  polymath_fr_high: exact_match
-  polymath_fr_top: exact_match
-  polymath_it_low: exact_match
-  polymath_it_medium: exact_match
-  polymath_it_high: exact_match
-  polymath_it_top: exact_match
-  polymath_pt_low: exact_match
-  polymath_pt_medium: exact_match
-  polymath_pt_high: exact_match
-  polymath_pt_top: exact_match
-
-  # Explicit headline-metric picks for groups that would otherwise ride the
-  # METRIC_FALLBACK_KEYS chain:
-  #  * belebele (plain): acc — the paper convention; the _cf variants stay
-  #    acc_norm.
-  #  * mgsm: exact_match under the flexible-extract filter — CoT output
-  #    formats vary across languages, and strict-match scores differ by
-  #    several points.
-  #  * gsm8k: exact_match under strict-match — the benchmark's original
-  #    strict answer extraction; English output is format-stable, unlike
-  #    multilingual mgsm above.
-  #  * ifeval: prompt_level_strict_acc — the usual single-number pick.
-  #  * The evalchemy-routed `reasoning` tasks (GPQADiamond, MATH500,
-  #    LiveCodeBench, HumanEval, AIME24/25, AMC23) stay unmapped: output
-  #    key shape unverified. The scheduler warns about unmapped tasks.
-  gsm8k: exact_match,strict-match
-  ifeval: prompt_level_strict_acc
-  mbpp: pass_at_1
-  jeopardy: exact_match
-  # belebele-eu-5-shot (24 tasks)
-  belebele_bul_Cyrl: acc
-  belebele_ces_Latn: acc
-  belebele_dan_Latn: acc
-  belebele_deu_Latn: acc
-  belebele_ell_Grek: acc
-  belebele_eng_Latn: acc
-  belebele_est_Latn: acc
-  belebele_fin_Latn: acc
-  belebele_fra_Latn: acc
-  belebele_hrv_Latn: acc
-  belebele_hun_Latn: acc
-  belebele_ita_Latn: acc
-  belebele_lit_Latn: acc
-  belebele_lvs_Latn: acc
-  belebele_mlt_Latn: acc
-  belebele_nld_Latn: acc
-  belebele_nob_Latn: acc
-  belebele_pol_Latn: acc
-  belebele_por_Latn: acc
-  belebele_ron_Latn: acc
-  belebele_slk_Latn: acc
-  belebele_slv_Latn: acc
-  belebele_spa_Latn: acc
-  belebele_swe_Latn: acc
-  # flores-200-eu-to-eng (23 tasks)
-  # flores-200-eng-to-eu (23 tasks)
-  # global-mmlu-eu (18 tasks)
-  global_mmlu_full_cs: acc
-  global_mmlu_full_de: acc
-  global_mmlu_full_el: acc
-  global_mmlu_full_en: acc
-  global_mmlu_full_es: acc
-  global_mmlu_full_fr: acc
-  global_mmlu_full_he: acc
-  global_mmlu_full_it: acc
-  global_mmlu_full_lt: acc
-  global_mmlu_full_nl: acc
-  global_mmlu_full_pl: acc
-  global_mmlu_full_pt: acc
-  global_mmlu_full_ro: acc
-  global_mmlu_full_ru: acc
-  global_mmlu_full_sr: acc
-  global_mmlu_full_sv: acc
-  global_mmlu_full_tr: acc
-  global_mmlu_full_uk: acc
-  # include (25 tasks)
-  include_base_44_albanian: acc
-  include_base_44_armenian: acc
-  include_base_44_azerbaijani: acc
-  include_base_44_basque: acc
-  include_base_44_belarusian: acc
-  include_base_44_bulgarian: acc
-  include_base_44_croatian: acc
-  include_base_44_dutch: acc
-  include_base_44_estonian: acc
-  include_base_44_finnish: acc
-  include_base_44_french: acc
-  include_base_44_georgian: acc
-  include_base_44_german: acc
-  include_base_44_greek: acc
-  include_base_44_hungarian: acc
-  include_base_44_italian: acc
-  include_base_44_lithuanian: acc
-  include_base_44_north macedonian: acc
-  include_base_44_polish: acc
-  include_base_44_portuguese: acc
-  include_base_44_russian: acc
-  include_base_44_serbian: acc
-  include_base_44_spanish: acc
-  include_base_44_turkish: acc
-  include_base_44_ukrainian: acc
-  # generic-multilingual (3 tasks)
-  xcopa: acc
-  xstorycloze: acc
-  xwinograd: acc
-  # mgsm-eu (4 tasks)
-  mgsm_native_cot_de: exact_match,flexible-extract
-  mgsm_native_cot_en: exact_match,flexible-extract
-  mgsm_native_cot_es: exact_match,flexible-extract
-  mgsm_native_cot_fr: exact_match,flexible-extract
-
-  # Custom lm-eval task — definition in custom_lm_eval_tasks/tabfact/.
-  tabfact: acc
-  # Custom lm-eval task — definition in custom_lm_eval_tasks/timeseriesexam/.
-  timeseriesexam: acc
-
 task_groups:
   sib200-eu:
     description: "SIB-200 European language topic classification tasks (0-shot)"
     suite: lm-eval-harness
+    metric: acc_norm
     n_shots: [0]
     dataset: Davlan/sib200
     valid_langs: [bul_Cyrl, hrv_Latn, ces_Latn, dan_Latn, nld_Latn, eng_Latn, est_Latn, fin_Latn,
@@ -617,6 +16,7 @@ task_groups:
   open-sci-0.01:
     description: "open-sci-ref 0.01 evals"
     suite: lm-eval-harness
+    metric: acc
     tasks:
       - task: copa
         n_shots: [0]
@@ -626,6 +26,7 @@ task_groups:
         n_shots: [0]
         dataset: allenai/social_i_qa
       - task: openbookqa
+        metric: acc_norm
         n_shots: [0]
         dataset: allenai/openbookqa
       - task: lambada_openai
@@ -639,13 +40,16 @@ task_groups:
         n_shots: [5]
         dataset: cais/mmlu
       - task: hellaswag
+        metric: acc_norm
         n_shots: [10]
         dataset: Rowan/hellaswag
       - task: arc_easy
+        metric: acc_norm
         n_shots: [10]
         dataset: allenai/ai2_arc
         subset: ARC-Easy
       - task: arc_challenge
+        metric: acc_norm
         n_shots: [10]
         dataset: allenai/ai2_arc
         subset: ARC-Challenge
@@ -653,6 +57,7 @@ task_groups:
         n_shots: [10]
         dataset: tau/commonsense_qa
       - task: piqa
+        metric: acc_norm
         n_shots: [10]
         dataset: baber/piqa
       - task: boolq
@@ -662,6 +67,7 @@ task_groups:
   belebele-eu-5-shot:
     description: "Belebele European language tasks"
     suite: lm-eval-harness
+    metric: acc  # paper convention; the _cf variants stay acc_norm
     n_shots: [5]
     dataset: facebook/belebele
     valid_langs: [bul_Cyrl, hrv_Latn, ces_Latn, dan_Latn, nld_Latn, eng_Latn, est_Latn, fin_Latn,
@@ -673,6 +79,7 @@ task_groups:
   belebele-eu-cf:
     description: "Belebele European language tasks (cloze formulation, lighteval)"
     suite: lighteval
+    metric: acc_norm
     n_shots: [0]
     dataset: facebook/belebele
     valid_langs: [bul_Cyrl, hrv_Latn, ces_Latn, dan_Latn, nld_Latn, eng_Latn, est_Latn, fin_Latn,
@@ -686,6 +93,7 @@ task_groups:
   xcsqa-eu:
     description: "XCSQA EU commonsense QA (0-shot MCQ, acc_norm)"
     suite: lm-eval-harness
+    metric: acc_norm
     n_shots: [0]
     dataset: INK-USC/xcsr
     tasks:
@@ -709,6 +117,7 @@ task_groups:
   pawsx-eu:
     description: "PAWS-X EU paraphrase detection (0-shot, acc)"
     suite: lm-eval-harness
+    metric: acc
     n_shots: [0]
     dataset: google-research-datasets/paws-x
     tasks:
@@ -724,6 +133,7 @@ task_groups:
   xnli-eu:
     description: "XNLI EU natural language inference (0-shot, acc)"
     suite: lm-eval-harness
+    metric: acc
     n_shots: [0]
     dataset: facebook/xnli
     tasks:
@@ -743,6 +153,7 @@ task_groups:
   flores-200-eu-to-eng:
     description: "Flores 200 EU->English translation (0-shot, chrf++)."
     suite: lighteval
+    metric: chrf++
     n_shots: [0]
     dataset: facebook/flores
     valid_langs: [bul_Cyrl, hrv_Latn, ces_Latn, dan_Latn, nld_Latn, est_Latn,
@@ -756,6 +167,7 @@ task_groups:
   flores-200-eng-to-eu:
     description: "Flores 200 English->EU translation (0-shot, chrf++)."
     suite: lighteval
+    metric: chrf++
     n_shots: [0]
     dataset: facebook/flores
     valid_langs: [bul_Cyrl, hrv_Latn, ces_Latn, dan_Latn, nld_Latn, est_Latn,
@@ -769,6 +181,7 @@ task_groups:
   global-mmlu-eu:
     description: "Global MMLU EU tasks"
     suite: lm-eval-harness
+    metric: acc
     n_shots: [5]
     dataset: CohereForAI/Global-MMLU
     valid_langs: [cs, de, el, en, es, fr, it, lt, nl, pl, pt, ro, ru, sr, sv, tr, uk, he]
@@ -778,6 +191,7 @@ task_groups:
   mmlu-prox-eu:
     description: "MMLU-ProX EU subset, 5-shot CoT, exact-match."
     suite: lm-eval-harness
+    metric: exact_match
     n_shots: [5]
     dataset: li-lab/MMLU-ProX
     valid_langs: [cs, de, en, es, fr, hu, it, pt, sr, uk]
@@ -787,6 +201,7 @@ task_groups:
   mgsm-eu:
     description: "EU Language GSM benchmarks in Aya Expanse"
     suite: lm-eval-harness
+    metric: exact_match,flexible-extract  # CoT output formats vary across languages; strict-match scores differ by several points
     n_shots: [5]
     dataset: juletxara/mgsm
     tasks:
@@ -802,6 +217,7 @@ task_groups:
   global-mgsm-eu:
     description: "Global-MGSM EU grade-school math (0-shot, exact_match)."
     suite: lm-eval-harness
+    metric: exact_match
     n_shots: [0]
     dataset: CohereLabs/global-mgsm
     valid_langs: [de, fr, es, el, cs, hu, en, ca, eu, gl, sr]
@@ -812,6 +228,7 @@ task_groups:
   mmmlu-eu:
     description: "MMMLU (human-translated MMLU), EU subset, 5-shot acc."
     suite: lm-eval-harness
+    metric: acc
     n_shots: [5]
     dataset: openai/MMMLU
     tasks:
@@ -829,6 +246,7 @@ task_groups:
   generic-multilingual:
     description: "Generic multilingual benchmarks in Aya Expanse"
     suite: lm-eval-harness
+    metric: acc
     n_shots: [0]
     tasks:
       - task: xwinograd
@@ -841,6 +259,7 @@ task_groups:
   include:
     description: "INCLUDE benchmarks in Aya Expanse"
     suite: lm-eval-harness
+    metric: acc
     n_shots: [0]
     dataset: CohereForAI/include-base-44
     tasks:
@@ -902,31 +321,42 @@ task_groups:
     n_shots: [0]
     tasks:
       - task: vqav2_val
+        metric: exact_match  # lmms-eval misnomer: the soft VQA accuracy min(matching/3, 1), not strict equality
         dataset: lmms-lab/VQAv2
       - task: mmbench_en_dev
+        metric: gpt_eval_score
         dataset: lmms-lab/MMBench
       - task: mmmu_val
+        metric: mmmu_acc
         dataset: MMMU/MMMU
       - task: chartqa
+        metric: relaxed_overall
         dataset: lmms-lab/ChartQA
       - task: docvqa_val
+        metric: anls
         dataset: lmms-lab/DocVQA
         subset: DocVQA
       - task: textvqa_val
+        metric: exact_match  # same soft VQA accuracy as vqav2_val
         dataset: lmms-lab/textvqa
       - task: ocrbench
+        metric: ocrbench_accuracy
         dataset: echo840/OCRBench
       - task: mathvista_testmini_cot
+        metric: llm_as_judge_eval
         dataset: AI4Math/MathVista
       - task: mathvista_testmini_format
+        metric: llm_as_judge_eval
         dataset: AI4Math/MathVista
       - task: mathvista_testmini_solution
+        metric: llm_as_judge_eval
         dataset: AI4Math/MathVista
 
   # ── Individual Image Benchmarks (single-task groups for targeted runs) ──────
   image-vqav2:
     description: "VQAv2 visual question answering via lmms-eval"
     suite: lmms_eval
+    metric: exact_match
     n_shots: [0]
     tasks:
       - task: vqav2_val
@@ -935,6 +365,7 @@ task_groups:
   image-mmbench:
     description: "MMBench multi-modal benchmark via lmms-eval"
     suite: lmms_eval
+    metric: gpt_eval_score
     n_shots: [0]
     tasks:
       - task: mmbench_en_dev
@@ -943,6 +374,7 @@ task_groups:
   image-mmmu:
     description: "MMMU massive multi-discipline multimodal understanding via lmms-eval"
     suite: lmms_eval
+    metric: mmmu_acc
     n_shots: [0]
     tasks:
       - task: mmmu_val
@@ -951,6 +383,7 @@ task_groups:
   image-chartqa:
     description: "ChartQA chart question answering via lmms-eval"
     suite: lmms_eval
+    metric: relaxed_overall
     n_shots: [0]
     tasks:
       - task: chartqa
@@ -959,6 +392,7 @@ task_groups:
   image-docvqa:
     description: "DocVQA document visual question answering via lmms-eval"
     suite: lmms_eval
+    metric: anls
     n_shots: [0]
     tasks:
       - task: docvqa_val
@@ -968,6 +402,7 @@ task_groups:
   image-textvqa:
     description: "TextVQA text-based visual question answering via lmms-eval"
     suite: lmms_eval
+    metric: exact_match
     n_shots: [0]
     tasks:
       - task: textvqa_val
@@ -976,6 +411,7 @@ task_groups:
   image-ocrbench:
     description: "OCRBench optical character recognition benchmark via lmms-eval"
     suite: lmms_eval
+    metric: ocrbench_accuracy
     n_shots: [0]
     tasks:
       - task: ocrbench
@@ -984,6 +420,7 @@ task_groups:
   image-mme:
     description: "MME multimodal evaluation benchmark via lmms-eval"
     suite: lmms_eval
+    metric: mme_cognition_score
     n_shots: [0]
     tasks:
       - task: mme
@@ -992,6 +429,7 @@ task_groups:
   image-mathvista:
     description: "MathVista mathematical reasoning in visual contexts via lmms-eval (testmini CoT/format/solution leaves)"
     suite: lmms_eval
+    metric: llm_as_judge_eval
     n_shots: [0]
     dataset: AI4Math/MathVista
     tasks:
@@ -1003,6 +441,7 @@ task_groups:
   image-ocrbench-v2:
     description: "OCRBench v2 OCR benchmark (rule-based) via lmms-eval"
     suite: lmms_eval
+    metric: ocrbench_v2_accuracy
     n_shots: [0]
     tasks:
       - task: ocrbench_v2
@@ -1011,6 +450,7 @@ task_groups:
   image-realworldqa:
     description: "RealWorldQA real-world spatial/visual understanding via lmms-eval"
     suite: lmms_eval
+    metric: exact_match
     n_shots: [0]
     tasks:
       - task: realworldqa
@@ -1019,6 +459,7 @@ task_groups:
   image-mme-realworld:
     description: "MME-RealWorld (EN) high-resolution real-world MCQ via lmms-eval"
     suite: lmms_eval
+    metric: mme_realworld_score
     n_shots: [0]
     tasks:
       - task: mmerealworld
@@ -1027,6 +468,7 @@ task_groups:
   image-mmstar:
     description: "MMStar elite vision-indispensable multimodal benchmark via lmms-eval"
     suite: lmms_eval
+    metric: average
     n_shots: [0]
     tasks:
       - task: mmstar
@@ -1035,6 +477,7 @@ task_groups:
   image-ai2d:
     description: "AI2D diagram multiple-choice VQA via lmms-eval"
     suite: lmms_eval
+    metric: exact_match
     n_shots: [0]
     tasks:
       - task: ai2d
@@ -1043,6 +486,7 @@ task_groups:
   image-mathvision:
     description: "MathVision math reasoning over images (test split, rule-based) via lmms-eval"
     suite: lmms_eval
+    metric: mathvision_standard_eval
     n_shots: [0]
     tasks:
       - task: mathvision_test
@@ -1051,6 +495,7 @@ task_groups:
   image-seedbench:
     description: "SEED-Bench image multiple-choice (seed_image submetric) via lmms-eval"
     suite: lmms_eval
+    metric: seed_image
     n_shots: [0]
     tasks:
       - task: seedbench
@@ -1063,28 +508,37 @@ task_groups:
     n_shots: [0]
     tasks:
       - task: video_mmmu_perception
+        metric: mmmu_acc
         dataset: lmms-lab/VideoMMMU
       - task: video_mmmu_comprehension
+        metric: mmmu_acc
         dataset: lmms-lab/VideoMMMU
       - task: video_mmmu_adaptation
+        metric: mmmu_acc
         dataset: lmms-lab/VideoMMMU
       - task: mvbench
+        metric: mvbench_accuracy  # group of 20 subtasks; collect aggregates the per-subtask values into one row
         dataset: OpenGVLab/MVBench
         # MVBench parquet on `main`, .mp4 files on `video` — fetch both.
         revisions: [main, video]
       - task: egoschema_subset
+        metric: score  # val split with ground truth; bare `egoschema` is Kaggle-submission-only
         dataset: lmms-lab/egoschema
       - task: videomme
+        metric: videomme_perception_score  # IS the overall accuracy despite the name
         dataset: lmms-lab/Video-MME
       - task: activitynetqa
+        metric: gpt_eval_accuracy  # needs GPT API access (LLM-as-judge)
         dataset: lmms-lab/ActivityNetQA
       - task: longvideobench_val_v
+        metric: lvb_acc
         dataset: longvideobench/LongVideoBench
 
   # ── Individual Video Benchmarks (single-task groups for targeted runs) ────
   video-videommmu:
     description: "VideoMMMU multi-discipline video understanding via lmms-eval (perception / comprehension / adaptation leaves)"
     suite: lmms_eval
+    metric: mmmu_acc
     n_shots: [0]
     dataset: lmms-lab/VideoMMMU
     tasks:
@@ -1095,6 +549,7 @@ task_groups:
   video-mvbench:
     description: "MVBench short-clip temporal video understanding via lmms-eval (group of 20 subtasks; mean accuracy)"
     suite: lmms_eval
+    metric: mvbench_accuracy
     n_shots: [0]
     tasks:
       - task: mvbench
@@ -1105,6 +560,7 @@ task_groups:
   video-egoschema:
     description: "EgoSchema long-form egocentric video QA via lmms-eval (500-q validation subset with ground truth)"
     suite: lmms_eval
+    metric: score
     n_shots: [0]
     tasks:
       - task: egoschema_subset
@@ -1113,6 +569,7 @@ task_groups:
   video-videomme:
     description: "Video-MME full-spectrum video understanding (11s-1h) via lmms-eval"
     suite: lmms_eval
+    metric: videomme_perception_score
     n_shots: [0]
     tasks:
       - task: videomme
@@ -1121,6 +578,7 @@ task_groups:
   video-activitynet-qa:
     description: "ActivityNet-QA open-ended activity video QA via lmms-eval (requires GPT API for scoring)"
     suite: lmms_eval
+    metric: gpt_eval_accuracy
     n_shots: [0]
     tasks:
       - task: activitynetqa
@@ -1129,6 +587,7 @@ task_groups:
   video-longvideobench:
     description: "LongVideoBench long-video cross-segment reasoning via lmms-eval"
     suite: lmms_eval
+    metric: lvb_acc
     n_shots: [0]
     tasks:
       - task: longvideobench_val_v
@@ -1144,25 +603,34 @@ task_groups:
     n_shots: [0]
     tasks:
       - task: librispeech_test_clean
+        metric: wer
         dataset: lmms-lab/librispeech
       - task: fleurs_en
+        metric: wer
         dataset: lmms-lab/fleurs
       - task: gigaspeech_test
+        metric: wer
         dataset: lmms-lab/gigaspeech
       - task: tedlium_dev_test
+        metric: wer
         dataset: lmms-lab/tedlium
       - task: wenet_speech_test_meeting
+        metric: mer
         dataset: lmms-lab/WenetSpeech
       - task: covost2_en_zh_test
+        metric: bleu
         dataset: lmms-lab/covost2_en-zh
       - task: vocalsound_test
+        metric: accuracy
         dataset: lmms-lab/vocalsound
       - task: muchomusic
+        metric: accuracy
         dataset: lmms-lab/muchomusic
 
   audio-librispeech:
     description: "LibriSpeech ASR benchmark via lmms-eval (WER on test-clean)"
     suite: lmms_eval
+    metric: wer
     n_shots: [0]
     tasks:
       - task: librispeech_test_clean
@@ -1171,6 +639,7 @@ task_groups:
   audio-librispeech-all:
     description: "LibriSpeech all four splits (dev-clean, dev-other, test-clean, test-other) via lmms-eval"
     suite: lmms_eval
+    metric: wer
     n_shots: [0]
     dataset: lmms-lab/librispeech
     tasks:
@@ -1182,6 +651,7 @@ task_groups:
   audio-common-voice-15:
     description: "Common Voice 15 multilingual ASR via lmms-eval (en, fr, zh-CN leaf subtasks)"
     suite: lmms_eval
+    metric: wer
     n_shots: [0]
     dataset: lmms-lab/common_voice_15
     tasks:
@@ -1192,6 +662,7 @@ task_groups:
   audio-gigaspeech:
     description: "GigaSpeech large-scale ASR via lmms-eval"
     suite: lmms_eval
+    metric: wer
     n_shots: [0]
     tasks:
       - task: gigaspeech_test
@@ -1200,6 +671,7 @@ task_groups:
   audio-tedlium:
     description: "TED-LIUM v3 ASR via lmms-eval"
     suite: lmms_eval
+    metric: wer
     n_shots: [0]
     tasks:
       - task: tedlium_dev_test
@@ -1208,6 +680,7 @@ task_groups:
   audio-people-speech:
     description: "People's Speech ASR via lmms-eval"
     suite: lmms_eval
+    metric: wer
     n_shots: [0]
     tasks:
       - task: people_speech_val
@@ -1216,6 +689,7 @@ task_groups:
   audio-voxpopuli:
     description: "VoxPopuli multilingual ASR via lmms-eval (English split)"
     suite: lmms_eval
+    metric: wer
     n_shots: [0]
     tasks:
       - task: voxpopuli_en
@@ -1224,6 +698,7 @@ task_groups:
   audio-ami:
     description: "AMI meeting-corpus ASR via lmms-eval"
     suite: lmms_eval
+    metric: wer
     n_shots: [0]
     tasks:
       - task: ami_test
@@ -1232,6 +707,7 @@ task_groups:
   audio-wenet-speech:
     description: "WenetSpeech Chinese ASR via lmms-eval (MER on test_meeting / test_net)"
     suite: lmms_eval
+    metric: mer
     n_shots: [0]
     dataset: lmms-lab/WenetSpeech
     tasks:
@@ -1241,6 +717,7 @@ task_groups:
   audio-covost2:
     description: "CoVoST2 English-Chinese speech translation via lmms-eval"
     suite: lmms_eval
+    metric: bleu
     n_shots: [0]
     tasks:
       - task: covost2_en_zh_test
@@ -1249,6 +726,7 @@ task_groups:
   audio-fleurs:
     description: "FLEURS multilingual speech benchmark via lmms-eval"
     suite: lmms_eval
+    metric: wer
     n_shots: [0]
     dataset: lmms-lab/fleurs
     tasks:
@@ -1259,6 +737,7 @@ task_groups:
   audio-alpaca-audio:
     description: "Alpaca-Audio spoken instruction following via lmms-eval (uses GPT-4 judge)"
     suite: lmms_eval
+    metric: gpt_eval
     n_shots: [0]
     tasks:
       - task: alpaca_audio
@@ -1267,6 +746,7 @@ task_groups:
   audio-clotho-aqa:
     description: "Clotho-AQA audio question answering via lmms-eval"
     suite: lmms_eval
+    metric: exact_match
     n_shots: [0]
     tasks:
       - task: clotho_aqa_test
@@ -1275,6 +755,7 @@ task_groups:
   audio-openhermes:
     description: "OpenHermes-Audio instruction following via lmms-eval (uses GPT-4 judge)"
     suite: lmms_eval
+    metric: gpt_eval
     n_shots: [0]
     tasks:
       - task: openhermes
@@ -1283,6 +764,7 @@ task_groups:
   audio-wavcaps:
     description: "WavCaps audio captioning via lmms-eval (uses GPT-4 judge)"
     suite: lmms_eval
+    metric: gpt_eval
     n_shots: [0]
     tasks:
       - task: wavcaps
@@ -1291,6 +773,7 @@ task_groups:
   audio-air-bench-chat:
     description: "AIR-Bench chat: all four subsets (sound, music, speech, mixed) via lmms-eval — uses GPT-4 judge"
     suite: lmms_eval
+    metric: gpt_eval
     n_shots: [0]
     dataset: lmms-lab/AIR_Bench
     tasks:
@@ -1302,6 +785,7 @@ task_groups:
   audio-air-bench-foundation:
     description: "AIR-Bench foundation MCQ (sound, music, speech) via lmms-eval"
     suite: lmms_eval
+    metric: accuracy
     n_shots: [0]
     dataset: lmms-lab/AIR_Bench
     tasks:
@@ -1312,6 +796,7 @@ task_groups:
   audio-muchomusic:
     description: "MuChoMusic music understanding MCQ via lmms-eval"
     suite: lmms_eval
+    metric: accuracy
     n_shots: [0]
     tasks:
       - task: muchomusic
@@ -1320,6 +805,7 @@ task_groups:
   audio-vocalsound:
     description: "VocalSound non-speech vocalisation classification via lmms-eval"
     suite: lmms_eval
+    metric: accuracy
     n_shots: [0]
     tasks:
       - task: vocalsound_test
@@ -1328,6 +814,7 @@ task_groups:
   audio-step2-paralinguistic:
     description: "Step2 audio paralinguistic probes (age, emotion, event, gender, pitch, rhythm, scene, speed, vocalsound, voice-styles, voice-tone) via lmms-eval"
     suite: lmms_eval
+    metric: semantic_match
     n_shots: [0]
     dataset: lmms-lab/StepEval-Audio-Paralinguistic
     tasks:
@@ -1346,6 +833,7 @@ task_groups:
   audio-cn-college-listen-mcq:
     description: "Chinese college listening comprehension MCQ via lmms-eval"
     suite: lmms_eval
+    metric: accuracy
     n_shots: [0]
     tasks:
       - task: cn_college_listen_mcq_test
@@ -1354,6 +842,7 @@ task_groups:
   audio-dream-tts-mcq:
     description: "DREAM TTS MCQ listening comprehension via lmms-eval"
     suite: lmms_eval
+    metric: accuracy
     n_shots: [0]
     tasks:
       - task: dream_tts_mcq_test
@@ -1362,6 +851,7 @@ task_groups:
   audio-voicebench:
     description: "VoiceBench voice-assistant benchmark (commoneval subset) via lmms-eval"
     suite: lmms_eval
+    metric: llm_as_judge_eval
     n_shots: [0]
     tasks:
       - task: voicebench_commoneval
@@ -1370,15 +860,18 @@ task_groups:
   dclm-core-22:
     description: "DCLM core 22 evaluation tasks (lm-eval-harness, matching LLM Foundry task types)"
     suite: lm-eval-harness
+    metric: acc
     tasks:
       - task: agieval_lsat_ar
         n_shots: [3]
         dataset: hails/agieval-lsat-ar
       - task: arc_easy
+        metric: acc_norm
         n_shots: [10]
         dataset: allenai/ai2_arc
         subset: ARC-Easy
       - task: arc_challenge
+        metric: acc_norm
         n_shots: [10]
         dataset: allenai/ai2_arc
         subset: ARC-Challenge
@@ -1394,13 +887,16 @@ task_groups:
         dataset: aps/super_glue
         subset: copa
       - task: hellaswag
+        metric: acc_norm
         n_shots: [0, 10]
         dataset: Rowan/hellaswag
       - task: openbookqa
+        metric: acc_norm
         n_shots: [0]
         dataset: allenai/openbookqa
         subset: main
       - task: piqa
+        metric: acc_norm
         n_shots: [10]
         dataset: baber/piqa
       - task: bigbench_language_identification_multiple_choice
@@ -1418,38 +914,47 @@ task_groups:
         n_shots: [0]
         dataset: EleutherAI/lambada_openai
       - task: bigbench_qa_wikidata_generate_until
+        metric: exact_match
         n_shots: [10]
         dataset: hails/bigbench
         subset: qa_wikidata_zero_shot
       - task: bigbench_dyck_languages_generate_until
+        metric: exact_match
         n_shots: [10]
         dataset: hails/bigbench
         subset: dyck_languages_zero_shot
       - task: bigbench_operators_generate_until
+        metric: exact_match
         n_shots: [10]
         dataset: hails/bigbench
         subset: operators_zero_shot
       - task: bigbench_repeat_copy_logic_generate_until
+        metric: exact_match
         n_shots: [10]
         dataset: hails/bigbench
         subset: repeat_copy_logic_zero_shot
       - task: bigbench_cs_algorithms_generate_until
+        metric: exact_match
         n_shots: [10]
         dataset: hails/bigbench
         subset: cs_algorithms_zero_shot
       - task: coqa
+        metric: f1
         n_shots: [0]
         dataset: EleutherAI/coqa
       - task: squadv2
+        metric: f1
         n_shots: [10]
         dataset: rajpurkar/squad_v2
       - task: jeopardy
+        metric: exact_match
         n_shots: [10]
         dataset: openeurollm/jeopardy
 
   opensubtitles-eu-en-xx:
     description: "OpenSubtitles Multi40 English->EU translation (0-shot, BLEU)."
     suite: lm-eval-harness
+    metric: bleu
     n_shots: [0]
     dataset: Helsinki-NLP/OpenSubtitles2024-40-langs-15-movies
     valid_langs: [bg, hr, cs, da, nl, et, fi, fr, de, el, hu, it, lv, lt, pl,
@@ -1460,6 +965,7 @@ task_groups:
   opensubtitles-eu-xx-en:
     description: "OpenSubtitles Multi40 EU->English translation (0-shot, BLEU)."
     suite: lm-eval-harness
+    metric: bleu
     n_shots: [0]
     dataset: Helsinki-NLP/OpenSubtitles2024-40-langs-15-movies
     valid_langs: [bg, hr, cs, da, nl, et, fi, fr, de, el, hu, it, lv, lt, pl,
@@ -1470,6 +976,7 @@ task_groups:
   multiblimp-eu:
     description: "MultiBLIMP grammaticality judgment (0-shot) for EU languages."
     suite: lm-eval-harness
+    metric: acc_norm
     n_shots: [0]
     dataset: jumelet/multiblimp
     valid_langs: [bul, ces, dan, nld, eng, est, fin, fra, deu, ell, hun, gle,
@@ -1482,6 +989,7 @@ task_groups:
   xcopa-eu:
     description: "XCOPA commonsense causal reasoning (0-shot) for EU languages."
     suite: lighteval
+    metric: acc
     n_shots: [0]
     dataset: cambridgeltl/xcopa
     valid_langs: [et, it, tr]
@@ -1492,6 +1000,7 @@ task_groups:
   arc-challenge-mt-eu:
     description: "ARC Challenge multilingual (22 European languages)"
     suite: lm-eval-harness
+    metric: acc_norm
     n_shots: [0]
     dataset: LumiOpen/arc_challenge_mt
     valid_langs: [bg, cs, da, nl, et, fi, fr, de, el, hu, it, lv, lt, pl, pt, ro, sk, sl, es, sv, nb]
@@ -1503,6 +1012,7 @@ task_groups:
   hellaswag-eu:
     description: "Okapi HellaSwag multilingual (16 EU languages, 0-shot)."
     suite: lm-eval-harness
+    metric: acc_norm
     n_shots: [0]
     dataset: alexandrainst/m_hellaswag
     valid_langs: [da, nl, fr, de, hu, it, pt, ro, sk, es, sv, hr,
@@ -1514,15 +1024,21 @@ task_groups:
   reasoning:
     description: "Reasoning tasks: GSM8k (4-shot), IFEval (0-shot), MBPP (3-shot), GPQA-Diamond (0-shot), MATH500 (0-shot), LiveCodeBench (0-shot), HumanEval (0-shot), AIME24 (0-shot), AIME25 (0-shot), AMC23 (0-shot)"
     suite: lm-eval-harness
+    # The evalchemy-routed tasks (GPQADiamond, MATH500, LiveCodeBench, HumanEval,
+    # AIME24/25, AMC23) declare no metric: output key shape unverified; the
+    # scheduler warns and collect falls back to METRIC_FALLBACK_KEYS.
     tasks:
       - task: gsm8k
+        metric: exact_match,strict-match  # the benchmark's original strict answer extraction; English output is format-stable
         n_shots: [4]
         dataset: openai/gsm8k
         subset: main
       - task: ifeval
+        metric: prompt_level_strict_acc  # the usual single-number pick
         n_shots: [0]
         dataset: google/IFEval
       - task: mbpp
+        metric: pass_at_1
         n_shots: [3]
         dataset: google-research-datasets/mbpp
       - task: GPQADiamond
@@ -1551,6 +1067,7 @@ task_groups:
   global-piqa-eu-completions:
     description: "Global PIQA European languages — multiple-choice completions (0-shot, mrlbenchmarks/global-piqa-nonparallel)"
     suite: lm-eval-harness
+    metric: acc_norm
     n_shots: [0]
     dataset: mrlbenchmarks/global-piqa-nonparallel
     valid_langs: [als_latn, bos_latn, bul_cyrl, cat_latn, ces_latn, deu_latn, ekk_latn, ell_grek,
@@ -1564,6 +1081,7 @@ task_groups:
   global-piqa-eu-prompted:
     description: "Global PIQA European languages — prompted generation (0-shot, mrlbenchmarks/global-piqa-nonparallel)"
     suite: lm-eval-harness
+    metric: exact_match
     n_shots: [0]
     dataset: mrlbenchmarks/global-piqa-nonparallel
     valid_langs: [als_latn, bos_latn, bul_cyrl, cat_latn, ces_latn, deu_latn, ekk_latn, ell_grek,
@@ -1580,6 +1098,7 @@ task_groups:
   polymath-eu-low:
     description: "PolyMath EU math, low tier (0-shot, exact_match)."
     suite: lm-eval-harness
+    metric: exact_match
     n_shots: [0]
     dataset: Qwen/PolyMath
     valid_langs: [de, en, es, fr, it, pt]
@@ -1590,6 +1109,7 @@ task_groups:
   polymath-eu-medium:
     description: "PolyMath EU math, medium tier (0-shot, exact_match)."
     suite: lm-eval-harness
+    metric: exact_match
     n_shots: [0]
     dataset: Qwen/PolyMath
     valid_langs: [de, en, es, fr, it, pt]
@@ -1600,6 +1120,7 @@ task_groups:
   polymath-eu-high:
     description: "PolyMath EU math, high tier (0-shot, exact_match)."
     suite: lm-eval-harness
+    metric: exact_match
     n_shots: [0]
     dataset: Qwen/PolyMath
     valid_langs: [de, en, es, fr, it, pt]
@@ -1610,6 +1131,7 @@ task_groups:
   polymath-eu-top:
     description: "PolyMath EU math, top/Olympiad tier (0-shot, exact_match)."
     suite: lm-eval-harness
+    metric: exact_match
     n_shots: [0]
     dataset: Qwen/PolyMath
     valid_langs: [de, en, es, fr, it, pt]
@@ -1619,6 +1141,7 @@ task_groups:
   tabular-tabfact:
     description: "TabFact: is a statement entailed or refuted by a Wikipedia table. Few-shot drawn from the train split."
     suite: lm-eval-harness
+    metric: acc
     n_shots: [0]
     tasks:
       - task: tabfact
@@ -1628,6 +1151,7 @@ task_groups:
   timeseries-tsexam:
     description: "TimeSeriesExam (AutonLab, arXiv 2410.14752): MCQ time-series understanding for LLMs — trend, seasonality, anomalies, causality. Strictly 0-shot (test split only); series subsampled to 128 points."
     suite: lm-eval-harness
+    metric: acc
     n_shots: [0]
     tasks:
       - task: timeseriesexam

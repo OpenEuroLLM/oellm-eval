@@ -10,6 +10,7 @@ from oellm.task_groups import (
     _collect_dataset_specs,
     _expand_task_groups,
     get_all_task_group_names,
+    primary_metric_map,
 )
 
 AUDIO_TASK_GROUP = "audio-understanding"
@@ -171,11 +172,10 @@ class TestAudioTaskGroupExpansion:
 
     def test_audio_understanding_has_no_judge_tasks(self):
         """Regression guard: curated smoke suite must stay runnable without
-        OPENAI_API_KEY on the compute node. Any task listed in task_metrics
-        with a gpt_eval* metric is a judge-model task and belongs in an
-        individual audio-* group, not the curated suite."""
-        data = yaml.safe_load((files("oellm.resources") / "task-groups.yaml").read_text())
-        task_metrics = data.get("task_metrics", {})
+        OPENAI_API_KEY on the compute node. Any task whose declared metric
+        is gpt_eval* is a judge-model task and belongs in an individual
+        audio-* group, not the curated suite."""
+        task_metrics = primary_metric_map()
         results = _expand_task_groups([AUDIO_TASK_GROUP])
         judge_tasks = [
             r.task

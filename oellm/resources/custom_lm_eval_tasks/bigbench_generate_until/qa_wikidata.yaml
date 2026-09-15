@@ -1,0 +1,3 @@
+dataset_name: qa_wikidata_zero_shot
+include: _generate_until_template_yaml
+task: bigbench_qa_wikidata_generate_until

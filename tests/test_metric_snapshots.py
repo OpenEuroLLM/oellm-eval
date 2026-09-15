@@ -1,7 +1,7 @@
 """Tier 1 metric-resolution snapshot test.
 
-For every image and video benchmark wired in ``task-groups.yaml``'s
-``task_metrics`` mapping, this test asserts that ``_resolve_metric`` returns a
+For every image and video benchmark with a ``metric:`` key in
+``task-groups.yaml``, this test asserts that ``_resolve_metric`` returns a
 non-null float when handed a realistic lmms-eval result_dict.
 
 The fixtures here are not real evaluation runs — they are minimal snippets that
@@ -11,9 +11,9 @@ between this repo's YAML and lmms-eval's task definitions. If lmms-eval renames
 a key upstream, this test fails immediately rather than letting a production
 run silently emit ``null``.
 
-When adding a new benchmark to ``task_metrics``:
+When adding a new benchmark with a ``metric:`` key:
   1. Add the corresponding entry in ``SNAPSHOTS`` below.
-  2. The metric-key in the fixture must match the value in ``task_metrics``.
+  2. The metric-key in the fixture must match the declared ``metric:``.
 """
 
 from importlib.resources import files
@@ -21,7 +21,7 @@ from importlib.resources import files
 import pytest
 import yaml
 
-from oellm.results import _resolve_metric
+from oellm.results import _load_task_metrics, _resolve_metric
 
 # Realistic lmms-eval result_dict snippets (one per benchmark).
 # Format mirrors what lmms-eval writes: ``"<task>/<metric>,none": <value>``.
@@ -138,8 +138,7 @@ SNAPSHOTS: dict[str, dict] = {
 
 @pytest.fixture(scope="module")
 def task_metrics() -> dict:
-    data = yaml.safe_load((files("oellm.resources") / "task-groups.yaml").read_text())
-    return data["task_metrics"]
+    return _load_task_metrics()
 
 
 @pytest.mark.parametrize("task_name", sorted(SNAPSHOTS.keys()))
@@ -154,7 +153,7 @@ def test_configured_metric_key_resolves_against_snapshot(
     """
     expected_key = task_metrics.get(task_name)
     assert expected_key is not None, (
-        f"{task_name} has a snapshot but no entry in task-groups.yaml::task_metrics"
+        f"{task_name} has a snapshot but no metric: key in task-groups.yaml"
     )
 
     result_dict = SNAPSHOTS[task_name]
@@ -175,12 +174,12 @@ def test_configured_metric_key_resolves_against_snapshot(
 
 
 def test_every_snapshot_has_a_task_metrics_entry(task_metrics: dict) -> None:
-    """Snapshots and task_metrics must be kept in lockstep — adding a new
+    """Snapshots and metric: keys must be kept in lockstep — adding a new
     benchmark requires both."""
     missing = [t for t in SNAPSHOTS if t not in task_metrics]
     assert not missing, (
-        f"Tasks have snapshots but no task_metrics entry: {missing}. "
-        f"Add them to task-groups.yaml::task_metrics or remove the snapshots."
+        f"Tasks have snapshots but no metric: key: {missing}. "
+        f"Declare one in task-groups.yaml or remove the snapshots."
     )
 
 
@@ -215,7 +214,7 @@ def test_all_required_image_video_tasks_have_snapshot() -> None:
 #
 # For every image+video benchmark, after _resolve_metric returns the raw
 # value, the normalization helper must produce a 0–100 number. Catches the
-# case where someone wires a new metric in task_metrics but forgets to
+# case where someone declares a new metric: key but forgets to
 # register its native scale in METRIC_NATIVE_SCALE.
 
 
