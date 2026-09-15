@@ -231,7 +231,11 @@ def check_shell_correctness(task_id, sample, language, timeout, tmp_dir, complet
         root=Path(temporary);(root/'test.sh').write_text(sample['test_code'])
         # File-backed diagnostics cannot exhaust grader RAM on verbose wrong code.
         with (root/'output').open('w+b') as output:
-            process=subprocess.Popen(['/bin/bash','test.sh'],cwd=root,stdout=output,stderr=output,start_new_session=True)
+            # A generated shell may launch another interpreter that allocates
+            # gigabytes before the wall-clock deadline. Bound each descendant's
+            # address space as well as cleaning up the answer's process group.
+            process=subprocess.Popen(['/bin/bash','-c','ulimit -v 524288; exec /bin/bash test.sh'],
+                cwd=root,stdin=subprocess.DEVNULL,stdout=output,stderr=output,start_new_session=True)
             try:
                 try:
                     process.wait(timeout=timeout)
@@ -309,7 +313,7 @@ def grade(case):
             samples.append(sample)
         generated=grading/f'generated-{language}.jsonl';write_jsonl(generated,samples)
         native=evaluate_functional_correctness(input_file=str(generated),tmp_dir=str(grading),
-            problem_file=problem_file,language=language,n_workers=case.get('grading_workers',8),
+            problem_file=problem_file,language=language,n_workers=min(2,case.get('grading_workers',8)) if language=='sh' else case.get('grading_workers',8),
             timeout=case.get('test_timeout',3.0),k=[1])
         results=read_jsonl(str(generated)+'.graded.jsonl')
         ids={r['task_id'] for r in problems if r['language']==language}
@@ -317,7 +321,9 @@ def grade(case):
         if abs(summary['value']-native['pass@1'])>1e-12:raise ValueError('Native pass@1 disagrees with explicit average')
         save(grading/f'{language}-score.json',summary)
         verdicts.append(dict(language=language,**summary))
-    save(grading/'complete.json',dict(scores=verdicts,raw_sha256=sha(raw),case=case))
+    save(grading/'complete.json',dict(scores=verdicts,raw_sha256=sha(raw),case=case,
+        grading_resources=dict(test_timeout=case.get('test_timeout',3.0),shell_address_space_kib=524288,
+            shell_workers=min(2,case.get('grading_workers',8)),shell_stdin='DEVNULL',shell_cleanup='entire process group')))
 
 
 def main():

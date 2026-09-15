@@ -30,6 +30,14 @@ class RuntimeTests(unittest.TestCase):
             time.sleep(1.1)
             self.assertFalse(marker.exists())
 
+    def test_shell_child_cannot_exhaust_the_whole_grader_memory_scope(self):
+        import shlex
+        with tempfile.TemporaryDirectory() as temporary:
+            code=shlex.join([sys.executable,'-c','x=bytearray(1024**3)'])
+            result=check_shell_correctness('shell',dict(test_code=code),'sh',3,temporary,0)
+            self.assertFalse(result['passed'])
+            self.assertIn('MemoryError',result['result'])
+
     def test_resolved_vllm_sampling_preserves_intended_settings(self):
         from vllm import SamplingParams
         for n in (1,32):
