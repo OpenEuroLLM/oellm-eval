@@ -6,9 +6,13 @@ import json
 import math
 from pathlib import Path
 import sys
+from humaneval_sampling import stabilize_process_join
 
 
 def grade(request):
+    # Reuse the sampled grader's tested monotonic join guard. It changes neither
+    # the per-answer execution timer nor the outer startup/cleanup allowance.
+    stabilize_process_join()
     # This script's directory selects the bundled multilingual package explicitly.
     from human_eval.evaluation import evaluate_functional_correctness
     import human_eval.evaluation as scorer

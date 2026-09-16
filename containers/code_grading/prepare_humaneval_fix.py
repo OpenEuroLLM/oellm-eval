@@ -77,6 +77,10 @@ def prepare(source, target):
     execution.write_text(text)
     shutil.copyfile(Path(__file__).with_name('humaneval_grade.py'),
                     benchmark.parent/'grade_responses.py')
+    # This module uses only the standard library at import time. Keeping the
+    # same helper beside the standalone grader avoids importing GPU libraries.
+    shutil.copyfile(Path(__file__).resolve().parents[2]/'oellm/humaneval_sampling.py',
+                    benchmark.parent/'humaneval_sampling.py')
     text = benchmark.read_text().replace('import tempfile\n', 'import tempfile\nimport subprocess\nimport sys\n')
     text = text.replace('from human_eval.evaluation import evaluate_functional_correctness\n', '')
     text = replace_once(text, '        temp_dir_obj = tempfile.TemporaryDirectory()\n        temp_dir = temp_dir_obj.name',
@@ -133,7 +137,8 @@ def prepare(source, target):
                         '                stream.write(json.dumps(verdict) + "\\n")\n\n'
                         '    # Calculate pass@k.')
     scoring.write_text(text)
-    files = list(EXPECTED) + ['eval/chat_benchmarks/HumanEval/grade_responses.py']
+    files = list(EXPECTED) + ['eval/chat_benchmarks/HumanEval/grade_responses.py',
+                              'eval/chat_benchmarks/HumanEval/humaneval_sampling.py']
     manifest = dict(source=str(source), target=str(target), before=EXPECTED,
                     after={name: hashlib.sha256((target/name).read_bytes()).hexdigest() for name in files})
     (target/'humaneval_fix_manifest.json').write_text(json.dumps(manifest, indent=2)+'\n')
