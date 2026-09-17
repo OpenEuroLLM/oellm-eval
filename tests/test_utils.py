@@ -540,3 +540,19 @@ class TestLoadClusterEnv:
         # still raises, even on a no-ACCOUNT cluster.
         with pytest.raises(RuntimeError, match="HF_HOME"):
             self._run(monkeypatch, "node.noacct.test", {"USER": "tester"})
+
+
+class TestDatasetLoadKwargs:
+    """`trust_remote_code` is passed to datasets<4 and dropped on >=4 (upstream #116)."""
+
+    @pytest.mark.parametrize(
+        "version,expected",
+        [("3.6.0", {"trust_remote_code": True}), ("4.0.0", {}), ("4.2.1", {})],
+    )
+    def test_follows_installed_datasets_major(self, monkeypatch, version, expected):
+        import datasets
+
+        from oellm.utils import _dataset_load_kwargs
+
+        monkeypatch.setattr(datasets, "__version__", version)
+        assert _dataset_load_kwargs(True) == expected
