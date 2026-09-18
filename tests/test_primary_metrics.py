@@ -82,7 +82,10 @@ def _write_result(tmp_path, task, metrics):
     [(False, {"acc_norm"}), (True, {"acc", "acc_norm", "acc_norm_stderr"})],
 )
 def test_fetch_all_metrics_flag(tmp_path, fetch_all, expected):
-    """Default keeps only the declared primary metric; the flag keeps all."""
+    """Default keeps only the declared primary metric; the flag keeps all.
+
+    metric_name keeps the engine's ``,<filter>`` suffix (``acc_norm,none``),
+    which is what the dashboard and the existing CSVs key on."""
     run = _write_result(
         tmp_path,
         "arc_easy",
@@ -91,14 +94,19 @@ def test_fetch_all_metrics_flag(tmp_path, fetch_all, expected):
     out = tmp_path / "out.csv"
     collect_results(str(run), str(out), fetch_all_metrics=fetch_all)
     df = pd.read_csv(out)
-    assert set(df["metric_name"]) == expected
+    assert {m.split(",")[0] for m in df["metric_name"]} == expected
 
 
-def test_unknown_metric_does_not_drop_the_task(tmp_path):
-    """If the declared metric is missing from a result, keep what is there
-    rather than emitting nothing for that task."""
+def test_missing_declared_metric_drops_the_task(tmp_path, caplog, monkeypatch):
+    """If the declared metric is absent from a result the task is reported and
+    left out, never silently replaced by another metric: a renamed engine key
+    must surface, and ``collect --check`` then lists the job as missing."""
+    # collect_results re-installs the rich root handler, which hides records
+    # from caplog; keep pytest's handler in place for this test.
+    monkeypatch.setattr("oellm.results._setup_logging", lambda *a, **k: None)
     run = _write_result(tmp_path, "arc_easy", {"acc,none": 0.5})
     out = tmp_path / "out.csv"
-    collect_results(str(run), str(out), fetch_all_metrics=False)
-    df = pd.read_csv(out)
-    assert set(df["metric_name"]) == {"acc"}
+    with caplog.at_level("WARNING"):
+        collect_results(str(run), str(out), fetch_all_metrics=False)
+    assert not out.exists()
+    assert "No numeric metric for 'arc_easy'" in caplog.text

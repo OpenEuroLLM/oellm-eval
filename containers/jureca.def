@@ -13,7 +13,8 @@ From: nvcr.io/nvidia/pytorch:25.06-py3
 
     # lm-eval and dependencies (system Python)
     uv pip install --system --break-system-packages \
-        lm-eval \
+        lm-eval==0.4.12 \
+        latex2sympy2_extended \
         transformers \
         "datasets<4.0.0" \
         wandb \
@@ -26,7 +27,7 @@ From: nvcr.io/nvidia/pytorch:25.06-py3
     uv tool install --python 3.12 \
         --with "langcodes[data]" \
         --with "pillow" \
-        "lighteval[multilingual] @ git+https://github.com/huggingface/lighteval.git"
+        "lighteval[multilingual] @ git+https://github.com/huggingface/lighteval.git@64f4f5ae173626509fad6e477ca4ee56ebb26129"
 
     # Pre-load lighteval registry to trigger tinyBenchmarks data download at build time
     /opt/uv-tools/lighteval/bin/python -c "from lighteval.tasks.registry import Registry; Registry.load_all_task_configs(load_multilingual=True)"

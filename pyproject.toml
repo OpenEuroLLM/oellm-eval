@@ -1,21 +1,17 @@
 [project]
 name = "oellm-eval"
-version = "0.1.0"
-description = "OpenEuroLLM Evaluation CLI"
+version = "0.2.0"
+description = "OpenEuroLLM CLI"
 readme = "README.md"
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     "pandas",
-    "jsonargparse",
-    # datasets was pinned <4.0 because oellm-evals itself only uses the
-    # legacy load_dataset signature. lm-eval >=0.4.12 needs datasets>=4
-    # to load the current dataset-card metadata, so the [eval] extras
-    # below override this floor. Keep the loose pin here so plain
-    # `pip install oellm` still works without lm-eval.
-    "datasets",
+    "typer",
+    "datasets<4.0.0",
     "rich",
     "huggingface_hub",
     "pyyaml",
+    "ijson",
 ]
 
 [project.optional-dependencies]
@@ -24,36 +20,102 @@ dev = [
     "pytest-timeout>=2.3.1",
     "pre-commit",
 ]
-# `oellm schedule-eval --local true` shells out to `python -m lm_eval`,
-# so it needs lm-eval-harness and its task deps installed in the same
-# env. The extras are split so callers can opt out of the parts their
-# environment already provides:
-#
-#   pip install oellm[eval]      # full stack from PyPI (venv on CUDA)
-#   pip install oellm[eval-base] # task surface + API backends, no torch
-#                                # (use inside containers that ship torch +
-#                                # transformers themselves: Leonardo, Lumi)
-#
-# Extras chosen:
-#   [api]      — requests/aiohttp/tenacity/tiktoken for OpenAI-style endpoints
-#   [tasks]    — aggregate of [discrim_eval, ifeval, japanese_leaderboard,
-#                longbench, libra, math, multilingual, ruler]
-#   [hf]       — transformers + torch + accelerate + peft (local HF eval)
-#   [vllm]     — vllm>=0.18 (CUDA-only; the PyPI wheel doesn't work on
-#                ROCm, and Lumi's container already ships a custom
-#                rocm-vllm — keep this out of [eval-base])
-#
-# Not included by default (opt in if you need them): [litellm], [gptq],
-# [gptqmodel], [ipex], [optimum], [habana], [ibm_watsonx_ai], [acpbench]
-# (mutually exclusive with [tasks] and [math]), [audiolm_qwen],
-# [unitxt], [wandb], [zeno], [trackio], [sentencepiece], [archiver].
-eval-base = [
-    "lm_eval[api,tasks]>=0.4.12",
-    "datasets>=4.0",
+# Text-evaluation engine base (lm-eval-harness + dependencies).  Pair with
+# ``image`` / ``audio`` for a "general" venv that runs text + multimodal
+# tasks side-by-side.  ``lighteval`` cannot share a venv with lm-eval
+# (datasets <4 vs >=4 conflict) and is installed separately via
+# ``uv tool install`` — see docs/VENV.md.
+text = [
+    "lm-eval>=0.4.12",
+    "latex2sympy2_extended",  # required by the polymath tasks
+    "torch",
+    "transformers",
+    "accelerate",
 ]
-eval = [
-    "oellm-eval[eval-base]",
-    "lm_eval[hf,vllm]>=0.4.12",
+# NOTE: lmms-eval is NOT a pip dep — its wheel drops `_default_template_yaml`
+# files. Install it editable (`uv pip install -e "git+…"`); see docs/VENV.md.
+image = [
+    # transformers 4.50+ fast llava_onevision processor crashes on images=[].
+    "transformers>=4.45,<4.50",
+    # Phi-4-multimodal trust_remote_code modeling imports backoff.
+    "backoff",
+    # lmms-eval's qwen2_vl / qwen2_5_vl adapters do a top-level `import decord`
+    # (it lives only in lmms-eval's optional `video-legacy` extra), so it must be
+    # present for ANY Qwen-VL run — image tasks included. Mirrors lmms-eval's own
+    # platform markers; no usable macOS wheel on Python >= 3.12.
+    "decord; platform_system != 'Darwin'",
+    "eva-decord; platform_system == 'Darwin' and python_version < '3.12'",
+]
+video = [
+    "transformers>=4.45,<4.50",
+    "backoff",
+    # PyAV 14 renamed AVError to OSError; torchvision still uses the old name.
+    "av<14",
+    # lmms-eval video adapters (qwen2_vl etc.) import decord at module load.
+    "decord; platform_system != 'Darwin'",
+    "eva-decord; platform_system == 'Darwin' and python_version < '3.12'",
+]
+# HPC Singularity image must also include ffmpeg for non-WAV decode.
+audio = [
+    "soundfile",
+    "librosa",
+    "numba>=0.61",
+    "llvmlite>=0.44",
+    "jiwer",
+]
+# AudioBench contrib plugin.  AudioBench itself is not pip-installable
+# (no build backend upstream, bare imports), so AUDIOBENCH_DIR in
+# clusters.yaml points at a local git clone and suite.py subprocesses into
+# ``python src/main_evaluate.py``.  These are our post-processing deps.
+audiobench = [
+    "jiwer<3",                     # AudioBench uses jiwer.compute_measures, removed in 3.0
+    "transformers>=4.45,<5",       # AudioBench's Qwen2-Audio loader uses the v4 processor API (`audios=` kwarg); v5 silently drops audio inputs and produces garbage predictions
+    "sacrebleu",                   # BLEU verification (covost2)
+    "pythainlp",                   # Thai tokenisation for gigaspeech2_thai
+    "evaluate",                    # MMAU / METEOR post-processing
+    "soundfile",
+    "librosa",
+]
+# Spurious-robustness contrib plugin.  Scores OpenCLIP-family dual encoders by
+# image/text embedding similarity, so it needs open_clip rather than an
+# lm-eval-style generative engine; it shares a venv with nothing else.
+spurious-robustness = [
+    "open_clip_torch>=2.24",
+    "torch",
+    "pillow",
+    # CelebA and ImageNet are read as HF parquet; UrbanCars is a local image tree.
+    "datasets<4.0.0",
+]
+# Evalchemy reasoning suite — uses a forked lm-eval that cannot coexist
+# with mainline lm-eval (different fork at the same import path).  Install
+# in its own venv: ``uv pip install '.[evalchemy]'``.  Pinned versions are
+# what evalchemy upstream requires; see docs/VENV.md.
+evalchemy = [
+    # Pinned to the tip of the etashg/tokenize_fix branch as of 2026-07-03 —
+    # a mutable branch ref made evaluated engine code drift over time.
+    "lm-eval @ git+https://github.com/EtashGuha/lm-evaluation-harness@4071e1823bc1d05d1b394e03925b436a46de637e",
+    "scipy==1.17.0",
+    "datasets==3.6.0",
+    "transformers==4.57.6",
+    "accelerate==1.12.0",
+    "bespokelabs-curator==0.1.26",
+    "sqlalchemy",
+    "torch",
+    "langdetect",
+    "immutabledict",
+    "fire",  # CLI dep of the HumanEval/AIME/AMC evalchemy benchmarks
+]
+# DCLM-core-22 — pins ``lm-eval==0.4.9.2`` because v0.4.10+ breaks
+# ``agieval_lsat_ar`` few-shot.  Install in its own venv:
+# ``uv pip install '.[dclm]'``.
+dclm = [
+    "lm-eval==0.4.9.2",
+    "torch",
+    "transformers>=4.43.2,<5.0.0",
+    "accelerate",
+    "wandb",
+    "sentencepiece",
+    "tiktoken",
 ]
 
 [project.scripts]
@@ -67,6 +129,26 @@ build-backend = "uv_build"
 module-name = "oellm"
 module-root = ""
 include = ["oellm/resources/*", "oellm/resources/**/*"]
+
+# Conflict groups: extras with incompatible pins (must live in separate
+# venvs). text/image/video can coexist; evalchemy/dclm cannot share with
+# anything pinning a different lm-eval or transformers version. See docs/VENV.md.
+[tool.uv]
+conflicts = [
+    [
+        { extra = "text" },
+        { extra = "evalchemy" },
+        { extra = "dclm" },
+    ],
+    [
+        { extra = "image" },
+        { extra = "evalchemy" },
+    ],
+    [
+        { extra = "video" },
+        { extra = "evalchemy" },
+    ],
+]
 
 [tool.ruff]
 line-length = 90
@@ -91,6 +173,9 @@ ignore = [
     "C901",  # too complex
     "W191",  # indentation contains tabs
 ]
+
+[tool.ruff.lint.isort]
+known-first-party = ["oellm"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
