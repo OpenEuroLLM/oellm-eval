@@ -474,6 +474,21 @@ def _materialize_external_urls(ds, *, max_workers: int = 16) -> None:
         _materialize_split(ds)
 
 
+def _dataset_load_kwargs(trust_remote_code: bool) -> dict:
+    """Build kwargs for `datasets.load_dataset`/`get_dataset_config_names`.
+
+    `datasets>=4.0` dropped support for script-based datasets entirely and
+    logs a scary (but non-fatal) error if `trust_remote_code` is passed at
+    all, so omit it on newer versions instead of always passing it through.
+    """
+    from datasets import __version__ as datasets_version
+
+    major_version = int(datasets_version.split(".")[0])
+    if major_version >= 4:
+        return {}
+    return {"trust_remote_code": trust_remote_code}
+
+
 def _pre_download_datasets_from_specs(
     specs: Iterable, trust_remote_code: bool = True
 ) -> None:
@@ -492,6 +507,7 @@ def _pre_download_datasets_from_specs(
 
     console = get_console()
     failures: list[tuple[str, Exception]] = []
+    dataset_kwargs = _dataset_load_kwargs(trust_remote_code)
 
     with console.status(
         f"Downloading datasets… {len(specs_list)} datasets",
@@ -544,15 +560,13 @@ def _pre_download_datasets_from_specs(
                 ds = load_dataset(
                     spec.repo_id,
                     name=spec.subset,
-                    trust_remote_code=trust_remote_code,
+                    **dataset_kwargs,
                 )
                 _materialize_external_urls(ds)
             except ValueError as e:
                 if "Config name is missing" in str(e) and spec.subset is None:
                     try:
-                        configs = get_dataset_config_names(
-                            spec.repo_id, trust_remote_code=trust_remote_code
-                        )
+                        configs = get_dataset_config_names(spec.repo_id, **dataset_kwargs)
                         logging.info(
                             f"Dataset '{spec.repo_id}' requires config. "
                             f"Downloading all {len(configs)} configs."
@@ -565,7 +579,7 @@ def _pre_download_datasets_from_specs(
                             ds_cfg = load_dataset(
                                 spec.repo_id,
                                 name=cfg,
-                                trust_remote_code=trust_remote_code,
+                                **dataset_kwargs,
                             )
                             _materialize_external_urls(ds_cfg)
                     except Exception as inner:

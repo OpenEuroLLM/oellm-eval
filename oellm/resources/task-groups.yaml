@@ -909,6 +909,9 @@ task_groups:
         subset: winogrande_xl
       - task: wsc273
         n_shots: [0]
+        # lm-eval 0.4.12 (uv.lock) loads the script dataset `winograd_wsc`;
+        # 0.4.13 switched to lighteval/winograd_wsc (subset wsc273) and moved
+        # social_iqa to lighteval/siqa. Flip both when the lock moves.
         dataset: winograd_wsc
       - task: lambada_openai
         n_shots: [0]
