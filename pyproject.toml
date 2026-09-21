@@ -19,6 +19,7 @@ dev = [
     "pytest>=8.4.1",
     "pytest-timeout>=2.3.1",
     "pre-commit",
+    "Levenshtein",
 ]
 # Text-evaluation engine base (lm-eval-harness + dependencies).  Pair with
 # ``image`` / ``audio`` for a "general" venv that runs text + multimodal
@@ -45,6 +46,13 @@ image = [
     # platform markers; no usable macOS wheel on Python >= 3.12.
     "decord; platform_system != 'Darwin'",
     "eva-decord; platform_system == 'Darwin' and python_version < '3.12'",
+]
+docvqa2026 = [
+    "Levenshtein",
+    "python-dateutil",
+    "torch",
+    "transformers>=4.45,<4.50",
+    "pillow",
 ]
 video = [
     "transformers>=4.45,<4.50",
@@ -148,6 +156,10 @@ conflicts = [
         { extra = "video" },
         { extra = "evalchemy" },
     ],
+    [
+        { extra = "docvqa2026" },
+        { extra = "evalchemy" },
+    ],
 ]
 
 [tool.ruff]
@@ -155,7 +167,10 @@ line-length = 90
 target-version = "py312"
 # Vendored verbatim from QwenLM/PolyMath (eval/scripts.py); keep it byte-for-byte
 # rather than reflowing/relinting upstream code.
-extend-exclude = ["oellm/resources/custom_lm_eval_tasks/polymath/polymath_eval.py"]
+extend-exclude = [
+    "oellm/resources/custom_lm_eval_tasks/polymath/polymath_eval.py",
+    "oellm/contrib/docvqa2026/_vendor_eval_utils.py",
+]
 
 [tool.ruff.lint]
 select = [

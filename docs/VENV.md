@@ -23,6 +23,9 @@ documented in `oellm/contrib/<name>/README.md`:
 |---|---|---|
 | `audio-audiobench*` | `audiobench` | [`oellm/contrib/audiobench/README.md`](../oellm/contrib/audiobench/README.md) |
 | `regiondial-*` | `regiondial_bench` | [`oellm/contrib/regiondial_bench/README.md`](../oellm/contrib/regiondial_bench/README.md) |
+| `image-docvqa2026` | `docvqa2026` | [`oellm/contrib/docvqa2026/README.md`](../oellm/contrib/docvqa2026/README.md) |
+| `spurious-robustness`, `spurious-imagenet`, `spurious-celeba` | `spurious_robustness` | [`oellm/contrib/spurious_robustness/README.md`](../oellm/contrib/spurious_robustness/README.md) |
+| `spurious-urbancars` | `spurious_urbancars` | [`oellm/contrib/spurious_urbancars/README.md`](../oellm/contrib/spurious_urbancars/README.md) |
 
 Use `oellm-eval list-tasks` to see which suite a given task group routes to,
 and `oellm-eval doctor --venv-path <venv> --task-groups <groups>` to verify a
