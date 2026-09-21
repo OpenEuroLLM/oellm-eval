@@ -1,0 +1,59 @@
+# Override of lm-evaluation-harness' bigbench/generate_until_template_yaml.
+#
+# The upstream template scores generate_until output with `exact_match`, which is
+# a RAW string comparison (lm_eval/api/metrics.py):
+#
+#     score_list = predictions == references
+#
+# It enables `ignore_punctuation` but nothing that normalises whitespace. These
+# BIG-bench prompts end mid-sentence, e.g.
+#
+#     The genre of "Weird Al" Yankovic is
+#
+# so the model's continuation decodes as " comedy" (leading space) while the
+# reference is "comedy". `' comedy' == 'comedy'` is False, and a correct answer is
+# scored wrong.
+#
+# Whether that leading space survives decoding is decided entirely by the
+# tokenizer's `add_prefix_space`, so the task silently measures tokenizer
+# configuration rather than model capability:
+#
+#   add_prefix_space=True   continuation decodes 'comedy'   -> can score
+#   add_prefix_space=False  continuation decodes ' comedy'  -> scores 0.0000, always
+#
+# Observed across a 17-model sweep on the DCLM-core-22 suite: the two EuroLLM
+# models (add_prefix_space=True) scored 0.55-0.75, and the other 15 -- pythia-70m
+# and Apertus-8B alike -- scored EXACTLY 0.0000 on all four affected tasks. A
+# 1.7B EuroLLM "beat" an 8B Apertus 0.67 to 0.00 on factual recall. Aggregated
+# over the suite this inverted the model ranking. The same tasks read 0.0000 for
+# all 1127 checkpoints of a dense_eng sweep, where the uniformity made it look
+# like the tasks were simply too hard.
+#
+# Fix: the `remove_whitespace` filter (resp.strip(), leading/trailing only, so
+# multi-word answers such as "Addis Ababa" are unaffected) -- the same filter this
+# repo's own jeopardy.yaml already applies, which is why jeopardy was never hit.
+# Everything else is byte-identical to upstream.
+#
+# Verified A/B, SmolLM2-135M, 60 samples, 10-shot:
+#     upstream task definition  exact_match = 0.0000
+#     with this filter          exact_match = 0.4833
+tag: bigbench_generate_until
+dataset_path: hails/bigbench
+output_type: generate_until
+test_split: default
+doc_to_text: inputs
+doc_to_target: "{{targets[0]}}"
+generation_kwargs:
+  max_gen_toks: 128
+filter_list:
+  - name: strict-match
+    filter:
+      - function: remove_whitespace
+      - function: take_first
+metric_list:
+  - metric: exact_match
+    aggregation: mean
+    higher_is_better: true
+    ignore_punctuation: true
+metadata:
+  version: 1.0
