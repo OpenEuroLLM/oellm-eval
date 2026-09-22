@@ -67,7 +67,7 @@ def _render(**overrides: object) -> str:
 
 def _awk_program() -> str:
     """The batching program, taken from the rendered script rather than duplicated."""
-    match = re.search(r"^awk -F, .*?\n(.*?)^' \| \\$", _render(), re.S | re.M)
+    match = re.search(r"^BATCH_ROWS_AWK='\n(.*?)^'$", _render(), re.S | re.M)
     assert match, "batching awk block not found in the rendered template"
     return match.group(1)
 

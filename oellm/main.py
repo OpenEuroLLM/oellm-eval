@@ -563,10 +563,12 @@ def schedule_evals(
     except subprocess.CalledProcessError as e:
         logging.error(f"Failed to submit job: {e}")
         logging.error(f"sbatch stderr: {e.stderr}")
-    except FileNotFoundError:
+        raise SystemExit(1) from e
+    except FileNotFoundError as e:
         logging.error(
             "sbatch command not found. Please make sure you are on a system with SLURM installed."
         )
+        raise SystemExit(1) from e
 
 
 def collect_results(
