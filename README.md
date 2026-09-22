@@ -56,6 +56,18 @@ Available task groups:
 
 Super groups combine multiple task groups:
 - `oellm-multilingual` - All multilingual benchmarks combined
+- `multilingual-oellm-eu` - Every multilingual benchmark, in the 36 prioritised
+  OpenEuroLLM target languages (24 official EU languages,
+  Catalan/Basque/Galician, candidate members, Icelandic/Norwegian). 401 eval
+  units across all 15 multilingual benchmarks and both eval suites:
+
+  ```bash
+  oellm-eval schedule --models "my-model" --task_groups "multilingual-oellm-eu"
+  ```
+
+  Russian, Hebrew, Armenian, Azerbaijani and Belarusian were dropped from
+  `global-mmlu-eu` and `include` to make this possible, so they are no longer
+  reachable through any task group.
 
 ```bash
 # Use a task group
