@@ -320,6 +320,30 @@ def _load_task_groups_data() -> dict:
     return _expand_lang_templates(raw)
 
 
+def primary_metric_map() -> dict[str, str]:
+    """Map each task name to its primary metric, as declared in task-groups.yaml.
+
+    A task group sets a default via its ``metric:`` key; an individual task entry
+    may override it with a ``metric:`` of its own. Tasks belonging to a group that
+    declares neither are simply absent from the map, and ``collect`` then keeps
+    every metric the harness computed for them.
+
+    Keeping this next to the task definition means adding a language to a
+    ``valid_langs`` list needs no second edit elsewhere: the expansion below
+    carries the group's metric onto every generated task.
+    """
+    data = _load_task_groups_data()
+    metrics: dict[str, str] = {}
+    for group_data in (data.get("task_groups") or {}).values():
+        default = group_data.get("metric")
+        for task_data in group_data.get("tasks") or []:
+            metric = task_data.get("metric", default)
+            name = task_data.get("task")
+            if metric and name:
+                metrics.setdefault(name, metric)
+    return metrics
+
+
 def _language_codes_from_groups(task_groups: dict[str, TaskGroup]) -> set[str]:
     """Collect every canonical language code that at least one task resolves to.
 
