@@ -198,6 +198,16 @@ def schedule_evals(
         os.environ.setdefault("HF_HOME", str(Path.home() / ".cache" / "huggingface"))
     else:
         _load_cluster_env()
+        # The generated script bakes HF_HOME in and binds it into the container.
+        # Unset, it becomes an empty bind path and every array element dies
+        # inside singularity, so fail here with something actionable instead.
+        if not os.environ.get("HF_HOME"):
+            raise ValueError(
+                "HF_HOME is not set. Models and datasets are cached there and "
+                "compute nodes have no internet access, so it must point at a "
+                "directory on a shared filesystem, e.g.\n\n"
+                '    export HF_HOME="/path/to/your/hf_home"'
+            )
 
     use_venv = venv_path is not None
 
