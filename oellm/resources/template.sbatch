@@ -18,6 +18,7 @@ TOTAL_EVALS={total_evals}
 LIMIT="{limit}"
 VENV_PATH="{venv_path}"
 LM_EVAL_INCLUDE_PATH="{lm_eval_include_path}"
+TASKS_PER_JOB={tasks_per_job}
 
 # avoiding crashes due to compute nodes not having access to the internet
 export HF_HOME=$HF_HOME
@@ -66,9 +67,35 @@ FAILED_EVALS=0
 
 # Use `tail` and `head` to slice the CSV file for the tasks assigned to this job.
 # The +1 on START_INDEX accounts for the header row.
+# Collapse adjacent rows that share a model, shot count and lm_eval suite into
+# a single row whose task field is a comma-separated list. lm_eval loads the
+# model once per invocation, so evaluating N tasks in one call replaces N model
+# loads with one. TASKS_PER_JOB caps how many tasks share a call: lm_eval aborts
+# the whole invocation if one task raises, so the cap bounds what a single
+# failure takes down. Suites other than lm_eval pass through one row at a time.
+# The output is tab-separated because a joined task list contains commas.
+BATCH_ROWS_AWK='
+    function flush() {{ if (tasks != "") print model, tasks, shots, suite }}
+    {{
+        gsub(/\r/, "")
+        if ($1 == "") next
+        row_suite = ($4 == "" ? "lm_eval" : $4)
+        lowered = tolower(row_suite)
+        batchable = (lowered == "lm_eval" || lowered == "lm-eval" || lowered == "lm-eval-harness")
+        row_key = batchable ? ($1 SUBSEP $3 SUBSEP lowered) : ("unbatched" SUBSEP NR)
+        if (row_key != key || count >= max_tasks) {{
+            flush()
+            key = row_key; model = $1; shots = $3; suite = row_suite; tasks = $2; count = 1
+        }} else {{
+            tasks = tasks "," $2; count++
+        }}
+    }}
+    END {{ flush() }}
+'
+
 # Redirected rather than piped into the loop: a pipeline runs the loop body in a
 # subshell, and FAILED_EVALS would be discarded when it exits.
-while IFS=, read -r model_path task_path n_shot eval_suite
+while IFS=$'\t' read -r model_path task_path n_shot eval_suite
 do
     # Remove trailing carriage returns if script is edited on Windows
     model_path=$(echo "$model_path" | tr -d '\r')
@@ -250,18 +277,22 @@ do
     # An evaluation counts as done only if the harness exited 0 and wrote
     # something. Both halves matter: a container that fails to start and a
     # missing venv both exit 0 while producing no result.
+    # A batched lm_eval call covers every task in its list, so a failure leaves
+    # all of them without a result.
+    EVAL_TASKS=$(( $(echo "$task_path" | tr -cd ',' | wc -c) + 1 ))
     if [ "$EVAL_STATUS" -ne 0 ]; then
         echo "[error] $task_path ($eval_suite) exited with status $EVAL_STATUS"
-        FAILED_EVALS=$((FAILED_EVALS + 1))
+        FAILED_EVALS=$((FAILED_EVALS + EVAL_TASKS))
     elif [ -n "$EVAL_OUT_DIR" ] && [ -z "$(find "$EVAL_OUT_DIR" -type f -name "$EVAL_OUT_PAT" 2>/dev/null | head -n 1)" ]; then
         echo "[error] $task_path ($eval_suite) exited 0 but wrote no result to $EVAL_OUT_DIR/$EVAL_OUT_PAT"
-        FAILED_EVALS=$((FAILED_EVALS + 1))
+        FAILED_EVALS=$((FAILED_EVALS + EVAL_TASKS))
     else
         echo "----------------------------------------------------"
         echo "Evaluation finished for model: $model_path"
     fi
 
-done < <(tail -n +$((START_INDEX + 1)) "$CSV_PATH" | head -n $((END_INDEX - START_INDEX + 1)))
+done < <(tail -n +$((START_INDEX + 1)) "$CSV_PATH" | head -n $((END_INDEX - START_INDEX + 1)) | \
+    awk -F, -v max_tasks="$TASKS_PER_JOB" -v OFS='\t' "$BATCH_ROWS_AWK")
 
 if [ "$FAILED_EVALS" -gt 0 ]; then
     echo "Job $SLURM_ARRAY_TASK_ID finished with $FAILED_EVALS failed evaluation(s)."
