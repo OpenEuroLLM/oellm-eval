@@ -22,10 +22,28 @@ From: rocm/pytorch:rocm6.4.1_ubuntu24.04_py3.12_pytorch_release_2.7.1
         accelerate \
         nltk
 
-    # lighteval as isolated tool (avoids dependency conflicts)
+    # lighteval as isolated tool (avoids dependency conflicts).
+    #
+    # --torch-backend rocm6.4 is REQUIRED on LUMI. `uv tool install` builds an
+    # isolated venv and re-resolves every dependency from PyPI, including torch --
+    # so it pulls the default CUDA wheel (torch==2.10.0+cu128) even though the base
+    # image ships ROCm torch. On MI250X that wheel reports device_count() == 0,
+    # accelerate then selects cpu, and lighteval logs "putting model on device cpu"
+    # and runs on CPU until it hits the walltime. No *_VISIBLE_DEVICES setting can
+    # help: the wheel has no HIP support compiled in. See issue #96.
+    # lm-eval is unaffected because it is installed with `uv pip install --system`
+    # above, reusing the base image's ROCm torch.
+    #
+    # xxhash<4 is also required: 4.0 dropped implicit str encoding, and lighteval
+    # hashes doc.query directly (logging/info_loggers.py), so a fresh resolve picks
+    # up xxhash 4.0.1 and every run dies with "TypeError: Strings must be encoded
+    # before hashing" right after COMPUTING METRICS. Independent of lighteval's
+    # version -- v0.13.0 and main both hit it.
     uv tool install --python 3.12 \
+        --torch-backend rocm6.4 \
         --with "langcodes[data]" \
         --with "pillow" \
+        --with "xxhash<4" \
         "lighteval[multilingual] @ git+https://github.com/huggingface/lighteval.git"
 
     # Pre-load lighteval registry to trigger tinyBenchmarks data download at build time
