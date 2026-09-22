@@ -78,7 +78,13 @@ Task groups are pre-defined evaluation suites in [`task-groups.yaml`](oellm/reso
 | `generic-multilingual` | XWinograd, XCOPA, XStoryCloze | lm-eval |
 | `include` | INCLUDE benchmarks (44 languages) | lm-eval |
 
-Super groups: `oellm-multilingual` (all multilingual benchmarks combined)
+Super groups: `oellm-multilingual` (all multilingual benchmarks combined) and
+`multilingual-oellm-eu` (every multilingual benchmark restricted to the 36
+OpenEuroLLM target languages: the 24 official EU languages, Catalan, Basque,
+Galician, the candidate-member languages, Icelandic and Norwegian; 401 tasks
+across both engines). Russian, Hebrew, Armenian, Azerbaijani and Belarusian
+were dropped from `global-mmlu-eu` and `include` to make this possible, so no
+task group reaches them any more.
 
 ### Image
 
