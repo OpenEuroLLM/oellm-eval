@@ -60,9 +60,14 @@ if [ "$START_INDEX" -gt "$END_INDEX" ]; then
     exit 0
 fi
 
+# Evaluations in this job that produced no result. Becomes the job's exit
+# status so a failed eval cannot be mistaken for a completed one.
+FAILED_EVALS=0
+
 # Use `tail` and `head` to slice the CSV file for the tasks assigned to this job.
 # The +1 on START_INDEX accounts for the header row.
-tail -n +$((START_INDEX + 1)) "$CSV_PATH" | head -n $((END_INDEX - START_INDEX + 1)) | \
+# Redirected rather than piped into the loop: a pipeline runs the loop body in a
+# subshell, and FAILED_EVALS would be discarded when it exits.
 while IFS=, read -r model_path task_path n_shot eval_suite
 do
     # Remove trailing carriage returns if script is edited on Windows
@@ -135,20 +140,31 @@ do
         fi
     }}
 
+    # Set by every branch below: the harness exit status, and where to look for
+    # what it wrote. lm_eval appends a timestamp to --output_path, so the result
+    # is a directory plus a filename pattern rather than an exact path.
+    EVAL_STATUS=0
+    EVAL_OUT_DIR=""
+    EVAL_OUT_PAT=""
+
     case "$suite_normalized" in
         lm_eval|lm-eval|lm-eval-harness)
             echo
             echo "----------------------------------------------------"
             echo "lm_eval Execution"
+            RUN_ID=$(openssl rand -hex 5)
+            EVAL_OUT_DIR="{evals_dir}"
+            EVAL_OUT_PAT="$RUN_ID*.json"
             run_python -m lm_eval --model hf \
                 --model_args pretrained="$model_path",trust_remote_code=True \
                 --tasks "$task_path" \
                 --num_fewshot "$n_shot" \
-                --output_path "{evals_dir}/$(openssl rand -hex 5).json" \
+                --output_path "$EVAL_OUT_DIR/$RUN_ID.json" \
                 --trust_remote_code \
                 ${{LM_EVAL_INCLUDE_PATH:+--include_path $$LM_EVAL_INCLUDE_PATH}} \
                 --batch_size auto \
                 ${{LIMIT:+--limit $LIMIT}}
+            EVAL_STATUS=$?
             echo "----------------------------------------------------"
             ;;
         lighteval|light-eval)
@@ -171,6 +187,8 @@ do
 
             RESULTS_SUBDIR="{evals_dir}/$(openssl rand -hex 5)"
             mkdir -p "$RESULTS_SUBDIR"
+            EVAL_OUT_DIR="$RESULTS_SUBDIR"
+            EVAL_OUT_PAT="*"
 
             if [ -n "$VENV_PATH" ]; then
                 source "$VENV_PATH/bin/activate"
@@ -180,6 +198,7 @@ do
                     --load-tasks-multilingual \
                     --output-dir "$RESULTS_SUBDIR" \
                     ${{LIMIT:+--max-samples $LIMIT}}
+                EVAL_STATUS=$?
             else
                 singularity exec $SINGULARITY_ARGS \
                     $SINGULARITY_ENV_ARGS \
@@ -193,13 +212,19 @@ do
                         --load-tasks-multilingual \
                         --output-dir "$RESULTS_SUBDIR" \
                         ${{LIMIT:+--max-samples $LIMIT}}
+                EVAL_STATUS=$?
             fi
             ;;
         evalchemy)
             EVALCHEMY_WORK_DIR="{evalchemy_dir}"
             RESULTS_SUBDIR="{evals_dir}/$(openssl rand -hex 5)"
+            EVAL_OUT_DIR="$RESULTS_SUBDIR"
+            EVAL_OUT_PAT="*"
             if [ -n "$VENV_PATH" ]; then
                 source "$VENV_PATH/bin/activate"
+                # subshell: the loop no longer runs in one, so this cd would
+                # otherwise leak into the next evaluation in this job
+                (
                 cd "$EVALCHEMY_WORK_DIR"
                 accelerate launch --num-processes "$GPUS_PER_NODE" --num-machines 1 \
                     $MULTI_GPU_FLAG -m eval.eval \
@@ -209,6 +234,8 @@ do
                     --batch_size auto \
                     --output_path "$RESULTS_SUBDIR" \
                     ${{LIMIT:+--limit $LIMIT}}
+                )
+                EVAL_STATUS=$?
             else
                 echo "[error] evalchemy suite requires --venv_path (not supported in container mode)."
                 exit 1
@@ -216,12 +243,29 @@ do
             ;;
         *)
             echo "[warning] Unknown evaluation suite '$eval_suite'. Skipping."
+            EVAL_STATUS=1
             ;;
     esac
 
-    echo "----------------------------------------------------"
-    echo "Evaluation finished for model: $model_path"
+    # An evaluation counts as done only if the harness exited 0 and wrote
+    # something. Both halves matter: a container that fails to start and a
+    # missing venv both exit 0 while producing no result.
+    if [ "$EVAL_STATUS" -ne 0 ]; then
+        echo "[error] $task_path ($eval_suite) exited with status $EVAL_STATUS"
+        FAILED_EVALS=$((FAILED_EVALS + 1))
+    elif [ -n "$EVAL_OUT_DIR" ] && [ -z "$(find "$EVAL_OUT_DIR" -type f -name "$EVAL_OUT_PAT" 2>/dev/null | head -n 1)" ]; then
+        echo "[error] $task_path ($eval_suite) exited 0 but wrote no result to $EVAL_OUT_DIR/$EVAL_OUT_PAT"
+        FAILED_EVALS=$((FAILED_EVALS + 1))
+    else
+        echo "----------------------------------------------------"
+        echo "Evaluation finished for model: $model_path"
+    fi
 
-done
+done < <(tail -n +$((START_INDEX + 1)) "$CSV_PATH" | head -n $((END_INDEX - START_INDEX + 1)))
+
+if [ "$FAILED_EVALS" -gt 0 ]; then
+    echo "Job $SLURM_ARRAY_TASK_ID finished with $FAILED_EVALS failed evaluation(s)."
+    exit 1
+fi
 
 echo "Job $SLURM_ARRAY_TASK_ID finished."
