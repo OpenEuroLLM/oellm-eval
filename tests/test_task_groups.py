@@ -163,6 +163,13 @@ class TestExpandTaskGroupsWithTemplates:
     def test_flores_eu_to_eng_expands_to_35_tasks(self):
         results = _expand_task_groups(["flores-200-eu-to-eng"])
         assert len(results) == 35
+        assert {result.n_shot for result in results} == {4}
+
+    def test_flores_eng_to_eu_uses_four_shots(self):
+        results = _expand_task_groups(["flores-200-eng-to-eu"])
+
+        assert len(results) == 35
+        assert {result.n_shot for result in results} == {4}
 
     def test_global_mmlu_expands_to_18_tasks(self):
         results = _expand_task_groups(["global-mmlu-eu"])
