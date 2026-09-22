@@ -361,7 +361,8 @@ task_groups:
         subset: winogrande_xl
       - task: wsc273
         n_shots: [0]
-        dataset: winograd_wsc
+        dataset: lighteval/winograd_wsc
+        subset: wsc273
       - task: lambada_openai
         n_shots: [0]
         dataset: EleutherAI/lambada_openai
