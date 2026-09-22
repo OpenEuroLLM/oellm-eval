@@ -169,16 +169,25 @@ do
         fi
     }}
 
+    # Where the engine is expected to write its result, as a directory plus a
+    # file-name pattern (lm_eval appends a timestamp to --output_path). A row
+    # that exits 0 without producing a matching file counts as failed.
+    EVAL_OUT_DIR=""
+    EVAL_OUT_PAT=""
+
     case "$suite_normalized" in
         lm_eval|lm-eval|lm-eval-harness)
             echo
             echo "----------------------------------------------------"
             echo "lm_eval Execution"
+            RUN_ID=$(openssl rand -hex 5)
+            EVAL_OUT_DIR="{evals_dir}"
+            EVAL_OUT_PAT="$RUN_ID*.json"
             run_python -m lm_eval --model hf \
                 --model_args {lm_eval_model_args} \
                 --tasks "$task_path" \
                 --num_fewshot "$n_shot" \
-                --output_path "{evals_dir}/$(openssl rand -hex 5).json" \
+                --output_path "$EVAL_OUT_DIR/$RUN_ID.json" \
                 ${{LM_EVAL_TRC:+--trust_remote_code}} \
                 ${{LM_EVAL_INCLUDE_PATH:+--include_path $$LM_EVAL_INCLUDE_PATH}} \
                 --batch_size "${{LM_EVAL_BATCH_SIZE:-auto}}" \
@@ -206,6 +215,8 @@ do
 
             RESULTS_SUBDIR="{evals_dir}/$(openssl rand -hex 5)"
             mkdir -p "$RESULTS_SUBDIR"
+            EVAL_OUT_DIR="$RESULTS_SUBDIR"
+            EVAL_OUT_PAT="*"
 
             if [ -n "$VENV_PATH" ]; then
                 source "$VENV_PATH/bin/activate"
@@ -236,6 +247,9 @@ do
             # Adapter class is encoded in eval_suite as "lmms_eval:<adapter>" by the oellm CLI.
             _lmms_adapter="${{eval_suite#*:}}"
             OUTPUT_JSON="{evals_dir}/$(openssl rand -hex 5).json"
+            # lmms-eval turns this path into a directory: <id>.json/<model>/<ts>_results.json
+            EVAL_OUT_DIR="$OUTPUT_JSON"
+            EVAL_OUT_PAT="*.json"
 
             # lmms-eval adapters default to device=cuda. LMMS_MODEL_ARGS (k=v,...)
             # is appended verbatim; a --local run on macOS defaults to MPS.
@@ -275,6 +289,8 @@ do
         evalchemy)
             EVALCHEMY_WORK_DIR="{evalchemy_dir}"
             RESULTS_SUBDIR="{evals_dir}/$(openssl rand -hex 5)"
+            EVAL_OUT_DIR="$RESULTS_SUBDIR"
+            EVAL_OUT_PAT="*"
             if [ -n "$VENV_PATH" ]; then
                 # Subshell: contain the cd so later rows keep the original cwd.
                 (
@@ -298,6 +314,8 @@ do
         *)
             # Contrib suite: dispatch to the Python plugin registry.
             _CONTRIB_OUTPUT="{evals_dir}/$(openssl rand -hex 5).json"
+            EVAL_OUT_DIR="{evals_dir}"
+            EVAL_OUT_PAT="${{_CONTRIB_OUTPUT##*/}}"
             run_python -m oellm.contrib.dispatch \
                 --suite      "$eval_suite" \
                 --model_path "$model_path" \
@@ -308,12 +326,18 @@ do
             ;;
     esac
 
+    # A row counts as done only if the engine exited 0 and wrote a result.
+    # Both halves matter: a container that fails to start and a missing venv
+    # both exit 0 while producing nothing.
     echo "----------------------------------------------------"
     if [ "$rc" -ne 0 ]; then
         FAILED_ROWS=$((FAILED_ROWS + 1))
         _timeout_note=""
         if [ "$rc" -eq 124 ]; then _timeout_note=" (ROW_TIMEOUT=${{ROW_TIMEOUT:-}} exceeded)"; fi
-        echo "[ERROR] Evaluation FAILED (exit=$rc)$_timeout_note for model=$model_path task=$task_path n_shot=$n_shot suite=$eval_suite"
+        echo "[error] $task_path ($eval_suite) exited with status $rc$_timeout_note for model=$model_path n_shot=$n_shot"
+    elif [ -n "$EVAL_OUT_DIR" ] && [ -z "$(find "$EVAL_OUT_DIR" -type f -name "$EVAL_OUT_PAT" 2>/dev/null | head -n 1)" ]; then
+        FAILED_ROWS=$((FAILED_ROWS + 1))
+        echo "[error] $task_path ($eval_suite) exited 0 but wrote no result to $EVAL_OUT_DIR/$EVAL_OUT_PAT for model=$model_path n_shot=$n_shot"
     else
         echo "Evaluation finished for model: $model_path"
     fi
