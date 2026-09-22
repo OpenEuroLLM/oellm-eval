@@ -17,11 +17,25 @@ the user to re-run it, spending cluster time on work that already finished.
 """
 
 import json
+import logging
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from oellm.main import collect_results
+
+
+@pytest.fixture(autouse=True)
+def _restore_root_logger():
+    # collect_results reconfigures the root logger (RichHandler at INFO) and
+    # would leave it that way for every test file that runs afterwards.
+    root = logging.getLogger()
+    handlers, level = root.handlers[:], root.level
+    yield
+    root.handlers[:] = handlers
+    root.setLevel(level)
+
 
 MODEL = "/scratch/project_465002530/checkpoints/iter_0002000"
 MMLU_SUBGROUPS = [
