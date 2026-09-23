@@ -48,10 +48,10 @@ uv pip install --python /path/to/.venv/bin/python -e /path/to/lmms-eval
 # 3. Install oellm-cli with engine extras
 uv pip install --python /path/to/.venv/bin/python -e '.[text,image,audio]'
 
-# 4. Install lighteval as an isolated uv tool (datasets version conflict)
+# 4. Install lighteval as an isolated uv tool (datasets version conflict; xxhash 4 breaks it)
 UV_TOOL_DIR=/path/to/.uv-tools UV_TOOL_BIN_DIR=/path/to/.venv/bin \
   uv tool install --python 3.12 \
-    --with "langcodes[data]" --with "pillow" \
+    --with "langcodes[data]" --with "pillow" --with "xxhash<4" \
     "lighteval[multilingual] @ git+https://github.com/huggingface/lighteval.git@64f4f5ae173626509fad6e477ca4ee56ebb26129"
 ```
 

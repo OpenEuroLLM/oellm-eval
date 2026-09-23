@@ -240,6 +240,17 @@ class TestScaleOverrides:
             3.4, "llm_as_judge_eval,none", "voicebench_commoneval"
         ) == pytest.approx(68.0)
 
+    @pytest.mark.parametrize(
+        "task, raw, expected",
+        [
+            ("alpaca_audio", 62.0, 62.0),  # 0–100
+            ("air_bench_chat_sound", 6.5, 65.0),  # 1–10
+            ("wavcaps", 3.1, 62.0),  # 0–5, the gpt_eval default
+        ],
+    )
+    def test_gpt_eval_judge_scales(self, task, raw, expected):
+        assert _normalize_to_100(raw, "gpt_eval,none", task) == pytest.approx(expected)
+
 
 # ── Envelope v1.2 + provenance sidecar ───────────────────────────────────────
 
@@ -259,7 +270,7 @@ class TestProvenanceEnvelope:
         out = tmp_path / "out.csv"
         collect_results(str(tmp_path), str(out))
         envelope = json.loads((tmp_path / "out.json").read_text())
-        assert envelope["version"] == "1.2"
+        assert envelope["version"] == "1.3"
         assert envelope["metadata"] == {}
         assert envelope["oellm_version"] == __version__
         assert envelope["runs"][0]["model_revisions"] == {"m": "abc123"}

@@ -154,24 +154,35 @@ vs `lmms_eval`) — no silent averaging.
 ## Supported model adapters
 
 AudioBench dispatches on a fixed list of literal `model_name` strings
-(see `$AUDIOBENCH_DIR/src/model.py`); each loader under `model_src/`
-fetches its own HF repo. Arbitrary HF checkpoints are not supported —
-only the variants below:
+(see `$AUDIOBENCH_DIR/src/model.py`), and each loader under `model_src/`
+reads its weights location from a variable (`model_path = "Qwen/Qwen2-Audio-7B-Instruct"`).
+The plugin's `launch.py` points that variable at your model, so checkpoints of
+these families are evaluated with the family's AudioBench prompts and loader:
 
-| Model path substring (lowered)                 | AudioBench `model_name` (literal)         |
-|------------------------------------------------|-------------------------------------------|
-| `qwen2-audio-7b-instruct` / `qwen2_audio_7b_instruct` | `Qwen2-Audio-7B-Instruct`          |
-| `qwen-audio-chat` / `qwen_audio_chat`          | `Qwen-Audio-Chat`                         |
-| `salmonn`                                      | `SALMONN_7B`                              |
-| `meralion-audiollm` / `meralion_audiollm`      | `MERaLiON-AudioLLM-Whisper-SEA-LION`      |
-| `whisper-large-v3` / `whisper_large_v3`        | `whisper_large_v3`                        |
-| `whisper-large-v2` / `whisper_large_v2`        | `whisper_large_v2`                        |
-| `phi-4-multimodal` / `phi_4_multimodal`        | `phi_4_multimodal_instruct`               |
-| `seallms-audio-7b` / `seallms_audio_7b`        | `seallms_audio_7b`                        |
-| `wavllm`                                       | `WavLLM_fairseq`                          |
-| (anything else)                                | error — no generic loader upstream        |
+| Model path substring (lowered)                 | AudioBench `model_name` (literal)         | Your checkpoints |
+|------------------------------------------------|-------------------------------------------|------------------|
+| `qwen2-audio-7b-instruct` / `qwen2_audio_7b_instruct` | `Qwen2-Audio-7B-Instruct`          | yes |
+| `qwen-audio-chat` / `qwen_audio_chat`          | `Qwen-Audio-Chat`                         | yes |
+| `meralion-audiollm` / `meralion_audiollm`      | `MERaLiON-AudioLLM-Whisper-SEA-LION`      | yes |
+| `whisper-large-v3` / `whisper_large_v3`        | `whisper_large_v3`                        | yes |
+| `whisper-large-v2` / `whisper_large_v2`        | `whisper_large_v2`                        | yes |
+| `phi-4-multimodal` / `phi_4_multimodal`        | `phi_4_multimodal_instruct`               | yes |
+| `salmonn`                                      | `SALMONN_7B`                              | stock only |
+| `seallms-audio-7b` / `seallms_audio_7b`        | `seallms_audio_7b`                        | stock only |
+| `wavllm`                                       | `WavLLM_fairseq`                          | stock only |
+| (anything else)                                | error — no generic loader upstream        | |
+
+A local checkpoint folder whose path doesn't name its family is recognised
+from `config.json`: `Qwen2AudioForConditionalGeneration`,
+`MERaLiONForConditionalGeneration`, `WhisperForConditionalGeneration` (any
+size, run with the `whisper_large_v3` loader) and `Phi4MMForCausalLM`.
+SeaLLMs-Audio loads a hard-coded repo id, SALMONN a multi-file layout inside
+the clone and WavLLM a fairseq script, so checkpoints of those are refused.
 
 To override detection, pass the literal AudioBench key as a suffix:
 `audiobench:Qwen2-Audio-7B-Instruct`. Case is preserved end-to-end
 (AudioBench's match is case-sensitive).
 
+Each run writes AudioBench's predictions and score file to its own temporary
+folder, not the clone's `log_for_all_models/`, so parallel runs of one family
+cannot overwrite or reuse each other's scores.

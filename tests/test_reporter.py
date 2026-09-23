@@ -32,7 +32,7 @@ def test_write_json_schema_version(tmp_path: Path) -> None:
     out = tmp_path / "results.json"
     write_results_json(_SAMPLE_ROWS, out)
     data = json.loads(out.read_text())
-    assert data["version"] == SCHEMA_VERSION == "1.2"
+    assert data["version"] == SCHEMA_VERSION == "1.3"
 
 
 def test_write_json_result_fields(tmp_path: Path) -> None:
@@ -48,6 +48,10 @@ def test_write_json_result_fields(tmp_path: Path) -> None:
             "metric",
             "performance",
             "performance_normalized",
+            "limit",
+            "quantization",
+            "evaluated_at",
+            "run",
         }
 
 
@@ -77,7 +81,7 @@ def test_write_json_empty_rows(tmp_path: Path) -> None:
     write_results_json([], out)
     data = json.loads(out.read_text())
     assert data["results"] == []
-    assert data["version"] == "1.2"
+    assert data["version"] == "1.3"
 
 
 def test_write_json_creates_parent_dirs(tmp_path: Path) -> None:

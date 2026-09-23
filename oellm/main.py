@@ -68,7 +68,8 @@ def schedule_evals(
         tasks: A string of comma-separated task names (lm_eval) or paths.
             Requires `n_shot` to be provided. Tasks here are assumed to be lm_eval unless otherwise handled via CSV.
         task_groups: A string of comma-separated task group names defined in `task-groups.yaml`.
-            Each group expands into concrete (task, n_shots, suite) entries; `n_shot` is ignored for groups.
+            Each group expands into concrete (task, n_shots, suite) entries and sets its own shots;
+            `n_shot` applies to `tasks` only. Given together, `tasks` and `task_groups` are both scheduled.
             A group (or super_group) may be scoped to one or more languages with a bracket, e.g.
             `--task-groups "oellm-multilingual[deu_Latn]"` or
             `--task-groups "sib200-eu[fra_Latn|deu_Latn],flores-200-eu-to-eng[deu_Latn]"`. Bracketed

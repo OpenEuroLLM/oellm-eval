@@ -30,7 +30,8 @@ LM_EVAL_BATCH_SIZE="{lm_eval_batch_size}"
 
 # Compute nodes are air-gapped — every dataset must be cache-resolved.
 export HF_HOME=$HF_HOME
-export HF_DATASETS_CACHE="$HF_HOME/datasets"
+# The cache the pre-download filled: an exported HF_DATASETS_CACHE, else the default.
+export HF_DATASETS_CACHE="${{HF_DATASETS_CACHE:-$HF_HOME/datasets}}"
 export HF_HUB_OFFLINE={hf_hub_offline}
 # HF_DATASETS_OFFLINE covers `dl_manager.download(arbitrary_url)` (external
 # image/video hosts) which HF_HUB_OFFLINE does not.
@@ -38,7 +39,7 @@ export HF_DATASETS_OFFLINE={hf_hub_offline}
 # lmms-eval auto-redirects "remote" (GPFS/Lustre) caches to a node-local
 # /tmp by default; set this to force it to use the shared cache instead.
 # See lmms_eval/api/task.py::_resolve_hf_datasets_cache_dir.
-export LMMS_EVAL_DATASETS_CACHE="$HF_HOME/datasets"
+export LMMS_EVAL_DATASETS_CACHE="$HF_DATASETS_CACHE"
 
 # Path to the shared Singularity image that contains all runtime deps (container mode)
 export EVAL_SIF_PATH="$EVAL_BASE_DIR/$EVAL_CONTAINER_IMAGE"

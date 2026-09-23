@@ -127,7 +127,7 @@ run: |
       lm-eval torch transformers accelerate "datasets<4.0.0"
     UV_TOOL_DIR="$EVAL_BASE_DIR/.uv-tools" UV_TOOL_BIN_DIR="$EVAL_BASE_DIR/.venv/bin" \
       uv tool install --python 3.12 \
-        --with "langcodes[data]" --with "pillow" \
+        --with "langcodes[data]" --with "pillow" --with "xxhash<4" \
         "lighteval[multilingual] @ git+https://github.com/huggingface/lighteval.git"
   fi
 

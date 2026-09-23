@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import subprocess
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -82,7 +82,17 @@ METRIC_NATIVE_SCALE: dict[str, float] = {
 TASK_METRIC_SCALE_OVERRIDES: dict[tuple[str, str], float] = {
     ("squadv2", "f1"): 100.0,
     ("voicebench_commoneval", "llm_as_judge_eval"): 5.0,
+    # lmms-eval 45c766f: alpaca_audio and openhermes report 0–100, air_bench_chat 1–10.
+    ("alpaca_audio", "gpt_eval"): 100.0,
+    ("openhermes", "gpt_eval"): 100.0,
+    ("air_bench_chat_sound", "gpt_eval"): 10.0,
+    ("air_bench_chat_music", "gpt_eval"): 10.0,
+    ("air_bench_chat_speech", "gpt_eval"): 10.0,
+    ("air_bench_chat_mixed", "gpt_eval"): 10.0,
 }
+
+# Counters in engine output, never scores.
+_NON_METRIC_KEYS = {"alias", "name", " ", "", "sample_len", "sample_count", "samples"}
 
 
 def _normalize_to_100(
@@ -153,14 +163,21 @@ def _resolve_metric(
             return val, key
 
     # Last resort: pick the first numeric non-stderr value (catches lmms-eval
-    # benchmarks with non-standard metric names like mme_cognition_score)
-    for k, v in result_dict.items():
-        if (
-            isinstance(v, (int, float))
-            and "stderr" not in k
-            and k not in ("alias", " ", "")
-        ):
+    # benchmarks with non-standard metric names like mme_cognition_score).
+    # Prefer engine metric keys ("name,filter") over bare keys.
+    candidates = [
+        (k, v)
+        for k, v in result_dict.items()
+        if isinstance(v, (int, float))
+        and not isinstance(v, bool)
+        and "stderr" not in k
+        and k not in _NON_METRIC_KEYS
+    ]
+    for k, v in candidates:
+        if "," in k:
             return float(v), k
+    for k, v in candidates:
+        return float(v), k
     return None, None
 
 
@@ -172,7 +189,7 @@ def _extract_all_metrics(result_dict: dict) -> list[tuple[str, float]]:
         key = raw_key.split("/", 1)[1] if "/" in raw_key else raw_key
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             continue
-        if key in seen or key in ("alias", " ", ""):
+        if key in seen or key in _NON_METRIC_KEYS:
             continue
         seen.add(key)
         pairs.append((key, float(value)))
@@ -304,6 +321,80 @@ def _try_contrib_parse(data: dict) -> tuple[str, str, int, dict] | None:
     return None
 
 
+def _run_of(
+    path: Path, cache: dict[Path, dict | None], stop: Path
+) -> tuple[Path | None, dict | None]:
+    """Nearest folder above *path*, up to *stop*, with a provenance.json."""
+    stop = stop.resolve()
+    for folder in path.resolve().parents:
+        if folder not in cache:
+            sidecar = folder / "provenance.json"
+            loaded = None
+            if sidecar.is_file():
+                try:
+                    loaded = json.loads(sidecar.read_text())
+                except (json.JSONDecodeError, OSError, UnicodeDecodeError) as e:
+                    logging.warning(f"Unreadable provenance sidecar {sidecar}: {e}")
+            cache[folder] = loaded if isinstance(loaded, dict) else None
+        if cache[folder] is not None:
+            return folder, cache[folder]
+        if folder == stop:
+            break
+    return None, None
+
+
+def _sample_limit(data: dict, provenance: dict | None) -> int | float | None:
+    """The --limit behind a result, None for a full evaluation."""
+    config = data.get("config")
+    config_general = data.get("config_general")
+    for value in (
+        (provenance or {}).get("limit"),
+        config.get("limit") if isinstance(config, dict) else None,
+        config_general.get("max_samples") if isinstance(config_general, dict) else None,
+    ):
+        if isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0:
+            return int(value) if float(value).is_integer() else value
+    return None
+
+
+def _quantization(data: dict) -> str | None:
+    """Quantization the engine used; lighteval and contrib suites ignore the flag."""
+    config = data.get("config")
+    args = config.get("model_args") if isinstance(config, dict) else None
+    text = json.dumps(args) if isinstance(args, dict) else str(args or "")
+    for bits in ("4bit", "8bit"):
+        if f"load_in_{bits}=True" in text or f'"load_in_{bits}": true' in text:
+            return bits
+    return None
+
+
+# lmms-eval's default timezone for "date"; the job script doesn't pass --timezone.
+_LMMS_EVAL_TZ = timezone(timedelta(hours=8))
+
+
+def _evaluated_at(data: dict, path: Path) -> str:
+    """Evaluation time in UTC: the engine's date, else the file's modification time."""
+    date = data.get("date")
+    moment = None
+    if isinstance(date, (int, float)) and not isinstance(date, bool):
+        try:
+            moment = datetime.fromtimestamp(date, UTC)
+        except (OverflowError, OSError, ValueError):
+            moment = None
+    elif isinstance(date, str):
+        try:
+            moment = (
+                datetime.strptime(date, "%Y%m%d_%H%M%S")
+                .replace(tzinfo=_LMMS_EVAL_TZ)
+                .astimezone(UTC)
+            )
+        except ValueError:
+            moment = None
+    if moment is None:
+        moment = datetime.fromtimestamp(path.stat().st_mtime, UTC)
+    return moment.isoformat(timespec="seconds")
+
+
 def collect_results(
     results_dir: str,
     output_csv: str = "eval_results.csv",
@@ -347,19 +438,14 @@ def collect_results(
     # on filesystem enumeration order.
     json_files.sort(key=lambda p: (p.stat().st_mtime, str(p)))
 
-    # Run-provenance sidecars written by the scheduler (schedule-time config,
-    # resolved model revisions, template knobs). Embedded verbatim in the
-    # results JSON envelope so a collected number can be traced to its run.
-    run_provenance: list[dict] = []
-    for _prov in sorted(results_path.rglob("provenance.json")):
-        try:
-            _pdata = json.loads(_prov.read_text())
-        except (json.JSONDecodeError, OSError, UnicodeDecodeError) as e:
-            logging.warning(f"Unreadable provenance sidecar {_prov}: {e}")
-            continue
-        if isinstance(_pdata, dict):
-            _pdata["_path"] = str(_prov)
-            run_provenance.append(_pdata)
+    # provenance.json of each run folder, keyed by folder.
+    provenance_cache: dict[Path, dict | None] = {}
+    run_root = results_path.resolve().parent
+
+    def _needs_full(jobs_csv: Path) -> bool:
+        """Scheduled without --limit according to its provenance.json."""
+        provenance = _run_of(jobs_csv, provenance_cache, run_root)[1]
+        return provenance is not None and _sample_limit({}, provenance) is None
 
     if not json_files:
         logging.warning(f"No JSON files found in {results_dir}")
@@ -386,17 +472,27 @@ def collect_results(
                 f"{[str(p) for p in jobs_csv_paths]}"
             )
             jobs_df = pd.concat(
-                [pd.read_csv(p) for p in jobs_csv_paths], ignore_index=True
+                [
+                    pd.read_csv(p).assign(_needs_full=_needs_full(p))
+                    for p in jobs_csv_paths
+                ],
+                ignore_index=True,
             )
             dup_cols = [
                 c for c in ("model_path", "task_path", "n_shot") if c in jobs_df.columns
             ]
             if dup_cols:
-                jobs_df = jobs_df.drop_duplicates(subset=dup_cols, keep="last")
+                # A job scheduled with and without --limit counts as full.
+                jobs_df = jobs_df.sort_values(
+                    "_needs_full", kind="stable"
+                ).drop_duplicates(subset=dup_cols, keep="last")
             logging.info(f"Merged jobs.csv: {len(jobs_df)} unique scheduled jobs")
 
     rows = []
-    completed_jobs = set()
+    # (model, task, n_shot) -> a full result exists
+    completed_jobs: dict[tuple, bool] = {}
+    file_ctx: dict = {}
+    row_run: dict[int, Path] = {}
 
     def _metric_pairs(task_name: str, result_dict: dict) -> list[tuple[str, float]]:
         if fetch_all_metrics:
@@ -407,19 +503,29 @@ def collect_results(
         return [(metric_name if metric_name is not None else "", performance)]
 
     def _emit(model: str, task: str, n_shot, pairs: list[tuple[str, float]]) -> None:
-        for metric_name, performance in pairs:
-            rows.append(
-                {
-                    "model_name": model,
-                    "task": task,
-                    "n_shot": n_shot,
-                    "performance": performance,
-                    "performance_normalized": _normalize_to_100(
-                        performance, metric_name, task
-                    ),
-                    "metric_name": metric_name,
-                }
+        if check and pairs:
+            key = (model, task, n_shot)
+            completed_jobs[key] = completed_jobs.get(key, False) or (
+                file_ctx["limit"] is None
             )
+        for metric_name, performance in pairs:
+            row = {
+                "model_name": model,
+                "task": task,
+                "n_shot": n_shot,
+                "performance": performance,
+                "performance_normalized": _normalize_to_100(
+                    performance, metric_name, task
+                ),
+                "metric_name": metric_name,
+                "limit": file_ctx["limit"],
+                "quantization": file_ctx["quantization"],
+                "evaluated_at": file_ctx["evaluated_at"],
+                "run": file_ctx["run_dir"].name if file_ctx["run_dir"] else None,
+            }
+            rows.append(row)
+            if file_ctx["run_dir"] is not None:
+                row_run[id(row)] = file_ctx["run_dir"]
 
     for json_file in json_files:
         # Provenance sidecars are consumed separately above, not result files.
@@ -446,6 +552,14 @@ def collect_results(
             )
             continue
 
+        run_dir, provenance = _run_of(json_file, provenance_cache, run_root)
+        file_ctx.update(
+            run_dir=run_dir,
+            limit=_sample_limit(data, provenance),
+            quantization=_quantization(data),
+            evaluated_at=_evaluated_at(data, json_file),
+        )
+
         # First-chance: a contrib suite may claim this file outright via its
         # parse_results() protocol member and own the format end-to-end.
         _contrib_parsed = _try_contrib_parse(data)
@@ -453,8 +567,6 @@ def collect_results(
             _c_model, _c_task, _c_n_shot, _c_metrics = _contrib_parsed
             _c_pairs = _metric_pairs(_c_task, _c_metrics)
             if _c_pairs:
-                if check:
-                    completed_jobs.add((_c_model, _c_task, _c_n_shot))
                 _emit(_c_model, _c_task, _c_n_shot, _c_pairs)
             else:
                 logging.warning(
@@ -546,8 +658,6 @@ def collect_results(
                     n_shot = parsed_n
                 _g_pairs = _metric_pairs(group_name, group_results)
                 if _g_pairs:
-                    if check:
-                        completed_jobs.add((model_name, group_name, n_shot))
                     _emit(model_name, group_name, n_shot, _g_pairs)
                 else:
                     # Metric-less aggregate: descend into child groups so
@@ -647,8 +757,6 @@ def collect_results(
                 pairs = _metric_pairs(task_name_clean, task_results)
 
             if pairs:
-                if check:
-                    completed_jobs.add((model_name, task_name_clean, n_shot))
                 _emit(model_name, task_name_clean, n_shot, pairs)
             else:
                 # Log missing metrics — for lmms-eval tasks this often means
@@ -673,30 +781,56 @@ def collect_results(
         return
 
     if rows:
-        # Drop duplicate (model, task, n_shot, metric) rows, keeping the last
-        # occurrence. Dedup the row list directly (not just the DataFrame) so
-        # the CSV, JSON, and Markdown outputs stay consistent and None values
-        # in performance_normalized survive (a pandas round-trip would coerce
-        # them to NaN and break the JSON envelope).
-        _deduped: dict[tuple, dict] = {}
-        for _row in rows:
+        # One row per (model, task, n_shot, metric): a full evaluation beats a
+        # --limit run, then the newest wins. Dedup the list, not a DataFrame,
+        # so None in performance_normalized doesn't become NaN.
+        _deduped: dict[tuple, tuple[tuple, dict]] = {}
+        for _i, _row in enumerate(rows):
             _key = (
                 _row.get("model_name"),
                 _row.get("task"),
                 _row.get("n_shot"),
                 _row.get("metric_name"),
             )
-            if _key in _deduped and _deduped[_key].get("performance") != _row.get(
-                "performance"
-            ):
-                logging.warning(
-                    f"Duplicate results for model={_key[0]!r} task={_key[1]!r} "
-                    f"n_shot={_key[2]!r} metric={_key[3]!r}: "
-                    f"{_deduped[_key].get('performance')} superseded by "
-                    f"{_row.get('performance')} (newest result file wins)"
+            _rank = (_row.get("limit") is None, _row.get("evaluated_at") or "", _i)
+            if _key not in _deduped:
+                _deduped[_key] = (_rank, _row)
+                continue
+            _old_rank, _old = _deduped[_key]
+            _kept, _dropped = (_row, _old) if _rank > _old_rank else (_old, _row)
+            if _kept.get("performance") != _dropped.get("performance"):
+                _where = (
+                    f"model={_key[0]!r} task={_key[1]!r} n_shot={_key[2]!r} "
+                    f"metric={_key[3]!r}"
                 )
-            _deduped[_key] = _row
-        rows = list(_deduped.values())
+                if _kept.get("limit") is None and _dropped.get("limit") is not None:
+                    logging.warning(
+                        f"Kept the full evaluation for {_where} "
+                        f"({_kept.get('performance')}); ignored a --limit "
+                        f"{_dropped.get('limit')} test result "
+                        f"({_dropped.get('performance')})"
+                    )
+                else:
+                    logging.warning(
+                        f"Duplicate results for {_where}: "
+                        f"{_dropped.get('performance')} superseded by "
+                        f"{_kept.get('performance')} (newest evaluation wins)"
+                    )
+            if _kept is _row:
+                _deduped[_key] = (_rank, _row)
+        rows = [_row for _, _row in _deduped.values()]
+
+        limited = [r for r in rows if r.get("limit") is not None]
+        if limited:
+            logging.warning(
+                f"{len(limited)} of {len(rows)} results come from --limit test "
+                f"runs, not full evaluations (marked in the outputs)"
+            )
+
+        run_provenance = [
+            {**provenance_cache[_dir], "_path": str(_dir / "provenance.json")}
+            for _dir in sorted({row_run[id(r)] for r in rows if id(r) in row_run})
+        ]
 
         df = pd.DataFrame(rows)
         df.to_csv(output_csv, index=False)
@@ -728,18 +862,22 @@ def collect_results(
 
         for _, job in jobs_df.iterrows():
             job_tuple = (job["model_path"], job["task_path"], job["n_shot"])
+            needs_full = bool(job.get("_needs_full"))
 
             is_completed = False
 
-            if job_tuple in completed_jobs:
+            if job_tuple in completed_jobs and (
+                completed_jobs[job_tuple] or not needs_full
+            ):
                 is_completed = True
             else:
-                for completed_job in completed_jobs:
+                for completed_job, has_full in completed_jobs.items():
                     completed_model, completed_task, completed_n_shot = completed_job
 
                     if (
                         job["n_shot"] == completed_n_shot
                         and job["task_path"] == completed_task
+                        and (has_full or not needs_full)
                         and _model_paths_match(
                             str(job["model_path"]), str(completed_model)
                         )
@@ -757,7 +895,7 @@ def collect_results(
         logging.info(f"Missing jobs: {len(missing_jobs)}")
 
         if len(missing_jobs) > 0:
-            missing_df = pd.DataFrame(missing_jobs)
+            missing_df = pd.DataFrame(missing_jobs).drop(columns=["_needs_full"])
             _out = Path(output_csv)
             missing_csv = str(
                 _out.with_name(f"{_out.stem}_missing{_out.suffix or '.csv'}")
@@ -782,7 +920,7 @@ def collect_results(
 # Structured output: versioned JSON and Markdown report
 # ---------------------------------------------------------------------------
 
-SCHEMA_VERSION = "1.2"
+SCHEMA_VERSION = "1.3"
 
 
 def _collector_git_commit() -> str | None:
@@ -816,7 +954,9 @@ def write_results_json(
     overrides, or null). Schema v1.2 adds `oellm_version`,
     `collector_git_commit`, per-run provenance under `runs`, and a reserved
     extensible `metadata` namespace (future additive fields — e.g. safety /
-    compliance metadata — land there without a schema migration).
+    compliance metadata — land there without a schema migration). Schema v1.3
+    adds per-row `run`, `limit`, `quantization` and `evaluated_at`, and `runs`
+    lists only the runs those rows came from.
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -831,6 +971,10 @@ def write_results_json(
                 "metric": row.get("metric_name", ""),
                 "performance": row.get("performance", 0.0),
                 "performance_normalized": row.get("performance_normalized"),
+                "limit": row.get("limit"),
+                "quantization": row.get("quantization"),
+                "evaluated_at": row.get("evaluated_at"),
+                "run": row.get("run"),
             }
         )
 
@@ -863,6 +1007,7 @@ def write_results_markdown(
     ]
     has_raw_fallback = False
     has_lower_is_better = False
+    has_limited = False
     for row in rows:
         model = row.get("model_name", "")
         task = row.get("task", "")
@@ -875,6 +1020,9 @@ def write_results_markdown(
             raw = row.get("performance", 0.0)
             perf_cell = f"{raw:.4f}*"
             has_raw_fallback = True
+        if row.get("limit") is not None:
+            perf_cell += f" † (limit {row['limit']})"
+            has_limited = True
         if any(k in metric.lower() for k in ("wer", "mer", "cer")):
             has_lower_is_better = True
         lines.append(f"| {model} | {task} | {n_shot} | {metric} | {perf_cell} |")
@@ -883,6 +1031,8 @@ def write_results_markdown(
     footnotes = []
     if has_raw_fallback:
         footnotes.append("> `*` = raw value (metric scale not in `METRIC_NATIVE_SCALE`).")
+    if has_limited:
+        footnotes.append("> `†` = test run with --limit, not a full evaluation.")
     if has_lower_is_better:
         footnotes.append("> WER/MER/CER are lower-is-better.")
     if footnotes:

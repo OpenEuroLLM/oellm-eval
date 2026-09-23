@@ -357,7 +357,7 @@ If you use custom tasks via `--tasks` that are not in the task groups registry, 
 
 ## Collecting Results
 
-After evaluations complete, collect results into a CSV.  `collect` **recursively** searches the given directory for every `jobs.csv` file and every `.json` result file, so you can point it at a top-level output folder that contains many sub-runs. Alongside the CSV/Markdown tables it writes `eval_results.json` — a versioned envelope that embeds each run's provenance (engine versions, model revisions, quantization, submitter), which is also the ingestion format for the ELLIOT evaluation dashboard:
+After evaluations complete, collect results into a CSV.  `collect` **recursively** searches the given directory for every `jobs.csv` file and every `.json` result file, so you can point it at a top-level output folder that contains many sub-runs. Alongside the CSV/Markdown tables it writes `eval_results.json` — a versioned envelope that embeds the provenance (engine versions, model revisions, quantization, submitter) of the runs its rows came from, and gives each row its run, `--limit`, quantization and evaluation time; it is also the ingestion format for the ELLIOT evaluation dashboard. When the same result exists from a full evaluation and from a `--limit` test run, the full one is kept; limited rows are marked:
 
 ```
 output/
@@ -382,7 +382,7 @@ oellm-eval collect /path/to/eval-output-dir --check --output-csv results.csv
 
 Three output files are written next to your `--output-csv` path: the CSV (raw metric per row), a versioned JSON envelope, and a Markdown table with metrics normalized to a 0–100 scale.
 
-All `jobs.csv` files found under `results_dir` are merged into one; if the same `(model_path, task_path, n_shot)` row appears in multiple files the later-sorted entry wins (override duplicates). The merged jobs list is then compared against all `.json` result files found recursively.
+All `jobs.csv` files found under `results_dir` are merged into one; if the same `(model_path, task_path, n_shot)` row appears in multiple files, one scheduled without `--limit` wins (it only counts as done once a full result exists), otherwise the later-sorted entry. The merged jobs list is then compared against all `.json` result files found recursively.
 
 The `--check` flag outputs a `results_missing.csv` that can be used to re-schedule failed jobs:
 

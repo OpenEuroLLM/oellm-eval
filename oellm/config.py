@@ -116,7 +116,6 @@ class EvalConfig:
               - "Qwen/Qwen2-VL-7B"
             task_groups:
               - "image-vqa"
-            n_shot: 0
             trust_remote_code: true
             venv_path: "~/elliot-venv"
             slurm:
@@ -401,6 +400,12 @@ class EvalConfig:
 
         if self.tasks and not self.n_shot:
             raise ValueError("n_shot is required when specifying individual tasks.")
+
+        if self.n_shot and self.task_groups and not self.tasks:
+            raise ValueError(
+                "n_shot applies to tasks only; task groups set their own shots "
+                "(see oellm-eval list-tasks)."
+            )
 
         if self.n_shot:
             for s in self.n_shot:

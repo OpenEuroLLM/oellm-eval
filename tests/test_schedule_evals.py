@@ -13,9 +13,9 @@ _config = yaml.safe_load((files("oellm.resources") / "task-groups.yaml").read_te
 ALL_TASK_GROUPS = list(_config["task_groups"].keys())
 
 
-@pytest.mark.parametrize("n_shot", [None, 0])
 @pytest.mark.parametrize("task_groups", ALL_TASK_GROUPS)
-def test_schedule_evals(tmp_path, n_shot, task_groups):
+def test_schedule_evals(tmp_path, task_groups):
+    # n_shot with a group is refused (test_schedule_inputs.py).
     with (
         patch("oellm.scheduler._load_cluster_env"),
         patch("oellm.scheduler._num_jobs_in_queue", return_value=0),
@@ -28,7 +28,6 @@ def test_schedule_evals(tmp_path, n_shot, task_groups):
         schedule_evals(
             models="EleutherAI/pythia-70m",
             task_groups=task_groups,
-            n_shot=n_shot,
             skip_checks=True,
             venv_path=str(Path(sys.prefix)),
             dry_run=True,

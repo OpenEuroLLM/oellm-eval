@@ -31,7 +31,7 @@ EXPECTED_TASKS = {
 EXPECTED_DATASETS = {
     "lmms-lab/VQAv2",
     "lmms-lab/MMBench",
-    "MMMU/MMMU",
+    "lmms-lab/MMMU",
     "lmms-lab/ChartQA",
     "lmms-lab/DocVQA",
     "lmms-lab/textvqa",
@@ -99,7 +99,7 @@ class TestImageTaskGroupDatasetSpecs:
     def test_mmmu_dataset_included(self):
         specs = _collect_dataset_specs([IMAGE_TASK_GROUP])
         repo_ids = {s.repo_id for s in specs}
-        assert "MMMU/MMMU" in repo_ids
+        assert "lmms-lab/MMMU" in repo_ids
 
 
 class TestImageTaskGroupScheduleEvals:

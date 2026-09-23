@@ -24,9 +24,11 @@ From: nvcr.io/nvidia/pytorch:25.10-py3
         nltk
 
     # lighteval as isolated tool (avoids dependency conflicts)
+    # xxhash<4: 4.0 rejects str input, which lighteval hashes (see lumi.def)
     uv tool install --python 3.12 \
         --with "langcodes[data]" \
         --with "pillow" \
+        --with "xxhash<4" \
         "lighteval[multilingual] @ git+https://github.com/huggingface/lighteval.git@64f4f5ae173626509fad6e477ca4ee56ebb26129"
 
     # Pre-load lighteval registry to trigger tinyBenchmarks data download at build time

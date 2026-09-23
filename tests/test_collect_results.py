@@ -1,6 +1,7 @@
 """Tests for collect_results() covering both lm-eval and lmms-eval output formats."""
 
 import json
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -438,7 +439,7 @@ class TestCollectResultsStructuredOutput:
         json_path = tmp_path / "out.json"
         assert json_path.exists()
         envelope = json.loads(json_path.read_text())
-        assert envelope["version"] == "1.2"
+        assert envelope["version"] == "1.3"
         assert len(envelope["results"]) == 1
         record = envelope["results"][0]
         assert record["task"] == "copa"
@@ -621,3 +622,156 @@ class TestCheckModeMatching:
             (tmp_path / "outfile").read_text()
             != (tmp_path / "outfile_missing.csv").read_text()
         )
+
+
+# ── --limit test runs, run details, counters ─────────────────────────────────
+
+JOBS_CSV = (
+    "model_path,task_path,n_shot,eval_suite\nEleutherAI/pythia-70m,copa,0,lm_eval\n"
+)
+
+
+def _lm_eval_result(task, acc, limit=None, date=None, model_args=""):
+    return {
+        "model_name": "EleutherAI/pythia-70m",
+        "results": {task: {"alias": task, "sample_len": 100, "acc,none": acc}},
+        "n-shot": {task: 0},
+        "config": {"limit": limit, "model_args": model_args},
+        **({"date": date} if date else {}),
+    }
+
+
+def _make_run(root, name, limit, payloads=(), jobs=False, provenance=True):
+    run = root / name
+    (run / "results").mkdir(parents=True)
+    if provenance:
+        (run / "provenance.json").write_text(json.dumps({"limit": limit}))
+    for i, payload in enumerate(payloads):
+        write_result(run / "results", payload, f"r{i}.json")
+    if jobs:
+        (run / "jobs.csv").write_text(JOBS_CSV)
+    return run
+
+
+def _envelope(tmp_path):
+    return json.loads((tmp_path / "out.json").read_text())
+
+
+class TestLimitedRuns:
+    def test_full_evaluation_beats_newer_limited_run(self, tmp_path):
+        runs = tmp_path / "runs"
+        _make_run(runs, "full", None, [_lm_eval_result("copa", 0.57, date=1.7e9)])
+        _make_run(runs, "smoke", 4, [_lm_eval_result("copa", 0.5, 4, 1.8e9)])
+
+        collect_results(str(runs), output_csv=str(tmp_path / "out.csv"))
+
+        env = _envelope(tmp_path)
+        assert [(r["performance"], r["limit"], r["run"]) for r in env["results"]] == [
+            (0.57, None, "full")
+        ]
+        assert [r["limit"] for r in env["runs"]] == [None]  # only runs with rows
+
+    def test_limited_only_result_is_kept_and_marked(self, tmp_path):
+        _make_run(tmp_path / "runs", "smoke", 4, [_lm_eval_result("copa", 0.5)])
+
+        collect_results(str(tmp_path / "runs"), output_csv=str(tmp_path / "out.csv"))
+
+        assert _envelope(tmp_path)["results"][0]["limit"] == 4
+        assert "† (limit 4)" in (tmp_path / "out.md").read_text()
+
+    def test_limit_read_from_the_engine_without_provenance(self, tmp_path):
+        df = run_collect(tmp_path, _lm_eval_result("copa", 0.5, limit=16.0))
+        assert df.iloc[0]["limit"] == 16
+
+    def test_newest_evaluation_wins_by_engine_date(self, tmp_path):
+        results = tmp_path / "results"
+        results.mkdir()
+        write_result(results, _lm_eval_result("copa", 0.7, date=1.8e9), "newer.json")
+        write_result(results, _lm_eval_result("copa", 0.6, date=1.7e9), "older.json")
+        os.utime(results / "newer.json", (1_000_000, 1_000_000))  # copied first
+
+        collect_results(str(results), output_csv=str(tmp_path / "out.csv"))
+
+        assert _envelope(tmp_path)["results"][0]["performance"] == 0.7
+
+    def test_check_needs_a_full_result_for_a_full_job(self, tmp_path):
+        runs = tmp_path / "runs"
+        _make_run(runs, "full", None, jobs=True)
+        _make_run(runs, "smoke", 4, [_lm_eval_result("copa", 0.5, 4)], jobs=True)
+
+        collect_results(str(runs), output_csv=str(tmp_path / "out.csv"), check=True)
+
+        missing = pd.read_csv(tmp_path / "out_missing.csv")
+        assert list(missing.columns) == [
+            "model_path",
+            "task_path",
+            "n_shot",
+            "eval_suite",
+        ]
+        assert list(missing["task_path"]) == ["copa"]
+
+    @pytest.mark.parametrize("provenance", [True, False])
+    def test_check_accepts_a_limited_result_for_a_limited_or_old_job(
+        self, tmp_path, provenance
+    ):
+        result = _lm_eval_result("copa", 0.5, 4)
+        run = _make_run(tmp_path, "r", 4, [result], jobs=True, provenance=provenance)
+
+        collect_results(str(run), output_csv=str(tmp_path / "out.csv"), check=True)
+
+        assert not (tmp_path / "out_missing.csv").exists()
+
+
+class TestRunDetails:
+    def test_quantization_comes_from_what_the_engine_loaded(self, tmp_path):
+        lm = _lm_eval_result("copa", 0.6, model_args="pretrained=m,load_in_4bit=True")
+        lighteval = {
+            "config_general": {"model_name": "EleutherAI/pythia-70m"},
+            "results": {"belebele_eng_Latn_cf|0": {"acc_norm": 0.4}},
+        }
+        run = _make_run(tmp_path / "runs", "q", None, [lm, lighteval])
+        (run / "provenance.json").write_text(json.dumps({"quantization": "4bit"}))
+
+        collect_results(str(tmp_path / "runs"), output_csv=str(tmp_path / "out.csv"))
+
+        rows = {r["task"]: r["quantization"] for r in _envelope(tmp_path)["results"]}
+        assert rows == {"copa": "4bit", "belebele_eng_Latn_cf": None}
+
+    def test_lmms_eval_dates_are_utc_plus_8(self, tmp_path):
+        data = {
+            "model_name": "m",
+            "results": {"realworldqa": {"exact_match,none": 0.5}},
+            "configs": {"realworldqa": {"num_fewshot": 0}},
+            "date": "20260922_165022",
+        }
+        run_collect(tmp_path, data)
+        assert (
+            _envelope(tmp_path)["results"][0]["evaluated_at"]
+            == "2026-09-22T08:50:22+00:00"
+        )
+
+    @pytest.mark.parametrize("where", ["results", "."])
+    def test_relative_paths_keep_the_run(self, tmp_path, monkeypatch, where):
+        run = _make_run(tmp_path, "smoke", 8, [_lm_eval_result("copa", 0.5)])
+        monkeypatch.chdir(run / where)
+
+        collect_results(".", output_csv=str(tmp_path / "out.csv"))
+
+        row = _envelope(tmp_path)["results"][0]
+        assert (row["run"], row["limit"]) == ("smoke", 8)
+
+
+class TestCounters:
+    def test_sample_len_is_not_the_score(self, tmp_path):
+        data = {
+            "model_name": "m",
+            "results": {"humaneval": {"sample_len": 164, "pass@1,create_test": 0.12}},
+            "n-shot": {"humaneval": 0},
+        }
+        row = run_collect(tmp_path, data).iloc[0]
+        assert (row["metric_name"], row["performance"]) == ("pass@1,create_test", 0.12)
+
+    def test_a_result_with_only_counters_gives_no_row(self, tmp_path):
+        counters = {"sample_len": 10, "samples": 499, "gpt_eval_score,none": None}
+        data = {"model_name": "m", "results": {"x": counters}, "n-shot": {"x": 0}}
+        assert run_collect(tmp_path, data).empty

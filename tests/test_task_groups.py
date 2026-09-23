@@ -1,3 +1,5 @@
+import pytest
+
 from oellm.task_groups import (
     _expand_lang_templates,
     _expand_task_groups,
@@ -182,3 +184,23 @@ class TestExpandTaskGroupsWithTemplates:
     def test_global_piqa_completions_expands_to_32_tasks(self):
         results = _expand_task_groups(["global-piqa-eu-completions"])
         assert len(results) == 32
+
+
+class TestPreDownloadMatchesWhatTheTaskLoads:
+    """Offline caches are keyed by dataset id, so specs must match the task's."""
+
+    @pytest.mark.parametrize(
+        "group, repo_id",
+        [
+            # custom_lm_eval_tasks/arc_mt/arc_challenge_mt_is.yaml
+            ("arc-challenge-mt-eu[isl_Latn]", "mideind/icelandic-arc-challenge"),
+            # lm-eval 0.4.12 tasks/xcopa/default_et.yaml: dataset_path: xcopa
+            ("generic-multilingual", "xcopa"),
+            # lmms-eval 45c766f tasks/mmmu/mmmu_val.yaml: dataset_path: lmms-lab/MMMU
+            ("image-mmmu", "lmms-lab/MMMU"),
+        ],
+    )
+    def test_spec_names_the_loaded_dataset(self, group, repo_id):
+        from oellm.task_groups import _collect_dataset_specs
+
+        assert repo_id in {spec.repo_id for spec in _collect_dataset_specs([group])}

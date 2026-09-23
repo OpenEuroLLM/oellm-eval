@@ -21,9 +21,11 @@ From: nvcr.io/nvidia/pytorch:25.06-py3
     export UV_TOOL_DIR=/opt/uv-tools
     # Install lighteval without [multilingual] extras first, then add multilingual deps
     # sudachipy (spacy[ja] dep) has no ARM64 wheel, so skip Japanese support
+    # xxhash<4: 4.0 rejects str input, which lighteval hashes (see lumi.def)
     uv tool install --python 3.12 \
         --with "pillow" \
         --with "torch<2.9" \
+        --with "xxhash<4" \
         "lighteval @ git+https://github.com/huggingface/lighteval.git@64f4f5ae173626509fad6e477ca4ee56ebb26129"
     uv pip install --system --break-system-packages "spacy>=3.0.0,<4.0.0" jieba "underthesea>=6.0.0"
     uv pip install --system --break-system-packages nltk

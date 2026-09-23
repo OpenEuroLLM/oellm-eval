@@ -576,7 +576,7 @@ def _select_tasks(group_names: Iterable[str]) -> list[tuple[str, _Task]]:
         raise ValueError(f"Unknown task group(s): {', '.join(sorted(missing))}")
 
     selected: list[tuple[str, _Task]] = []
-    seen: set[tuple[str, str]] = set()
+    seen: dict[tuple[str, str], int] = {}
     for name, filt in specs:
         group_pairs = list(_iter_group_tasks({name: parsed[name]}))
         if filt is None:
@@ -598,12 +598,20 @@ def _select_tasks(group_names: Iterable[str]) -> list[tuple[str, _Task]]:
                     ", ".join(lang for lang in filt if lang in matched),
                 )
         # De-duplicate tasks shared by several groups (e.g. the `all` super_group
-        # spans groups whose benchmarks overlap), so they are scheduled once.
+        # spans groups whose benchmarks overlap), so they are scheduled once,
+        # with every group's shots.
         for suite, t in kept:
             key = (suite, t.name)
             if key not in seen:
-                seen.add(key)
+                seen[key] = len(selected)
                 selected.append((suite, t))
+                continue
+            first = selected[seen[key]][1]
+            extra = [s for s in (t.n_shots or []) if s not in (first.n_shots or [])]
+            if extra:
+                merged = copy.copy(first)
+                merged.n_shots = [*(first.n_shots or []), *extra]
+                selected[seen[key]] = (suite, merged)
 
     return selected
 

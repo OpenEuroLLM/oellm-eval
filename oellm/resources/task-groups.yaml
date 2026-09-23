@@ -252,7 +252,7 @@ task_groups:
       - task: xwinograd
         dataset: Muennighoff/xwinograd
       - task: xcopa
-        dataset: cambridgeltl/xcopa
+        dataset: xcopa  # the id lm-eval loads; offline caches are keyed by it
       - task: xstorycloze
         dataset: juletxara/xstory_cloze
 
@@ -320,7 +320,7 @@ task_groups:
         dataset: lmms-lab/MMBench
       - task: mmmu_val
         metric: mmmu_acc
-        dataset: MMMU/MMMU
+        dataset: lmms-lab/MMMU
       - task: chartqa
         metric: relaxed_overall
         dataset: lmms-lab/ChartQA
@@ -370,7 +370,7 @@ task_groups:
     n_shots: [0]
     tasks:
       - task: mmmu_val
-        dataset: MMMU/MMMU
+        dataset: lmms-lab/MMMU
 
   image-chartqa:
     description: "ChartQA chart question answering via lmms-eval"
@@ -1002,7 +1002,8 @@ task_groups:
     tasks:
       - task: "arc_challenge_mt_{lang}"
         subset: "{lang}"
-      - task: arc_challenge_mt_is  # no subset in the source dataset
+      - task: arc_challenge_mt_is
+        dataset: mideind/icelandic-arc-challenge  # not in LumiOpen/arc_challenge_mt
 
   hellaswag-eu:
     description: "Okapi HellaSwag multilingual (16 EU languages, 0-shot)."
