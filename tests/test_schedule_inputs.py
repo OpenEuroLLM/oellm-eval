@@ -3,6 +3,7 @@
 import csv
 import os
 import subprocess
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -110,3 +111,18 @@ def test_the_job_uses_the_cache_the_pre_download_filled(tmp_path):
             check=True,
         )
         assert out.stdout.strip() == expected
+
+
+def test_local_run_defaults_hf_home(tmp_path, monkeypatch):
+    monkeypatch.delenv("HF_HOME", raising=False)
+    with patch.dict(os.environ, {"EVAL_OUTPUT_DIR": str(tmp_path)}):
+        schedule_evals(
+            models="EleutherAI/pythia-70m",
+            tasks="copa",
+            n_shot=[0],
+            local=True,
+            venv_path=str(tmp_path / "venv"),
+            dry_run=True,
+            skip_checks=True,
+        )
+        assert os.environ["HF_HOME"] == str(Path.home() / ".cache" / "huggingface")

@@ -127,6 +127,40 @@ class TestGroupCollection:
         )
         assert {r["task"] for r in rows} == {"g1", "lone"}
 
+    def test_subgroup_stays_inside_its_parent(self, tmp_path):
+        # lm-eval lists a subgroup before its parent and gives shots only on leaf tasks.
+        sub, parent = {"acc,none": 0.3}, {"acc,none": 0.41}
+        d = tmp_path / "results"
+        d.mkdir()
+        _write(
+            d,
+            "r.json",
+            {
+                **M,
+                "results": {
+                    "mmlu_humanities": sub,
+                    "mmlu": parent,
+                    "mmlu_astronomy": {"acc,none": 0.25},
+                },
+                "groups": {"mmlu_humanities": sub, "mmlu": parent},
+                "group_subtasks": {
+                    "mmlu_humanities": ["mmlu_astronomy"],
+                    "mmlu": ["mmlu_humanities"],
+                },
+                "n-shot": {"mmlu_astronomy": 5},
+            },
+        )
+        (tmp_path / "jobs.csv").write_text(
+            "model_path,task_path,n_shot,eval_suite\nm,mmlu,5,lm_eval\n"
+        )
+        out = tmp_path / "out.csv"
+        collect_results(str(tmp_path), str(out), check=True)
+        rows = [
+            (r["task"], r["n_shot"], float(r["performance"])) for r in _rows(str(out))
+        ]
+        assert rows == [("mmlu", "5", 0.41)]
+        assert not out.with_name("out_missing.csv").exists()
+
     def test_mmlu_pro_is_not_eaten_by_prefix_rule(self, tmp_path):
         rows = self._collect(
             tmp_path,
