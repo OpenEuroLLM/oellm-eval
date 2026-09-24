@@ -31,7 +31,7 @@ A multimodal evaluation framework for scheduling LLM and VLM evaluations across 
 
 **Prerequisites:**
 - Install [uv](https://docs.astral.sh/uv/#installation)
-- Set the `HF_HOME` environment variable to point to your HuggingFace cache directory (e.g. `export HF_HOME="/path/to/your/hf_home"`, on LUMI use the path `/scratch/project_462000963/cache/huggingface`). This is where models and datasets will be cached. Compute nodes typically have no internet access, so all assets must be pre-downloaded into this directory.
+- Set the `HF_HOME` environment variable to point to your HuggingFace cache directory (e.g. `export HF_HOME="/path/to/your/hf_home"`, on LUMI use the shared project cache `/scratch/project_465002530/cache`). This is where models and datasets will be cached. Compute nodes typically have no internet access, so all assets must be pre-downloaded into this directory.
 
 ```bash
 # Install
@@ -313,6 +313,10 @@ MODEL_ARGS='batch_size=8' oellm-eval schedule \
   --models "model-name" --task-groups "belebele-eu-cf" --venv-path /path/to/.venv
 ```
 
+## lm-eval Tasks per Call
+
+Within one array job, lm-eval tasks that share a model and shot count are run by a single `lm_eval` call, so the model is loaded once instead of once per task. A call holds at most 8 tasks; if one of them fails, the whole call fails and all its tasks are reported as failed (`collect --check` lists them). Change the cap with `--tasks-per-job` (or `tasks_per_job:` in a `--config` file); `--tasks-per-job 1` runs one call per task. Other suites always run one task per call.
+
 ## Quantized Evaluation & Per-Row Timeouts
 
 ```bash
@@ -320,7 +324,8 @@ MODEL_ARGS='batch_size=8' oellm-eval schedule \
 oellm-eval schedule --models "model-name" --task-groups "open-sci-0.01" --load-in-4bit
 
 # Bound each evaluation row's wall clock: a hung engine fails one row (exit 124)
-# instead of consuming the whole job slice; `collect --check` re-schedules just that row
+# instead of consuming the whole job slice; `collect --check` re-schedules just that row.
+# An lm_eval call that runs several tasks gets ROW_TIMEOUT once per task.
 ROW_TIMEOUT=30m oellm-eval schedule --models "model-name" --task-groups "open-sci-0.01"
 ```
 

@@ -292,6 +292,11 @@ class TestValidate:
         with pytest.raises(ValueError, match="non-negative"):
             cfg.validate()
 
+    def test_tasks_per_job_below_one(self):
+        cfg = EvalConfig(models=["m"], task_groups=["g"], tasks_per_job=0)
+        with pytest.raises(ValueError, match="tasks_per_job must be at least 1"):
+            cfg.validate()
+
     def test_csv_with_models_conflicts(self, tmp_path):
         csv = tmp_path / "jobs.csv"
         csv.write_text("model_path,task_path,n_shot\nm,t,0\n")
@@ -436,6 +441,12 @@ class TestMergeProvenance:
         yaml_cfg = self._yaml_cfg(slurm={"max_array_len": 64})
         cli_cfg = EvalConfig.from_cli_kwargs()
         assert yaml_cfg.merge(cli_cfg).slurm.max_array_len == 64
+
+    def test_tasks_per_job_from_yaml_and_cli(self):
+        yaml_cfg = self._yaml_cfg(tasks_per_job=2)
+        assert yaml_cfg.merge(EvalConfig.from_cli_kwargs()).tasks_per_job == 2
+        cli_cfg = EvalConfig.from_cli_kwargs(tasks_per_job=8)
+        assert yaml_cfg.merge(cli_cfg).tasks_per_job == 8
 
 
 # ---------------------------------------------------------------------------

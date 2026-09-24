@@ -37,6 +37,7 @@ def schedule_evals(
     *,
     config: str | None = None,
     max_array_len: int | None = None,
+    tasks_per_job: int | None = None,
     limit: int | None = None,
     verbose: bool | None = None,
     download_only: bool | None = None,
@@ -83,6 +84,11 @@ def schedule_evals(
             e.g. `--no-dry-run` overrides a YAML `dry_run: true`).
         max_array_len: The maximum number of jobs to schedule to run concurrently. Default 128.
             Warning: this is not the number of jobs in the array job. This is determined by the environment variable `QUEUE_LIMIT`.
+        tasks_per_job: The maximum number of lm-eval-harness tasks evaluated by a single
+            `lm_eval` call. Tasks that share a model and shot count are evaluated together,
+            so the model is loaded once instead of once per task. `lm_eval` fails the whole
+            call if one task raises, so this caps how many tasks a single failure takes
+            down; 1 restores one call per task. Default 8.
         limit: If set, limit the number of samples per task (useful for quick testing).
             Passes --limit to lm_eval and --max_samples to lighteval.
         download_only: If True, only download the datasets and models and exit.
@@ -130,6 +136,7 @@ def schedule_evals(
         n_shot=n_shot,
         eval_csv_path=eval_csv_path,
         max_array_len=max_array_len,
+        tasks_per_job=tasks_per_job,
         limit=limit,
         verbose=verbose,
         download_only=download_only,
@@ -165,6 +172,7 @@ def schedule_evals(
         n_shot=cfg.n_shot,
         eval_csv_path=cfg.eval_csv_path,
         max_array_len=cfg.slurm.max_array_len,
+        tasks_per_job=cfg.tasks_per_job,
         limit=cfg.limit,
         verbose=cfg.verbose,
         download_only=cfg.download_only,
@@ -381,6 +389,7 @@ def eval_command(
     n_shot: list[int] | None = None,
     eval_csv_path: str | None = None,
     max_array_len: int | None = None,
+    tasks_per_job: int | None = None,
     limit: int | None = None,
     verbose: bool | None = None,
     download_only: bool | None = None,
@@ -408,6 +417,7 @@ def eval_command(
         n_shot: Number(s) of shots applied to tasks (overrides config).
         eval_csv_path: Path to a CSV with evaluation jobs (overrides config).
         max_array_len: Maximum concurrent SLURM array jobs.
+        tasks_per_job: Maximum lm-eval-harness tasks per `lm_eval` call (default 8).
         limit: Limit samples per task.
         download_only: Only pre-download models and datasets, then exit.
         dry_run: Generate the SLURM script without submitting.
@@ -428,6 +438,7 @@ def eval_command(
         eval_csv_path=eval_csv_path,
         config=config,
         max_array_len=max_array_len,
+        tasks_per_job=tasks_per_job,
         limit=limit,
         verbose=verbose,
         download_only=download_only,

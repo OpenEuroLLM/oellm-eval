@@ -27,6 +27,7 @@ LM_EVAL_TRC="{lm_eval_trc}"
 VENV_PATH="{venv_path}"
 LM_EVAL_INCLUDE_PATH="{lm_eval_include_path}"
 LM_EVAL_BATCH_SIZE="{lm_eval_batch_size}"
+TASKS_PER_JOB={tasks_per_job}
 
 # Compute nodes are air-gapped — every dataset must be cache-resolved.
 export HF_HOME=$HF_HOME
@@ -79,10 +80,36 @@ fi
 
 # Use `tail` and `head` to slice the CSV file for the tasks assigned to this job.
 # The +1 on START_INDEX accounts for the header row.
+# Collapse adjacent rows that share a model, shot count and lm_eval suite into
+# a single row whose task field is a comma-separated list. lm_eval loads the
+# model once per invocation, so evaluating N tasks in one call replaces N model
+# loads with one. TASKS_PER_JOB caps how many tasks share a call: lm_eval aborts
+# the whole invocation if one task raises, so the cap bounds what a single
+# failure takes down. Suites other than lm_eval pass through one row at a time.
+# The output is tab-separated because a joined task list contains commas.
+BATCH_ROWS_AWK='
+    function flush() {{ if (tasks != "") print model, tasks, shots, suite }}
+    {{
+        gsub(/\r/, "")
+        if ($1 == "") next
+        row_suite = ($4 == "" ? "lm_eval" : $4)
+        lowered = tolower(row_suite)
+        batchable = (lowered == "lm_eval" || lowered == "lm-eval" || lowered == "lm-eval-harness")
+        row_key = batchable ? ($1 SUBSEP $3) : ("unbatched" SUBSEP NR)
+        if (row_key != key || count >= max_tasks) {{
+            flush()
+            key = row_key; model = $1; shots = $3; suite = row_suite; tasks = $2; count = 1
+        }} else {{
+            tasks = tasks "," $2; count++
+        }}
+    }}
+    END {{ flush() }}
+'
+
 # Process substitution (not a pipe) keeps the loop in the current shell so
 # FAILED_ROWS survives past `done` and the job can exit non-zero on failures.
 FAILED_ROWS=0
-while IFS=, read -r model_path task_path n_shot eval_suite
+while IFS=$'\t' read -r model_path task_path n_shot eval_suite
 do
     rc=0
     # Strip CR (Windows line endings) from every field.
@@ -96,6 +123,9 @@ do
     if [ -z "$model_path" ]; then
         continue
     fi
+
+    # Number of jobs.csv rows this line stands for; a batched lm_eval call lists several.
+    EVAL_TASKS=$(( $(echo "$task_path" | tr -cd ',' | wc -c) + 1 ))
 
     echo "----------------------------------------------------"
     echo "Starting evaluation for:"
@@ -144,10 +174,18 @@ do
     # Helper function to run Python commands in the appropriate environment
     # Optional per-row wall-clock bound: set ROW_TIMEOUT (GNU timeout
     # DURATION, e.g. "7200" or "2h") so a hung engine fails just its row
-    # (exit 124) instead of consuming the slice's whole TIME_LIMIT.
+    # (exit 124) instead of consuming the slice's whole TIME_LIMIT. A batched
+    # lm_eval call gets ROW_TIMEOUT once per task it evaluates.
+    CALL_TIMEOUT="${{ROW_TIMEOUT:-}}"
+    if [ -n "$CALL_TIMEOUT" ] && [ "$EVAL_TASKS" -gt 1 ]; then
+        CALL_TIMEOUT=$(awk -v d="$CALL_TIMEOUT" -v n="$EVAL_TASKS" 'BEGIN {{
+            if (d !~ /^[0-9]+([.][0-9]+)?[smhd]?$/) {{ print d; exit }}
+            s = 1; if (d ~ /m$/) s = 60; else if (d ~ /h$/) s = 3600; else if (d ~ /d$/) s = 86400
+            sub(/[smhd]$/, "", d); v = d * s * n; t = int(v); if (t < v) t++; print t }}')
+    fi
     _maybe_timeout() {{
-        if [ -n "${{ROW_TIMEOUT:-}}" ]; then
-            timeout --kill-after=60 "$ROW_TIMEOUT" "$@"
+        if [ -n "$CALL_TIMEOUT" ]; then
+            timeout --kill-after=60 "$CALL_TIMEOUT" "$@"
         else
             "$@"
         fi
@@ -330,20 +368,23 @@ do
     # A row counts as done only if the engine exited 0 and wrote a result.
     # Both halves matter: a container that fails to start and a missing venv
     # both exit 0 while producing nothing.
+    # A batched lm_eval call covers every task in its list, so a failure leaves
+    # all of them without a result.
     echo "----------------------------------------------------"
     if [ "$rc" -ne 0 ]; then
-        FAILED_ROWS=$((FAILED_ROWS + 1))
+        FAILED_ROWS=$((FAILED_ROWS + EVAL_TASKS))
         _timeout_note=""
-        if [ "$rc" -eq 124 ]; then _timeout_note=" (ROW_TIMEOUT=${{ROW_TIMEOUT:-}} exceeded)"; fi
+        if [ "$rc" -eq 124 ]; then _timeout_note=" (ROW_TIMEOUT=${{ROW_TIMEOUT:-}} per task exceeded)"; fi
         echo "[error] $task_path ($eval_suite) exited with status $rc$_timeout_note for model=$model_path n_shot=$n_shot"
     elif [ -n "$EVAL_OUT_DIR" ] && [ -z "$(find "$EVAL_OUT_DIR" -type f -name "$EVAL_OUT_PAT" 2>/dev/null | head -n 1)" ]; then
-        FAILED_ROWS=$((FAILED_ROWS + 1))
+        FAILED_ROWS=$((FAILED_ROWS + EVAL_TASKS))
         echo "[error] $task_path ($eval_suite) exited 0 but wrote no result to $EVAL_OUT_DIR/$EVAL_OUT_PAT for model=$model_path n_shot=$n_shot"
     else
         echo "Evaluation finished for model: $model_path"
     fi
 
-done < <(tail -n +$((START_INDEX + 1)) "$CSV_PATH" | head -n $((END_INDEX - START_INDEX + 1)))
+done < <(tail -n +$((START_INDEX + 1)) "$CSV_PATH" | head -n $((END_INDEX - START_INDEX + 1)) | \
+    awk -F, -v max_tasks="$TASKS_PER_JOB" -v OFS='\t' "$BATCH_ROWS_AWK")
 
 if [ "$FAILED_ROWS" -gt 0 ]; then
     echo "Job $SLURM_ARRAY_TASK_ID finished with $FAILED_ROWS failed evaluation(s)."

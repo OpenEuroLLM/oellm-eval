@@ -75,6 +75,8 @@ class EvalConfig:
     eval_csv_path: str | None = None
 
     # ---- execution flags ----
+    # Cap on lm-eval-harness tasks per lm_eval call (1 = one call per task).
+    tasks_per_job: int = 8
     limit: int | None = None
     verbose: bool = False
     download_only: bool = False
@@ -142,6 +144,7 @@ class EvalConfig:
         n_shot: int | list[int] | None = None,
         eval_csv_path: str | None = None,
         max_array_len: int | None = None,
+        tasks_per_job: int | None = None,
         limit: int | None = None,
         verbose: bool | None = None,
         download_only: bool | None = None,
@@ -192,6 +195,7 @@ class EvalConfig:
             ("task_groups", groups_list),
             ("n_shot", n_shot_list),
             ("eval_csv_path", eval_csv_path),
+            ("tasks_per_job", tasks_per_job),
             ("limit", limit),
             ("verbose", verbose),
             ("download_only", download_only),
@@ -244,6 +248,7 @@ class EvalConfig:
             task_groups=groups_list,
             n_shot=n_shot_list,
             eval_csv_path=eval_csv_path,
+            tasks_per_job=tasks_per_job if tasks_per_job is not None else 8,
             limit=limit,
             verbose=bool(verbose) if verbose is not None else False,
             download_only=bool(download_only) if download_only is not None else False,
@@ -269,6 +274,7 @@ class EvalConfig:
             "task_groups",
             "n_shot",
             "eval_csv_path",
+            "tasks_per_job",
             "limit",
             "verbose",
             "download_only",
@@ -325,6 +331,7 @@ class EvalConfig:
             task_groups=task_groups,
             n_shot=n_shot,
             eval_csv_path=raw.get("eval_csv_path"),
+            tasks_per_job=int(raw.get("tasks_per_job", 8)),
             limit=_optional_int(raw.get("limit")),
             verbose=bool(raw.get("verbose", False)),
             download_only=bool(raw.get("download_only", False)),
@@ -377,6 +384,11 @@ class EvalConfig:
         """Raise ``ValueError`` on invalid or contradictory configuration."""
         if self.load_in_4bit and self.load_in_8bit:
             raise ValueError("load_in_4bit and load_in_8bit are mutually exclusive.")
+
+        if self.tasks_per_job < 1:
+            raise ValueError(
+                f"tasks_per_job must be at least 1, got: {self.tasks_per_job}"
+            )
 
         if self.eval_csv_path:
             if self.models or self.tasks or self.task_groups or self.n_shot:
