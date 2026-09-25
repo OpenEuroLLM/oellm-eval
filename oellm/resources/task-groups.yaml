@@ -2,7 +2,7 @@ task_groups:
   sib200-eu:
     description: "SIB-200 European language topic classification tasks (0-shot)"
     suite: lm-eval-harness
-    metric: acc_norm
+    metric: acc
     n_shots: [0]
     dataset: Davlan/sib200
     valid_langs: [bul_Cyrl, hrv_Latn, ces_Latn, dan_Latn, nld_Latn, eng_Latn, est_Latn, fin_Latn,
