@@ -7,6 +7,7 @@ COMPLETED with no result file, and only a later `collect --check` noticed.
 
 These tests render a real script through `schedule_evals` and run it against a
 stub harness, so they exercise the template rather than a copy of its logic.
+In ELLIOT the script is built by ``oellm.scheduler``, so that is what is patched.
 """
 
 import os
@@ -55,8 +56,8 @@ def _fake_venv(tmp_path: Path, harness: str) -> Path:
 
 def _render(tmp_path: Path, venv: Path) -> Path:
     with (
-        patch("oellm.main._load_cluster_env"),
-        patch("oellm.main._num_jobs_in_queue", return_value=0),
+        patch("oellm.scheduler._load_cluster_env"),
+        patch("oellm.scheduler._num_jobs_in_queue", return_value=0),
         patch.dict(os.environ, {"EVAL_OUTPUT_DIR": str(tmp_path), "GPUS_PER_NODE": "1"}),
     ):
         schedule_evals(
@@ -121,10 +122,14 @@ def test_failure_count_survives_the_read_loop(tmp_path):
     run the body in a subshell and lose the counter at `done`.
     """
     venv = _fake_venv(tmp_path, HARNESS_CRASHES)
+    # ELLIOT sizes the array from QUEUE_LIMIT, so this puts both rows in one job.
     with (
-        patch("oellm.main._load_cluster_env"),
-        patch("oellm.main._num_jobs_in_queue", return_value=0),
-        patch.dict(os.environ, {"EVAL_OUTPUT_DIR": str(tmp_path), "GPUS_PER_NODE": "1"}),
+        patch("oellm.scheduler._load_cluster_env"),
+        patch("oellm.scheduler._num_jobs_in_queue", return_value=0),
+        patch.dict(
+            os.environ,
+            {"EVAL_OUTPUT_DIR": str(tmp_path), "GPUS_PER_NODE": "1", "QUEUE_LIMIT": "1"},
+        ),
     ):
         schedule_evals(
             models="EleutherAI/pythia-70m",
@@ -132,7 +137,6 @@ def test_failure_count_survives_the_read_loop(tmp_path):
             n_shot=0,
             skip_checks=True,
             venv_path=str(venv),
-            max_array_len=1,
             dry_run=True,
         )
     script = next(iter(tmp_path.glob("**/submit_evals.sbatch")))
@@ -146,9 +150,9 @@ def test_sbatch_failure_exits_non_zero(tmp_path):
     """A rejected submission must not look like a successful schedule."""
     error = subprocess.CalledProcessError(1, ["sbatch"], stderr="AssocMaxSubmitJobLimit")
     with (
-        patch("oellm.main._load_cluster_env"),
-        patch("oellm.main._num_jobs_in_queue", return_value=0),
-        patch("oellm.main.subprocess.run", side_effect=error),
+        patch("oellm.scheduler._load_cluster_env"),
+        patch("oellm.scheduler._num_jobs_in_queue", return_value=0),
+        patch("oellm.scheduler.subprocess.run", side_effect=error),
         patch.dict(os.environ, {"EVAL_OUTPUT_DIR": str(tmp_path)}),
         pytest.raises(SystemExit) as excinfo,
     ):

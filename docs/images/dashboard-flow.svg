@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 500" width="1000" height="500" role="img" aria-labelledby="t d">
+  <title id="t">How results reach the ELLIOT dashboard</title>
+  <desc id="d">Evaluations run on offline compute nodes of an HPC cluster and write result files. On the login node, oellm-eval collect --push gathers them into eval_results.json with scores and provenance and sends it over HTTPS with a personal token to the ELLIOT dashboard, which checks the token, validates the results, ignores duplicates and shows them in its views.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7aa2ff"/>
+    </marker>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#101829"/>
+      <stop offset="1" stop-color="#0b111d"/>
+    </linearGradient>
+    <style>
+      .sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .h1 { font-size: 19px; font-weight: 600; fill: #e8edf7; }
+      .h2 { font-size: 15px; font-weight: 600; fill: #dfe6f3; }
+      .body { font-size: 13.5px; fill: #c3cbe0; }
+      .cap { font-size: 12.5px; fill: #8e9ab5; }
+      .chip { font-size: 12px; fill: #b9c6ff; }
+      .card { fill: #141d2f; stroke: #26324d; stroke-width: 1; }
+      .sub { fill: #1a2438; stroke: #2c3a58; stroke-width: 1; }
+      .inset { fill: #0e1523; stroke: #2c3a58; stroke-width: 1; }
+      .flow { stroke: #7aa2ff; stroke-width: 2; fill: none; }
+      .check { fill: #4ade80; font-size: 13.5px; font-weight: 700; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1000" height="500" rx="16" fill="url(#bg)"/>
+
+  <!-- HPC cluster -->
+  <rect class="card" x="24" y="24" width="392" height="452" rx="14"/>
+  <text class="sans h1" x="46" y="57">HPC cluster</text>
+  <text class="sans cap" x="46" y="79">Leonardo · LUMI · JURECA · Jupiter · Snellius · UFAL</text>
+
+  <rect class="sub" x="44" y="100" width="352" height="150" rx="10"/>
+  <text class="sans h2" x="62" y="127">Compute nodes</text>
+  <rect x="180" y="113" width="58" height="20" rx="10" fill="#3a2f10" stroke="#6b5518"/>
+  <text class="sans" x="209" y="127" text-anchor="middle" font-size="11.5" fill="#fbbf24">offline</text>
+  <text class="sans body" x="62" y="153">SLURM array job runs the evaluations</text>
+  <rect class="inset" x="62" y="167" width="64" height="26" rx="6"/>
+  <text class="mono chip" x="94" y="184" text-anchor="middle">lm-eval</text>
+  <rect class="inset" x="134" y="167" width="80" height="26" rx="6"/>
+  <text class="mono chip" x="174" y="184" text-anchor="middle">lighteval</text>
+  <rect class="inset" x="222" y="167" width="80" height="26" rx="6"/>
+  <text class="mono chip" x="262" y="184" text-anchor="middle">lmms-eval</text>
+  <rect class="inset" x="310" y="167" width="68" height="26" rx="6"/>
+  <text class="mono chip" x="344" y="184" text-anchor="middle">plugins</text>
+  <text class="sans cap" x="62" y="226">writes result files to the shared filesystem</text>
+
+  <path class="flow" d="M220,250 L220,290" marker-end="url(#arrow)"/>
+
+  <rect class="sub" x="44" y="296" width="352" height="160" rx="10"/>
+  <text class="sans h2" x="62" y="323">Login node</text>
+  <rect class="inset" x="62" y="337" width="316" height="34" rx="7"/>
+  <text class="mono" x="76" y="359" font-size="13.5" fill="#e8edf7"><tspan fill="#8e9ab5">$ </tspan>oellm-eval collect --push</text>
+  <text class="mono" x="62" y="398" font-size="13.5" fill="#7aa2ff">eval_results.json</text>
+  <text class="sans cap" x="62" y="420">scores + provenance: engine versions, model</text>
+  <text class="sans cap" x="62" y="438">revision, --limit, quantization, submitter</text>
+
+  <!-- transport -->
+  <path class="flow" d="M396,392 L578,392" marker-end="url(#arrow)"/>
+  <text class="sans body" x="487" y="358" text-anchor="middle">HTTPS</text>
+  <text class="mono cap" x="487" y="377" text-anchor="middle">POST /api/ingest</text>
+  <text class="sans cap" x="487" y="416" text-anchor="middle">personal token</text>
+  <text class="sans cap" x="487" y="434" text-anchor="middle">push only, never pull</text>
+
+  <!-- dashboard -->
+  <rect class="card" x="584" y="24" width="392" height="452" rx="14"/>
+  <text class="sans h1" x="606" y="57">ELLIOT dashboard</text>
+  <text class="sans cap" x="606" y="79">one place for every cluster's results</text>
+
+  <rect class="sub" x="604" y="100" width="352" height="126" rx="10"/>
+  <text class="sans h2" x="622" y="127">Ingest</text>
+  <text class="sans check" x="622" y="154">✓</text>
+  <text class="sans body" x="642" y="154">personal token checked</text>
+  <text class="sans check" x="622" y="180">✓</text>
+  <text class="sans body" x="642" y="180">results validated before storing</text>
+  <text class="sans check" x="622" y="206">✓</text>
+  <text class="sans body" x="642" y="206">pushing the same results twice is ignored</text>
+
+  <rect class="sub" x="604" y="242" width="352" height="214" rx="10"/>
+  <text class="sans h2" x="622" y="269">Views</text>
+  <rect class="inset" x="622" y="283" width="160" height="32" rx="7"/>
+  <text class="sans chip" x="702" y="304" text-anchor="middle">Model × modality</text>
+  <rect class="inset" x="790" y="283" width="148" height="32" rx="7"/>
+  <text class="sans chip" x="864" y="304" text-anchor="middle">Leaderboards</text>
+  <rect class="inset" x="622" y="323" width="160" height="32" rx="7"/>
+  <text class="sans chip" x="702" y="344" text-anchor="middle">Benchmark catalog</text>
+  <rect class="inset" x="790" y="323" width="148" height="32" rx="7"/>
+  <text class="sans chip" x="864" y="344" text-anchor="middle">Model details</text>
+  <rect class="inset" x="622" y="363" width="160" height="32" rx="7"/>
+  <text class="sans chip" x="702" y="384" text-anchor="middle">Score history</text>
+  <rect class="inset" x="790" y="363" width="148" height="32" rx="7"/>
+  <text class="sans chip" x="864" y="384" text-anchor="middle">Runs &amp; provenance</text>
+  <text class="sans cap" x="622" y="428">opens in any browser, no cluster account needed</text>
+</svg>

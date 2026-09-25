@@ -60,9 +60,15 @@ TEMPLATE_FIELDS = {
 requires_awk = pytest.mark.skipif(shutil.which("awk") is None, reason="awk not available")
 
 
+class _Fields(dict):
+    def __missing__(self, key: str) -> str:  # ELLIOT-only fields don't affect batching
+        return ""
+
+
 def _render(**overrides: object) -> str:
     template = (files("oellm.resources") / "template.sbatch").read_text()
-    return template.format(**{**TEMPLATE_FIELDS, **overrides}).replace("\r\n", "\n")
+    fields = _Fields({**TEMPLATE_FIELDS, **overrides})
+    return template.format_map(fields).replace("\r\n", "\n")
 
 
 def _awk_program() -> str:
@@ -157,14 +163,13 @@ def test_cap_of_one_keeps_an_invocation_per_task() -> None:
 def test_scheduled_csv_keeps_a_batch_adjacent(tmp_path: Path) -> None:
     """The collapse only fires on adjacent rows, so ordering has to preserve groups."""
     with (
-        patch("oellm.main._load_cluster_env"),
-        patch("oellm.main._num_jobs_in_queue", return_value=0),
+        patch("oellm.scheduler._load_cluster_env"),
+        patch("oellm.scheduler._num_jobs_in_queue", return_value=0),
         patch.dict(os.environ, {"EVAL_OUTPUT_DIR": str(tmp_path)}),
     ):
         schedule_evals(
             models="EleutherAI/pythia-70m,EleutherAI/pythia-160m",
             task_groups="sib200-eu",
-            n_shot=0,
             skip_checks=True,
             venv_path=str(Path(sys.prefix)),
             dry_run=True,
@@ -177,3 +182,105 @@ def test_scheduled_csv_keeps_a_batch_adjacent(tmp_path: Path) -> None:
     keys = list(zip(df["model_path"], df["n_shot"], df["eval_suite"], strict=True))
     runs = [key for index, key in enumerate(keys) if index == 0 or key != keys[index - 1]]
     assert len(runs) == len(set(runs)), "rows sharing a batch key are not adjacent"
+
+
+# ELLIOT: only lm_eval rows are batched, so only they are kept together, and the
+# whole chain (CLI flag, scheduler, rendered script) is run against stub engines.
+
+
+@requires_awk
+def test_lm_eval_spellings_share_a_call() -> None:
+    """--tasks outside any group are scheduled as lm_eval, group tasks as lm-eval-harness."""
+    rows = [f"{MODEL_A},copa,0,lm-eval-harness", f"{MODEL_A},my_task,0,lm_eval"]
+    assert [b["tasks"] for b in _batches(rows)] == ["copa,my_task"]
+
+
+STUB_PYTHON = """#!/bin/bash
+echo "$*" >> "$CALLS"
+for arg in "$@"; do
+    if [ "$prev" = "--output_path" ]; then
+        mkdir -p "$(dirname "$arg")"
+        touch "${arg%.json}_2026.json"
+    fi
+    prev="$arg"
+done
+"""
+STUB_TIMEOUT = """#!/bin/bash
+echo "timeout $2" >> "$CALLS"
+shift 2
+exec "$@"
+"""
+
+
+def test_only_lm_eval_rows_move_as_a_group(tmp_path: Path) -> None:
+    """Other suites run one row per call, so their rows are still shuffled one by one."""
+    with (
+        patch("oellm.scheduler._load_cluster_env"),
+        patch("oellm.scheduler._num_jobs_in_queue", return_value=0),
+        patch.dict(os.environ, {"EVAL_OUTPUT_DIR": str(tmp_path)}),
+    ):
+        schedule_evals(
+            models="EleutherAI/pythia-70m,EleutherAI/pythia-160m",
+            task_groups="sib200-eu,belebele-eu-cf",
+            tasks="my_task",  # in no group, so scheduled as lm_eval
+            n_shot=0,
+            skip_checks=True,
+            venv_path=str(Path(sys.prefix)),
+            dry_run=True,
+        )
+
+    df = pd.read_csv(next(iter(tmp_path.glob("**/jobs.csv"))))
+    assert {"lm_eval", "lm-eval-harness"} <= set(df["eval_suite"])
+    suites = df["eval_suite"].replace("lm-eval-harness", "lm_eval")
+    keys = list(zip(df["model_path"], df["n_shot"], suites, strict=True))
+    runs = [key for index, key in enumerate(keys) if index == 0 or key != keys[index - 1]]
+    lm_eval_runs = [key for key in runs if key[2] == "lm_eval"]
+    assert len(lm_eval_runs) == len(set(lm_eval_runs)) == 2
+    assert len(runs) > len(set(runs)), "lighteval rows were kept together"
+
+
+def test_the_job_runs_one_lm_eval_call_per_batch(tmp_path: Path) -> None:
+    """--tasks-per-job reaches the script, and a batch gets ROW_TIMEOUT once per task."""
+    venv = tmp_path / "venv"
+    (venv / "bin").mkdir(parents=True)
+    (venv / "bin" / "activate").write_text(f'export PATH="{venv}/bin:$PATH"\n')
+    for name, body in (("python", STUB_PYTHON), ("timeout", STUB_TIMEOUT)):
+        (venv / "bin" / name).write_text(body)
+        (venv / "bin" / name).chmod(0o755)
+    with (
+        patch("oellm.scheduler._load_cluster_env"),
+        patch("oellm.scheduler._num_jobs_in_queue", return_value=0),
+        patch.dict(
+            os.environ,
+            {"EVAL_OUTPUT_DIR": str(tmp_path), "QUEUE_LIMIT": "1", "GPUS_PER_NODE": "1"},
+        ),
+    ):
+        schedule_evals(
+            models="EleutherAI/pythia-70m",
+            tasks="copa,piqa,arc_easy",
+            n_shot=0,
+            tasks_per_job=2,
+            skip_checks=True,
+            venv_path=str(venv),
+            dry_run=True,
+        )
+    script = next(iter(tmp_path.glob("**/submit_evals.sbatch")))
+    calls = tmp_path / "calls.txt"
+    env = {
+        **os.environ,
+        "CALLS": str(calls),
+        "ROW_TIMEOUT": "10m",
+        "SLURM_ARRAY_TASK_ID": "0",
+        "SLURM_ARRAY_JOB_ID": "1",
+        "SLURM_JOB_ID": "1",
+    }
+    result = subprocess.run(
+        ["bash", str(script)], env=env, capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    lines = calls.read_text().splitlines()
+    tasks = [line.split("--tasks ")[1].split()[0] for line in lines if "--tasks " in line]
+    timeouts = [line.split()[1] for line in lines if line.startswith("timeout ")]
+    assert tasks == ["copa,piqa", "arc_easy"]
+    assert timeouts == ["1200", "10m"]
