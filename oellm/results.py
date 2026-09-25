@@ -401,6 +401,7 @@ def collect_results(
     *,
     check: bool = False,
     fetch_all_metrics: bool = False,
+    push: bool = False,
     verbose: bool = False,
 ) -> None:
     """
@@ -412,6 +413,7 @@ def collect_results(
         check: Check for missing evaluations and create a missing jobs CSV
         fetch_all_metrics: Emit one row per numeric metric the engine reported
             instead of only the task's primary metric
+        push: Also push the collected results to the dashboard (see `oellm-eval push`)
         verbose: Enable verbose logging
     """
     _setup_logging(verbose)
@@ -846,6 +848,11 @@ def collect_results(
         logging.info(f"Results Markdown: {md_path}")
 
         logging.info(f"Extracted {len(df)} evaluation results")
+
+        if push:
+            from oellm.push import push_after_collect
+
+            push_after_collect(json_path)
 
         if verbose:
             logging.info("Summary:")

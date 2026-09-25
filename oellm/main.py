@@ -5,6 +5,7 @@ import typer
 from typer import rich_utils
 
 from oellm.config import EvalConfig
+from oellm.push import push_results
 from oellm.results import collect_results
 from oellm.utils import _filter_warnings, _setup_logging
 
@@ -460,6 +461,7 @@ def eval_command(
 app.command("schedule")(schedule_evals)
 app.command("eval")(eval_command)
 app.command("collect")(collect_results)
+app.command("push")(push_results)
 app.command("list-tasks")(list_tasks)
 app.command("compare")(compare)
 app.command("doctor")(doctor)

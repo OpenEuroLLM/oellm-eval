@@ -6,6 +6,7 @@ A multimodal evaluation framework for scheduling LLM and VLM evaluations across 
 
 - **Schedule evaluations** on multiple models and tasks: `oellm-eval schedule`
 - **Collect results** and check for missing evaluations: `oellm-eval collect`
+- **Results dashboard**: send results from any cluster to one shared web dashboard: `oellm-eval collect --push`
 - **Diagnose your environment** (cluster vars, HF cache, venv engines): `oellm-eval doctor`
 - **Task groups** for pre-defined evaluation suites with automatic dataset pre-downloading
 - **Multi-cluster support** with auto-detection (Leonardo, LUMI, JURECA, Jupiter, Snellius, UFAL)
@@ -16,6 +17,21 @@ A multimodal evaluation framework for scheduling LLM and VLM evaluations across 
 - **Plugin system** for contributing custom benchmarks without touching core code
 - **Automatic building and deployment of containers**
 
+## Results Dashboard
+
+`oellm-eval collect --push` sends results from the login node to the [ELLIOT dashboard](https://github.com/elliot-project/elliot-eval-dashboard), so results from all clusters end up in one place.
+
+<p align="center">
+  <img src="docs/images/dashboard-leaderboard.png" alt="Dashboard text leaderboard: score per model and benchmark, colour-scaled, with the best score in each column outlined" width="100%">
+</p>
+<p align="center"><sub>Text leaderboard with full evaluations of small public models</sub></p>
+
+<p align="center">
+  <img src="docs/images/dashboard-flow.svg" alt="How results reach the dashboard: evaluations run on offline compute nodes, the login node runs oellm-eval collect --push, and the results travel over HTTPS with a personal token to the dashboard, which checks and stores them" width="100%">
+</p>
+
+Setup: [Publishing Results to the Dashboard](#publishing-results-to-the-dashboard).
+
 ## Commands at a Glance
 
 | Command | What it does |
@@ -23,6 +39,7 @@ A multimodal evaluation framework for scheduling LLM and VLM evaluations across 
 | `oellm-eval schedule` | Expand models × tasks, pre-download models/datasets on the login node, generate and submit a SLURM array job (or run locally with `--local`) |
 | `oellm-eval eval --config eval.yaml` | Same as `schedule`, driven by a YAML config file; CLI flags override the file |
 | `oellm-eval collect <dir>` | Aggregate result JSONs into `eval_results.csv` + `.json` + `.md`; `--check` writes a re-schedulable CSV of missing jobs |
+| `oellm-eval push <dir>` | Send collected results to the ELLIOT dashboard over HTTPS; also available as `collect --push` |
 | `oellm-eval list-tasks` | Show every task group, its engine, task count, and n-shot settings |
 | `oellm-eval compare <a> <b>` | Diff two collected results (files or run directories) per model × task × n-shot × metric |
 | `oellm-eval doctor` | Diagnose the environment: cluster detection, env vars, HF cache, venv engines |
@@ -272,6 +289,31 @@ oellm-eval schedule ... --venv-path .venv --local
 ```
 
 The `HF_HUB_OFFLINE` value is read when you invoke `oellm-eval` and baked into the generated script.
+
+## Publishing Results to the Dashboard
+
+`push` sends the `eval_results.json` written by `collect` to the
+[ELLIOT dashboard](https://github.com/elliot-project/elliot-eval-dashboard)
+over HTTPS from the login node. Ask the dashboard maintainers (ELLIOT WP4) for
+a personal token, then:
+
+```bash
+mkdir -p ~/.config/oellm && chmod 700 ~/.config/oellm
+echo '<token>' > ~/.config/oellm/dash_token && chmod 600 ~/.config/oellm/dash_token
+export OELLM_DASH_URL=https://<host>/elliot-dashboard
+
+oellm-eval collect <run_dir> --push   # collect and push in one step
+oellm-eval push eval_results.json     # push a file collected earlier
+```
+
+Pushing the same results twice is harmless, and a failed push never fails
+`collect`. Alternatives to the default token file: `--token-file`,
+`$OELLM_DASH_TOKEN_FILE`, `$OELLM_DASH_TOKEN`.
+
+<p align="center">
+  <img src="docs/images/dashboard-overview.png" alt="Dashboard overview page: average score per model and modality" width="100%">
+</p>
+<p align="center"><sub>Overview page</sub></p>
 
 ## SLURM Overrides
 
