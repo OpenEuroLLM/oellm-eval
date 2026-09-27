@@ -27,7 +27,9 @@ dev = [
 # (datasets <4 vs >=4 conflict) and is installed separately via
 # ``uv tool install`` — see docs/VENV.md.
 text = [
-    "lm-eval>=0.4.12",
+    # Same version as the containers: task names and dataset ids in
+    # task-groups.yaml follow it (0.4.13 renamed and moved some).
+    "lm-eval==0.4.12",
     "latex2sympy2_extended",  # required by the polymath tasks
     "torch",
     "transformers",

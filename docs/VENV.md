@@ -106,7 +106,7 @@ The general venv pins `datasets<4.0.0`: lm-eval itself accepts newer versions, b
 | Component | Install | Reason |
 |---|---|---|
 | `lmms-eval` | `uv pip install -e "git+https://…@<commit>#egg=lmms-eval"` | Editable: wheel drops template files |
-| `text`, `image`, `audio` extras | `uv pip install '.[text,image,audio]'` | lm-eval + transformers pin + audio helpers |
+| `text`, `image`, `audio` extras | `uv pip install '.[text,image,audio]'` | lm-eval 0.4.12 (same as the containers) + transformers pin + audio helpers |
 | `lighteval` | `uv tool install …` (isolated) | Needs `datasets>=4.0.0`; conflicts with lm-eval |
 | `evalchemy` | `uv pip install '.[evalchemy]'` (own venv) | Forked lm-eval |
 | `dclm` | `uv pip install '.[dclm]'` (own venv) | Pinned `lm-eval==0.4.9.2` |

@@ -262,7 +262,7 @@ The `--local` flag lets you run evaluations directly on your machine without a c
 
 ```bash
 # 1. Add eval dependencies to the project venv
-uv pip install lm-eval torch transformers accelerate "datasets<4.0.0"
+uv pip install "lm-eval==0.4.12" torch transformers accelerate "datasets<4.0.0"
 
 # 2. Run evaluations locally — useful for smoke-testing with a small sample
 oellm-eval schedule \
