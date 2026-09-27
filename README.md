@@ -19,7 +19,7 @@ A multimodal evaluation framework for scheduling LLM and VLM evaluations across 
 
 ## Results Dashboard
 
-`oellm-eval collect --push` sends results from the login node to the [ELLIOT dashboard](https://github.com/elliot-project/elliot-eval-dashboard), so results from all clusters end up in one place.
+`oellm-eval collect --push` sends results from the login node to the [ELLIOT dashboard](http://test.openml.org/elliot-dashboard), so results from all clusters end up in one place.
 
 <p align="center">
   <img src="docs/images/dashboard-leaderboard.png" alt="Dashboard text leaderboard: score per model and benchmark, colour-scaled, with the best score in each column outlined" width="100%">
@@ -262,7 +262,7 @@ The `--local` flag lets you run evaluations directly on your machine without a c
 
 ```bash
 # 1. Add eval dependencies to the project venv
-uv pip install lm-eval torch transformers accelerate "datasets<4.0.0"
+uv pip install "lm-eval==0.4.12" torch transformers accelerate "datasets<4.0.0"
 
 # 2. Run evaluations locally — useful for smoke-testing with a small sample
 oellm-eval schedule \
@@ -293,7 +293,7 @@ The `HF_HUB_OFFLINE` value is read when you invoke `oellm-eval` and baked into t
 ## Publishing Results to the Dashboard
 
 `push` sends the `eval_results.json` written by `collect` to the
-[ELLIOT dashboard](https://github.com/elliot-project/elliot-eval-dashboard)
+[ELLIOT dashboard](http://test.openml.org/elliot-dashboard)
 over HTTPS from the login node. Ask the dashboard maintainers (ELLIOT WP4) for
 a personal token, then:
 

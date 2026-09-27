@@ -291,6 +291,8 @@ task_groups:
         subset: Italian
       - task: include_base_44_lithuanian
         subset: Lithuanian
+      # lm-eval 0.4.12, which we pin, names this task with a space; 0.4.13
+      # renamed it to include_base_44_north_macedonian. Flip it with wsc273.
       - task: include_base_44_north macedonian
         subset: North Macedonian
       - task: include_base_44_polish
