@@ -1,0 +1,25 @@
+# Override of the harness's agieval_lsat_ar (lm-eval-harness 0.4.12, tasks/agieval/lsat-ar.yaml -> aqua-rat.yaml).
+# Same dataset, prompt, choices and scoring (process_results_mcqa on doc["gold"]); the only change is the target:
+# upstream's "{{gold}}" renders the list "[4]", and 0.4.12's few-shot builder then asserts "Answer is not a string!"
+# for every num_fewshot > 0 (dclm-core-22 runs it 3-shot). "{{gold[0]}}" renders the gold index, which the builder maps
+# to the choice text, as older harness versions did.
+task: agieval_lsat_ar
+dataset_path: hails/agieval-lsat-ar
+dataset_name: null
+output_type: multiple_choice
+training_split: null
+validation_split: null
+test_split: test
+doc_to_text: "{{query}}"
+doc_to_target: "{{gold[0]}}"
+doc_to_choice: "{{choices}}"
+process_results: !function utils.process_results_mcqa
+metric_list:
+  - metric: acc
+    aggregation: mean
+    higher_is_better: true
+  - metric: acc_norm
+    aggregation: mean
+    higher_is_better: true
+metadata:
+  version: 1.0

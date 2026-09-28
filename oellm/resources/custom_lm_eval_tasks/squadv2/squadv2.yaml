@@ -1,0 +1,3 @@
+# lm-eval's squadv2, with the few-shot fix in task.py next to this file.
+task: squadv2
+class: !function task.SQuAD2
