@@ -2,7 +2,9 @@ task_groups:
   sib200-eu:
     description: "SIB-200 European language topic classification tasks (0-shot)"
     suite: lm-eval-harness
-    metric: acc_norm
+    # acc, not acc_norm: acc_norm divides by answer length and so always picks the longest
+    # label, science/technology, which is gold on 51 of 204 items (25.0% for any model)
+    metric: acc
     n_shots: [0]
     dataset: Davlan/sib200
     valid_langs: [bul_Cyrl, hrv_Latn, ces_Latn, dan_Latn, nld_Latn, eng_Latn, est_Latn, fin_Latn,
@@ -502,6 +504,14 @@ task_groups:
         n_shots: [0]
         suite: evalchemy
 
+  jeebench:
+    description: "JEEBench (0-shot, Evalchemy)"
+    suite: evalchemy
+    tasks:
+      - task: JEEBench
+        n_shots: [0]
+        dataset: daman1209arora/jeebench
+
   global-piqa-eu-completions:
     description: "Global PIQA European languages — multiple-choice completions (0-shot, mrlbenchmarks/global-piqa-nonparallel)"
     suite: lm-eval-harness
@@ -619,3 +629,68 @@ super_groups:
       - task: sib200-eu
       - task: xcopa-eu
       - task: xcsqa-eu
+
+  # FLAG evaluation = the reference suite (dclm-core-22, open-sci-0.01, reasoning, JEEBench) plus
+  # multilingual-oellm-eu. Super groups cannot nest, so the groups are listed flat. The vLLM
+  # backend refuses lighteval tasks, so schedule the two halves separately; flag-evals is the union.
+  flag-evals-vllm:
+    description: "FLAG evaluation, lm-eval-harness and Evalchemy part (vLLM backend)"
+    task_groups:
+      - task: dclm-core-22
+      - task: open-sci-0.01
+      - task: reasoning
+      - task: jeebench
+      - task: arc-challenge-mt-eu
+      - task: belebele-eu-5-shot
+      - task: global-mgsm-eu
+      - task: global-mmlu-eu
+      - task: global-piqa-eu-completions
+      - task: global-piqa-eu-prompted
+      - task: hellaswag-eu
+      - task: include
+      - task: mgsm-eu
+      - task: multiblimp-eu
+      - task: opensubtitles-eu-en-xx
+      - task: opensubtitles-eu-xx-en
+      - task: polymath-eu-high
+      - task: polymath-eu-low
+      - task: polymath-eu-medium
+      - task: polymath-eu-top
+      - task: sib200-eu
+      - task: xcsqa-eu
+
+  flag-evals-lighteval:
+    description: "FLAG evaluation, lighteval part (hf backend)"
+    task_groups:
+      - task: flores-200-eng-to-eu
+      - task: flores-200-eu-to-eng
+      - task: xcopa-eu
+
+  flag-evals:
+    description: "FLAG evaluation: the reference suite plus multilingual-oellm-eu"
+    task_groups:
+      - task: dclm-core-22
+      - task: open-sci-0.01
+      - task: reasoning
+      - task: jeebench
+      - task: arc-challenge-mt-eu
+      - task: belebele-eu-5-shot
+      - task: global-mgsm-eu
+      - task: global-mmlu-eu
+      - task: global-piqa-eu-completions
+      - task: global-piqa-eu-prompted
+      - task: hellaswag-eu
+      - task: include
+      - task: mgsm-eu
+      - task: multiblimp-eu
+      - task: opensubtitles-eu-en-xx
+      - task: opensubtitles-eu-xx-en
+      - task: polymath-eu-high
+      - task: polymath-eu-low
+      - task: polymath-eu-medium
+      - task: polymath-eu-top
+      - task: sib200-eu
+      - task: xcsqa-eu
+      - task: flores-200-eng-to-eu
+      - task: flores-200-eu-to-eng
+      - task: xcopa-eu
