@@ -1,0 +1,37 @@
+Bootstrap: docker
+From: ghcr.io/astral-sh/uv:python3.12-bookworm
+
+# lighteval for flag-evals-lighteval on JUPITER (GH200, aarch64). jupiter.def's lighteval gets the
+# CPU-only torch wheel on aarch64 and no [multilingual] deps. This one pins the vLLM image's torch
+# 2.13.0+cu130 and transformers 5.15.1 (5.1.0 turns every space into <unk> on SentencePiece-only
+# tokenizers), and patches chrF/chrF++ to score every sentence, not only the first.
+#
+#   apptainer build --fakeroot lighteval-jupiter.sif containers/lighteval-jupiter.def   # from the repo root
+
+%files
+    containers/locks/lighteval-jupiter-lock.txt /opt/lighteval-lock.txt
+    patches/lighteval-chrf.patch /opt/lighteval-chrf.patch
+
+%post
+    set -eu
+    SITE=/opt/lighteval/lib/python3.12/site-packages
+    uv venv --python /usr/local/bin/python3.12 /opt/lighteval
+    VIRTUAL_ENV=/opt/lighteval UV_NO_CACHE=1 UV_LINK_MODE=copy uv pip install --no-deps \
+        --extra-index-url https://download.pytorch.org/whl/cu130 --index-strategy unsafe-best-match \
+        -r /opt/lighteval-lock.txt
+    patch -d "$SITE" -p1 < /opt/lighteval-chrf.patch
+    /opt/lighteval/bin/python -m nltk.downloader -d /opt/nltk_data punkt punkt_tab
+    # lighteval downloads this on import when missing; the image is read-only and jobs are offline
+    curl -fsSL -o "$SITE/lighteval/tasks/tasks/tinyBenchmarks.pkl" \
+        https://raw.githubusercontent.com/felipemaiapolo/tinyBenchmarks/main/tinyBenchmarks/tinyBenchmarks.pkl
+    chmod -R a+rX /opt/lighteval /opt/nltk_data
+
+%environment
+    export PATH=/opt/lighteval/bin:$PATH
+    export VIRTUAL_ENV=/opt/lighteval
+    export NLTK_DATA=/opt/nltk_data
+
+%test
+    python -c 'import torch; assert torch.version.cuda, "CPU-only torch"'
+    python -c 'import nltk; nltk.data.find("tokenizers/punkt_tab")'
+    python -c 'from lighteval.tasks.registry import Registry; Registry(tasks="xcopa:et|0", load_multilingual=True)'
