@@ -4,6 +4,7 @@ import logging
 import math
 import os
 import re
+import shlex
 import socket
 import subprocess
 from datetime import datetime
@@ -796,10 +797,12 @@ def schedule_evals(
         if local:
             logging.info(
                 f"To run locally: SLURM_ARRAY_TASK_ID=0 SLURM_ARRAY_JOB_ID=0 "
-                f"SLURM_JOB_ID=0 bash {sbatch_script_path}"
+                f"SLURM_JOB_ID=0 bash {shlex.quote(str(sbatch_script_path))}"
             )
         else:
-            logging.info("To submit the job, run: sbatch " + str(sbatch_script_path))
+            logging.info(
+                "To submit the job, run: sbatch " + shlex.quote(str(sbatch_script_path))
+            )
         return
 
     logging.info(f"Evaluation directory: {evals_dir}")

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import shlex
 import subprocess
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
@@ -910,7 +911,8 @@ def collect_results(
             missing_df.to_csv(missing_csv, index=False)
             logging.info(f"Missing jobs saved to: {missing_csv}")
             logging.info(
-                f"You can run these with: oellm-eval schedule --eval-csv-path {missing_csv}"
+                "You can run these with: oellm-eval schedule --eval-csv-path "
+                + shlex.quote(missing_csv)
             )
 
             if verbose and len(missing_jobs) > 0:

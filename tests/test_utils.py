@@ -556,3 +556,28 @@ class TestDatasetLoadKwargs:
 
         monkeypatch.setattr(datasets, "__version__", version)
         assert _dataset_load_kwargs(True) == expected
+
+
+class TestSetupLogging:
+    """Log messages are printed as written, not parsed as rich markup."""
+
+    def test_language_bracket_in_a_path_is_kept(self, monkeypatch):
+        import io
+        import logging
+
+        from rich.console import Console
+
+        from oellm.utils import _setup_logging
+
+        console = Console(file=io.StringIO(), width=200)
+        monkeypatch.setattr("oellm.utils.get_console", lambda: console)
+        root = logging.getLogger()
+        handlers, level = root.handlers[:], root.level
+        path = "/out/m_sib200-eu[deu_latn|fra_latn]_2026-09-29/results"
+        try:
+            _setup_logging()
+            logging.info(f"Results will be stored in: {path}")
+        finally:
+            root.handlers = handlers
+            root.setLevel(level)
+        assert path in console.file.getvalue()

@@ -2,6 +2,7 @@
 
 import json
 import os
+import shlex
 from pathlib import Path
 
 import pandas as pd
@@ -551,6 +552,21 @@ class TestCorruptResultFiles:
         missing = pd.read_csv(tmp_path / "out_missing.csv")
         assert len(missing) == 1
         assert missing.iloc[0]["model_path"] == "/models/pythia-160m"
+
+    def test_rerun_command_quotes_a_bracketed_run_dir(
+        self, tmp_path, caplog, monkeypatch
+    ):
+        monkeypatch.setattr("oellm.results._setup_logging", lambda *a, **k: None)
+        run = tmp_path / "m_sib200-eu[deu_latn|fra_latn]_t"
+        (run / "results").mkdir(parents=True)
+        (run / "jobs.csv").write_text(
+            "model_path,task_path,n_shot,eval_suite\n/models/m,sib200_deu_Latn,0,lm_eval\n"
+        )
+        with caplog.at_level("INFO"):
+            collect_results(str(run), output_csv=str(run / "out.csv"), check=True)
+        missing = run / "out_missing.csv"
+        assert missing.exists()
+        assert f"--eval-csv-path {shlex.quote(str(missing))}" in caplog.text
 
 
 # ── --check completion matching: exact/suffix, not substring ─────────────────

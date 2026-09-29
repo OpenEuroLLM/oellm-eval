@@ -1,4 +1,5 @@
 import os
+import shlex
 import sys
 from importlib.resources import files
 from pathlib import Path
@@ -33,6 +34,31 @@ def test_schedule_evals(tmp_path, task_groups):
             dry_run=True,
             allow_missing_judge=True,
         )
+
+
+@pytest.mark.parametrize("local,command", [(False, "sbatch"), (True, "bash")])
+def test_dry_run_command_quotes_a_bracketed_run_dir(tmp_path, caplog, local, command):
+    # Language brackets end up in the run-dir name; the printed command must
+    # still paste into a shell (unquoted, the | starts a pipe).
+    with (
+        patch("oellm.main._setup_logging"),  # keep caplog's handler
+        patch("oellm.scheduler._setup_logging"),
+        patch("oellm.scheduler._load_cluster_env"),
+        patch("oellm.scheduler._num_jobs_in_queue", return_value=0),
+        patch.dict(os.environ, {"EVAL_OUTPUT_DIR": str(tmp_path)}),
+        caplog.at_level("INFO"),
+    ):
+        schedule_evals(
+            models="EleutherAI/pythia-70m",
+            task_groups="sib200-eu[deu_Latn|fra_Latn]",
+            skip_checks=True,
+            venv_path=str(Path(sys.prefix)),
+            dry_run=True,
+            local=local,
+        )
+    (script,) = tmp_path.glob("*/submit_evals.sbatch")
+    assert "[deu_latn|fra_latn]" in script.parent.name
+    assert f"{command} {shlex.quote(str(script))}" in caplog.text
 
 
 def test_schedule_evals_slurm_template_var_overrides(tmp_path):

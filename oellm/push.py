@@ -11,6 +11,7 @@ import http.client
 import json
 import logging
 import os
+import shlex
 import socket
 import time
 import urllib.error
@@ -313,6 +314,7 @@ def push_after_collect(envelope: Path) -> bool:
         ok = False
     if not ok:
         logging.warning(
-            f"results are saved locally; retry with: oellm-eval push {envelope}"
+            "results are saved locally; retry with: oellm-eval push "
+            + shlex.quote(str(envelope))
         )
     return ok

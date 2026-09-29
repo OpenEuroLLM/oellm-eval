@@ -2,6 +2,7 @@
 
 import inspect
 import json
+import shlex
 import socket
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -356,6 +357,14 @@ class TestCollectPush:
         assert (run / "eval_results.csv").exists() and (
             run / "eval_results.json"
         ).exists()
+
+    def test_retry_command_quotes_a_bracketed_run_dir(self, tmp_path, caplog):
+        envelope = tmp_path / "m_sib200-eu[deu_latn|fra_latn]_t" / "eval_results.json"
+        envelope.parent.mkdir()
+        envelope.write_text(json.dumps(ENVELOPE))
+        with caplog.at_level("WARNING"):
+            assert push.push_after_collect(envelope) is False  # no dashboard address
+        assert f"oellm-eval push {shlex.quote(str(envelope))}" in caplog.text
 
     def test_without_the_flag_nothing_is_sent(self, dashboard, tmp_path, monkeypatch):
         from oellm.results import collect_results

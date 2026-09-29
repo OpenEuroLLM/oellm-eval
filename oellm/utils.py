@@ -97,7 +97,9 @@ def _setup_logging(verbose: bool = False):
         show_time=True,
         log_time_format="%H:%M:%S",
         show_path=False,
-        markup=True,
+        # Run-dir paths contain language brackets (sib200-eu[deu_latn]) that
+        # rich would parse as markup tags and drop.
+        markup=False,
         rich_tracebacks=True,
     )
 
