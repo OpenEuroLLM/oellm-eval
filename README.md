@@ -14,7 +14,7 @@ A lightweight CLI for scheduling LLM evaluations across multiple HPC clusters us
 
 **Prerequisites:**
 - Install [uv](https://docs.astral.sh/uv/#installation)
-- Set the `HF_HOME` environment variable to point to your HuggingFace cache directory (e.g. `export HF_HOME="/path/to/your/hf_home"`, on LUMI use the path `/scratch/project_462000963/cache/huggingface`). This is where models and datasets will be cached. Compute nodes typically have no internet access, so all assets must be pre-downloaded into this directory.
+- Set the `HF_HOME` environment variable to point to your HuggingFace cache directory (e.g. `export HF_HOME="/path/to/your/hf_home"`, on LUMI use the shared project cache `/scratch/project_465002530/cache`). This is where models and datasets will be cached. Compute nodes typically have no internet access, so all assets must be pre-downloaded into this directory.
 
 ```bash
 # Install the package
@@ -45,6 +45,7 @@ In case you do not want to rely on the containers provided on a given cluster or
 Task groups are pre-defined evaluation suites in [`task-groups.yaml`](oellm/resources/task-groups.yaml). Each group specifies tasks, their n-shot settings, and HuggingFace dataset mappings.
 
 Available task groups:
+- `crows-pairs` - CrowS-Pairs social bias benchmark (English, 0-shot, `pct_stereotype`)
 - `open-sci-0.01` - Standard benchmarks (COPA, MMLU, HellaSwag, ARC, etc.)
 - `belebele-eu-5-shot` - Belebele European language tasks
 - `flores-200-eu-to-eng` / `flores-200-eng-to-eu` - Translation tasks
@@ -56,6 +57,18 @@ Available task groups:
 
 Super groups combine multiple task groups:
 - `oellm-multilingual` - All multilingual benchmarks combined
+- `multilingual-oellm-eu` - Every multilingual benchmark, in the 36 prioritised
+  OpenEuroLLM target languages (24 official EU languages,
+  Catalan/Basque/Galician, candidate members, Icelandic/Norwegian). 401 eval
+  units across all 15 multilingual benchmarks and both eval suites:
+
+  ```bash
+  oellm-eval schedule --models "my-model" --task_groups "multilingual-oellm-eu"
+  ```
+
+  Russian, Hebrew, Armenian, Azerbaijani and Belarusian were dropped from
+  `global-mmlu-eu` and `include` to make this possible, so they are no longer
+  reachable through any task group.
 
 ```bash
 # Use a task group
@@ -190,6 +203,26 @@ for example:
 MODEL_ARGS='batch_size=8' oellm-eval schedule \
   --models "model-name" --task_groups "belebele-eu-cf" --venv_path .venv
 ```
+
+### Workaround for `acc_norm` tasks
+
+> [!WARNING]
+> There is currently an upstream `lighteval` issue affecting tasks that use the
+> `acc_norm` metric. `LogProbTokenNorm` may raise an `IndexError` when
+> `choices_tokens` is shorter than `choices_logprob`.
+>
+> Until the upstream fix is available, manually apply the change proposed in
+> [huggingface/lighteval#1171](https://github.com/huggingface/lighteval/pull/1171)
+> to `src/lighteval/metrics/normalizations.py` in your local `lighteval`
+> installation.
+>
+> When using the patched local installation, pass `--venv_path .venv` (or the
+> path to your patched virtual environment) so that the modified `lighteval`
+> installation is used.
+>
+> See [huggingface/lighteval#1170](https://github.com/huggingface/lighteval/issues/1170)
+> for details about the bug and [OpenEuroLLM/oellm-eval#60](https://github.com/OpenEuroLLM/oellm-eval/pull/60)
+> for the previously documented workaround.
 
 ## ⚠️ Dataset Pre-Download Warning
 

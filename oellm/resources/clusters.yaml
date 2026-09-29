@@ -35,7 +35,9 @@ jupiter:
   SINGULARITY_ARGS: "--nv --contain --env PYTHONNOUSERSITE=1 --env SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt"
 
 lumi:
-  hostname_pattern: "uan*"
+  hostname_pattern:
+    - "uan*"
+    - "nid[0-9][0-9][0-9][0-9][0-9][0-9]"
   EVAL_BASE_DIR: "/scratch/project_465002530/oellm-cli-shared-evals"
   PARTITION: "small-g"
   ACCOUNT: "project_465002530"

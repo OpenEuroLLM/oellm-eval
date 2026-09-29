@@ -2,6 +2,7 @@ import builtins
 import fnmatch
 import logging
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -106,6 +107,24 @@ def _setup_logging(verbose: bool = False):
     root_logger.setLevel(logging.DEBUG if verbose else logging.INFO)
 
 
+def _cluster_name() -> str:
+    """Return the SLURM cluster name, or empty string if not in a SLURM environment."""
+    try:
+        result = subprocess.run(
+            ["scontrol", "show", "config"], capture_output=True, text=True, timeout=5
+        )
+        match = (
+            re.search(r"ClusterName\s*=\s*(\S+)", result.stdout)
+            if result.returncode == 0
+            else None
+        )
+        if match:
+            return match.group(1).strip().lower()
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    return ""
+
+
 def _load_cluster_env() -> None:
     """
     Loads the correct cluster environment variables from `clusters.yaml` based on the hostname.
@@ -113,11 +132,15 @@ def _load_cluster_env() -> None:
     clusters = yaml.safe_load((files("oellm.resources") / "clusters.yaml").read_text())
 
     shared_cfg = clusters.get("shared", {}) or {}
+    slurm_cluster = _cluster_name()
+    local_hostname = socket.gethostname()
 
     def _match_cluster(hostname: str) -> dict | None:
         for name, cfg in clusters.items():
             if name == "shared":
                 continue
+            if slurm_cluster and name == slurm_cluster:
+                return dict(cfg)
             pattern = cfg.get("hostname_pattern")
             if isinstance(pattern, str):
                 patterns = [pattern]
@@ -129,15 +152,15 @@ def _load_cluster_env() -> None:
                 return dict(cfg)
         return None
 
-    hostname = socket.gethostname()
-    cluster_cfg_raw = _match_cluster(hostname)
+    cluster_cfg_raw = _match_cluster(local_hostname)
     if cluster_cfg_raw is None:
         fqdn = socket.getfqdn()
-        if fqdn != hostname:
+        if fqdn != local_hostname:
             cluster_cfg_raw = _match_cluster(fqdn)
-            hostname = fqdn
+            local_hostname = fqdn
+
     if cluster_cfg_raw is None:
-        raise ValueError(f"No cluster found for hostname: {hostname}")
+        raise ValueError(f"No cluster found for hostname: {local_hostname}")
 
     cluster_cfg_raw.pop("hostname_pattern", None)
 
@@ -306,6 +329,21 @@ def _process_model_paths(models: Iterable[str]):
                 )
 
 
+def _dataset_load_kwargs(trust_remote_code: bool) -> dict:
+    """Build kwargs for `datasets.load_dataset`/`get_dataset_config_names`.
+
+    `datasets>=4.0` dropped support for script-based datasets entirely and
+    logs a scary (but non-fatal) error if `trust_remote_code` is passed at
+    all, so omit it on newer versions instead of always passing it through.
+    """
+    from datasets import __version__ as datasets_version
+
+    major_version = int(datasets_version.split(".")[0])
+    if major_version >= 4:
+        return {}
+    return {"trust_remote_code": trust_remote_code}
+
+
 def _pre_download_datasets_from_specs(
     specs: Iterable, trust_remote_code: bool = True
 ) -> None:
@@ -316,6 +354,7 @@ def _pre_download_datasets_from_specs(
         return
 
     console = get_console()
+    dataset_kwargs = _dataset_load_kwargs(trust_remote_code)
 
     with console.status(
         f"Downloading datasets… {len(specs_list)} datasets",
@@ -329,13 +368,11 @@ def _pre_download_datasets_from_specs(
                 load_dataset(
                     spec.repo_id,
                     name=spec.subset,
-                    trust_remote_code=trust_remote_code,
+                    **dataset_kwargs,
                 )
             except ValueError as e:
                 if "Config name is missing" in str(e) and spec.subset is None:
-                    configs = get_dataset_config_names(
-                        spec.repo_id, trust_remote_code=trust_remote_code
-                    )
+                    configs = get_dataset_config_names(spec.repo_id, **dataset_kwargs)
                     logging.info(
                         f"Dataset '{spec.repo_id}' requires config. "
                         f"Downloading all {len(configs)} configs."
@@ -347,7 +384,7 @@ def _pre_download_datasets_from_specs(
                         load_dataset(
                             spec.repo_id,
                             name=cfg,
-                            trust_remote_code=trust_remote_code,
+                            **dataset_kwargs,
                         )
                     continue
                 if "Feature type" in str(e) and "not found" in str(e):
