@@ -55,6 +55,8 @@ Available task groups:
 - `generic-multilingual` - XWinograd, XCOPA, XStoryCloze
 - `include` - INCLUDE benchmarks
 - `gpqa-diamond` - GPQA Diamond, generative (0-shot, pass@1, up to 32768 new tokens) for instruct/reasoning checkpoints, in English and Finnish (professionally post-edited `LumiOpen/GPQA-FI`). English reads the gated `Idavidrein/gpqa`, so the HF token must have access. Defined as custom lighteval tasks, see [docs/TASKS.md](docs/TASKS.md#custom-lighteval-tasks). Schedule it separately with a small `BATCH_SIZE`, see [Lighteval Batch Size](#lighteval-batch-size)
+- `crows-pairs` - CrowS-Pairs social bias benchmark (English, 0-shot)
+- `toxigen` - ToxiGen hate speech detection benchmark (English, 0-shot, accuracy); see [benchmark details](docs/TASKS.md#toxigen)
 
 Super groups combine multiple task groups:
 - `oellm-multilingual` - All multilingual benchmarks combined
