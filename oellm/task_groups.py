@@ -34,6 +34,15 @@ _LANG_ALIAS = {
     "uk": "ukr_Cyrl",
     "he": "heb_Hebr",
     "en": "eng_Latn",
+    # JudgeArena language selectors
+    "ar": "arb_Arab",
+    "fa": "pes_Arab",
+    "hi": "hin_Deva",
+    "id": "ind_Latn",
+    "ja": "jpn_Jpan",
+    "ko": "kor_Hang",
+    "vi": "vie_Latn",
+    "zh": "zho_Hans",
     "bg": "bul_Cyrl",
     "da": "dan_Latn",
     "et": "est_Latn",
@@ -57,6 +66,28 @@ _LANG_ALIAS = {
     "pt_br": "por_Latn",
     # full English names (include)
     "albanian": "als_Latn",
+    "bengali": "ben_Beng",
+    "bosnian": "bos_Latn",
+    "catalan": "cat_Latn",
+    "czech": "ces_Latn",
+    "danish": "dan_Latn",
+    "english": "eng_Latn",
+    "galician": "glg_Latn",
+    "hindi": "hin_Deva",
+    "icelandic": "isl_Latn",
+    "indonesian": "ind_Latn",
+    "irish": "gle_Latn",
+    "japanese": "jpn_Jpan",
+    "latvian": "lvs_Latn",
+    "macedonian": "mkd_Cyrl",
+    "maltese": "mlt_Latn",
+    "mandarin-chinese": "zho_Hans",
+    "norwegian": "nob_Latn",
+    "romanian": "ron_Latn",
+    "slovak": "slk_Latn",
+    "slovene": "slv_Latn",
+    "standard-arabic": "arb_Arab",
+    "swedish": "swe_Latn",
     "armenian": "hye_Armn",
     "azerbaijani": "aze_Latn",
     "basque": "eus_Latn",
@@ -250,6 +281,8 @@ class TaskSuperGroup:
     name: str
     task_groups: list[TaskGroup]
     description: str
+    # Optional members used instead when the super group has a language bracket.
+    language_task_groups: list[TaskGroup] | None = None
 
     def __post_init__(self):
         resolved_groups = []
@@ -274,10 +307,20 @@ class TaskSuperGroup:
                 )
             task_groups.append(available_task_groups[group_name])
 
+        language_task_groups = []
+        for task_group_data in data.get("language_task_groups", []):
+            group_name = task_group_data["task"]
+            if group_name not in available_task_groups:
+                raise ValueError(
+                    f"Task group '{group_name}' not found in available task groups"
+                )
+            language_task_groups.append(available_task_groups[group_name])
+
         return cls(
             name=name,
             task_groups=task_groups,
             description=data["description"],
+            language_task_groups=language_task_groups or None,
         )
 
 
@@ -402,7 +445,7 @@ class TaskGroupResult:
 
 
 def _iter_group_tasks(
-    parsed: dict[str, "TaskSuperGroup | TaskGroup"],
+    parsed: dict[str, "TaskSuperGroup | TaskGroup"], *, language_filtered: bool = False
 ) -> Iterable[tuple[str, _Task]]:
     """Yield ``(resolved_suite, task)`` for every task in the parsed groups.
 
@@ -414,7 +457,12 @@ def _iter_group_tasks(
             for t in group.tasks:
                 yield (t.suite or group.suite), t
         else:
-            for g in group.task_groups:
+            task_groups = (
+                group.language_task_groups
+                if language_filtered and group.language_task_groups is not None
+                else group.task_groups
+            )
+            for g in task_groups:
                 for t in g.tasks:
                     yield (t.suite or g.suite), t
 
@@ -537,7 +585,9 @@ def _select_tasks(group_names: Iterable[str]) -> list[tuple[str, _Task]]:
     selected: list[tuple[str, _Task]] = []
     seen: set[tuple[str, str]] = set()
     for name, filt in specs:
-        group_pairs = list(_iter_group_tasks({name: parsed[name]}))
+        group_pairs = list(
+            _iter_group_tasks({name: parsed[name]}, language_filtered=filt is not None)
+        )
         if filt is None:
             kept = group_pairs
         else:

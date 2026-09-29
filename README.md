@@ -179,6 +179,40 @@ oellm-eval schedule --models "model-name" --task_groups "open-sci-0.01" \
 
 Use exact env var names: `PARTITION`, `ACCOUNT`, `GPUS_PER_NODE`, `SLURM_MEM`. `TIME` (HH:MM:SS) overrides the time limit.
 
+## JudgeArena
+
+Packaged JudgeArena tasks are registered in `task-groups.yaml`, so they use the
+JudgeArena runner automatically:
+
+```bash
+oellm-eval schedule \
+  --models /path/to/model \
+  --tasks arena-hard-v2.0 \
+  --n_shot 0 \
+  --judgearena_kwargs '{"judge.model":"OpenRouter/google/gemma-4-31b-it"}'
+```
+
+Pass JudgeArena runtime settings such as the judge model through
+`--judgearena_kwargs`. Use `--limit` to set the number of instructions. Local
+task files, prompt overrides, and `meta-eval-*` tasks are not supported.
+
+The selected venv or container must include the `judgearena` command. Use
+`--download_only` to download each selected task into the shared
+`JUDGEARENA_DATA` and `HF_HOME` directories before an offline cluster run:
+
+```bash
+oellm-eval schedule \
+  --models /path/to/model \
+  --task_groups 'judgearena[deu_Latn]' \
+  --download_only
+```
+
+Without a language bracket, each JudgeArena family uses all rows. A language
+bracket selects the corresponding named variants instead.
+
+`oellm-eval collect` reads `run-metadata.v1.json` and adds its numeric metrics to
+the result CSV. It leaves JudgeArena's reports and annotations unchanged.
+
 ## Lighteval Batch Size
 
 For lighteval runs, generated jobs default to `batch_size=1` for local runs and

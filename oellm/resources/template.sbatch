@@ -19,6 +19,8 @@ LIMIT="{limit}"
 VENV_PATH="{venv_path}"
 LM_EVAL_INCLUDE_PATH="{lm_eval_include_path}"
 TASKS_PER_JOB={tasks_per_job}
+JUDGEARENA_ARGS=({judgearena_args})
+export JUDGEARENA_DATA={judgearena_data}
 
 # avoiding crashes due to compute nodes not having access to the internet
 export HF_HOME=$HF_HOME
@@ -266,6 +268,43 @@ do
             else
                 echo "[error] evalchemy suite requires --venv_path (not supported in container mode)."
                 exit 1
+            fi
+            ;;
+        judgearena)
+            mkdir -p "$JUDGEARENA_DATA"
+            RESULTS_SUBDIR="{evals_dir}/$(openssl rand -hex 5)"
+            mkdir -p "$RESULTS_SUBDIR"
+            EVAL_OUT_DIR="$RESULTS_SUBDIR"
+            EVAL_OUT_PAT="run-metadata.v1.json"
+
+            JUDGEARENA_BIND_PATHS="$BIND_PATHS,$JUDGEARENA_DATA:$JUDGEARENA_DATA"
+
+            if [ -n "$VENV_PATH" ]; then
+                source "$VENV_PATH/bin/activate"
+                judgearena \
+                    "${{JUDGEARENA_ARGS[@]}}" \
+                    --task "$task_path" \
+                    --model.name "VLLM/$model_path" \
+                    --run.result_folder "$RESULTS_SUBDIR" \
+                    ${{LIMIT:+--generation.n_instructions $LIMIT}}
+                EVAL_STATUS=$?
+            else
+                singularity exec $SINGULARITY_ARGS \
+                    $SINGULARITY_ENV_ARGS \
+                    $SINGULARITY_HOME_ARG \
+                    --bind "$JUDGEARENA_BIND_PATHS" \
+                    "$EVAL_SIF_PATH" \
+                    env CUDA_VISIBLE_DEVICES=$GPU_DEVICES \
+                        JUDGEARENA_DATA="$JUDGEARENA_DATA" \
+                        HF_HOME="$HF_HOME" \
+                        HF_DATASETS_CACHE="$HF_DATASETS_CACHE" \
+                    judgearena \
+                        "${{JUDGEARENA_ARGS[@]}}" \
+                        --task "$task_path" \
+                        --model.name "VLLM/$model_path" \
+                        --run.result_folder "$RESULTS_SUBDIR" \
+                        ${{LIMIT:+--generation.n_instructions $LIMIT}}
+                EVAL_STATUS=$?
             fi
             ;;
         *)

@@ -49,9 +49,9 @@ oellm-eval schedule --models "model-name" --task_groups "my-benchmark"
 | Field | Required | Level | Description |
 |-------|----------|-------|-------------|
 | `description` | Yes | group | Short description of the task group |
-| `suite` | Yes | group | Evaluation suite: `lm-eval-harness` or `lighteval` |
+| `suite` | Yes | group | Evaluation runner, such as `lm-eval-harness`, `lighteval`, `evalchemy`, or `judgearena` |
 | `n_shots` | Yes | group or task | List of shot counts; must be set at group or task level |
-| `dataset` | Yes | group or task | HuggingFace dataset repo ID (required for pre-download and testing) |
+| `dataset` | Usually | group or task | Hugging Face dataset repo ID used for pre-download and testing |
 | `task` | Yes | task | Task name as recognized by the evaluation suite |
 | `subset` | No | task | HuggingFace dataset config/subset name |
 
@@ -108,8 +108,11 @@ about (some languages simply lack certain benchmarks).
 
 ## Important: Dataset Requirement
 
-**You must provide the `dataset` field** (at group or task level) for:
-1. **Automatic pre-download** - Compute nodes often lack network access; datasets are cached beforehand
-2. **CI testing** - The test suite validates that all datasets in `task-groups.yaml` are accessible
+Provide the `dataset` field at group or task level when `oellm-eval` owns the
+dataset download. It enables automatic pre-download for offline compute nodes and
+CI validation of the dataset reference.
 
-Tasks without a `dataset` field will not have their data pre-downloaded and are not covered by CI validation.
+Suites that manage their own data may omit this field. JudgeArena entries do so
+because `oellm-eval --download_only` calls `judgearena tasks download` in the
+selected venv or container. JudgeArena remains responsible for its pinned task
+and scoring files.

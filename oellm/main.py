@@ -3,6 +3,7 @@ import logging
 import math
 import os
 import re
+import shlex
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime
@@ -48,6 +49,49 @@ def _resolve_hf_hub_offline(local: bool) -> int:
         except ValueError:
             logging.warning("Invalid HF_HUB_OFFLINE=%r; using default", raw)
     return 0 if local else 1
+
+
+def _download_judgearena_tasks(
+    tasks: list[str], *, venv_path: str | None, data_dir: Path
+) -> None:
+    """Download JudgeArena-owned inputs through the selected runtime."""
+    if not tasks:
+        return
+
+    data_dir.mkdir(parents=True, exist_ok=True)
+    env = os.environ.copy()
+    env["JUDGEARENA_DATA"] = str(data_dir)
+    if hf_home := env.get("HF_HOME"):
+        env["HF_DATASETS_CACHE"] = str(Path(hf_home) / "datasets")
+    command = ["judgearena", "tasks", "download", *sorted(set(tasks))]
+
+    if venv_path:
+        executable = Path(venv_path) / "bin" / "judgearena"
+        if not executable.exists():
+            raise RuntimeError(
+                f"JudgeArena is not installed in the selected environment: {executable}"
+            )
+        command[0] = str(executable)
+    else:
+        eval_base = Path(os.environ["EVAL_BASE_DIR"])
+        hf_home = Path(os.environ["HF_HOME"])
+        image = eval_base / os.environ["EVAL_CONTAINER_IMAGE"]
+        binds = [eval_base, hf_home, data_dir]
+        command = [
+            "singularity",
+            "exec",
+            *shlex.split(os.environ.get("SINGULARITY_ARGS", "")),
+            "--bind",
+            ",".join(f"{path}:{path}" for path in binds),
+            str(image),
+            "env",
+            f"JUDGEARENA_DATA={data_dir}",
+            f"HF_HOME={hf_home}",
+            f"HF_DATASETS_CACHE={hf_home / 'datasets'}",
+            *command,
+        ]
+
+    subprocess.run(command, check=True, env=env)
 
 
 def _resolve_slurm_mem() -> str:
@@ -110,6 +154,7 @@ def schedule_evals(
     n_shot: int | list[int] | None = None,
     eval_csv_path: str | None = None,
     *,
+    judgearena_kwargs: dict[str, object] | None = None,
     max_array_len: int = 128,
     tasks_per_job: int = 8,
     limit: int | None = None,
@@ -137,8 +182,9 @@ def schedule_evals(
               all models in subdirectories will be automatically discovered
             - For each model directory, if it has an `hf/iter_XXXXX` structure, all checkpoints will be expanded
             - This allows passing a single directory containing multiple models to evaluate them all
-        tasks: A string of comma-separated task names (lm_eval) or paths.
-            Requires `n_shot` to be provided. Tasks here are assumed to be lm_eval unless otherwise handled via CSV.
+        tasks: A string of comma-separated task names or paths. The suite is
+            taken from `task-groups.yaml`; unregistered tasks default to lm_eval.
+            Requires `n_shot` to be provided.
         task_groups: A string of comma-separated task group names defined in `task-groups.yaml`.
             Each group expands into concrete (task, n_shots, suite) entries; `n_shot` is ignored for groups.
             A group (or super_group) may be scoped to one or more languages with a bracket, e.g.
@@ -149,6 +195,9 @@ def schedule_evals(
         n_shot: An integer or list of integers specifying the number of shots applied to `tasks`.
         eval_csv_path: A path to a CSV file containing evaluation data.
             Warning: exclusive argument. Cannot specify `models`, `tasks`, `task_groups`, or `n_shot` when `eval_csv_path` is provided.
+        judgearena_kwargs: JudgeArena CLI arguments as a JSON object. Keys use
+            JudgeArena's dotted names. The task, candidate model, result folder,
+            and optional sample limit remain controlled by oellm-eval.
         max_array_len: The maximum number of jobs to schedule to run concurrently.
             Warning: this is not the number of jobs in the array job. This is determined by the environment variable `QUEUE_LIMIT`.
         tasks_per_job: The maximum number of lm-eval-harness tasks evaluated by a single
@@ -157,7 +206,8 @@ def schedule_evals(
             fails the whole invocation if one task raises, so this caps how many tasks
             a single failure takes down; 1 restores one invocation per task.
         limit: If set, limit the number of samples per task (useful for quick testing).
-            Passes --limit to lm_eval and --max_samples to lighteval.
+            Passes --limit to lm_eval, --max_samples to lighteval, and
+            --generation.n_instructions to JudgeArena.
         download_only: If True, only download the datasets and models and exit.
         dry_run: If True, generate the SLURM script but don't submit it to the scheduler.
         skip_checks: If True, skip container image, model validation, and dataset pre-download checks for faster execution.
@@ -328,6 +378,43 @@ def schedule_evals(
         return None
 
     df["eval_suite"] = df["eval_suite"].str.lower()
+    judgearena_rows = df["eval_suite"].eq("judgearena")
+    df.loc[judgearena_rows, "n_shot"] = 0
+
+    judgearena_values = dict(judgearena_kwargs or {})
+    blocked_judgearena_args = {
+        "config_path",
+        "generation.n_instructions",
+        "model.name",
+        "run.result_folder",
+        "task",
+        "task_file",
+    }
+    conflicts = blocked_judgearena_args.intersection(judgearena_values)
+    prompt_overrides = {
+        key for key in judgearena_values if key.startswith("judge.prompt")
+    }
+    undotted_args = {key for key in judgearena_values if "." not in key}
+    unsupported_judgearena_args = conflicts | prompt_overrides | undotted_args
+    if unsupported_judgearena_args:
+        raise ValueError(
+            "oellm-eval does not accept these JudgeArena arguments: "
+            + ", ".join(sorted(unsupported_judgearena_args))
+        )
+
+    judgearena_cli_args: list[str] = []
+    for key, value in judgearena_values.items():
+        serialized = value if isinstance(value, str) else json.dumps(value)
+        judgearena_cli_args.extend([f"--{key}", serialized])
+    judgearena_args = shlex.join(judgearena_cli_args).replace("$", "$$")
+
+    eval_base_dir = Path(os.environ.get("EVAL_BASE_DIR", os.environ["EVAL_OUTPUT_DIR"]))
+    judgearena_data_path = Path(
+        os.environ.get("JUDGEARENA_DATA", eval_base_dir / "judgearena-data")
+    )
+    judgearena_data = shlex.quote(str(judgearena_data_path)).replace("$", "$$")
+
+    has_judgearena_jobs = df["eval_suite"].eq("judgearena").any()
 
     # Ensure that all datasets required by the tasks are cached locally to avoid
     # network access on compute nodes.
@@ -348,6 +435,12 @@ def schedule_evals(
         if dataset_specs:
             _pre_download_datasets_from_specs(
                 dataset_specs, trust_remote_code=trust_remote_code
+            )
+        if has_judgearena_jobs:
+            _download_judgearena_tasks(
+                df.loc[judgearena_rows, "task_path"].unique().tolist(),
+                venv_path=venv_path,
+                data_dir=judgearena_data_path,
             )
     else:
         logging.info("Skipping dataset pre-download (--skip-checks enabled)")
@@ -494,6 +587,8 @@ def schedule_evals(
         hf_hub_offline=_resolve_hf_hub_offline(local),
         additional_model_args=_resolve_additional_model_args(local),  # Batch size
         evalchemy_dir=os.environ.get("EVALCHEMY_DIR", "/opt/evalchemy"),
+        judgearena_args=judgearena_args,
+        judgearena_data=judgearena_data,
     )
 
     if not os.environ.get("ACCOUNT"):
@@ -674,6 +769,22 @@ def collect_results(
             metrics.append((metric_name, float(value)))
         return metrics
 
+    def _flatten_numeric_metrics(
+        value: object, prefix: str = ""
+    ) -> list[tuple[str, float]]:
+        """Flatten numeric dictionary leaves while leaving large arrays untouched."""
+        if isinstance(value, bool):
+            return []
+        if isinstance(value, (int, float)):
+            return [(prefix, float(value))] if prefix else []
+        if not isinstance(value, dict):
+            return []
+        metrics: list[tuple[str, float]] = []
+        for key, child in value.items():
+            name = f"{prefix}.{key}" if prefix else str(key)
+            metrics.extend(_flatten_numeric_metrics(child, name))
+        return metrics
+
     def _split_task_and_nshot(name: str) -> tuple[str, int | None]:
         """Split task names of the form 'task|N' returning (task, N) or (task, None)."""
         if not isinstance(name, str):
@@ -734,6 +845,38 @@ def collect_results(
     for json_file in json_files:
         with open(json_file) as f:
             data = json.load(f)
+
+        if data.get("schema_version") == "judgearena-run-metadata/v1":
+            run_config = data.get("run", {})
+            report = data.get("results", {})
+            task_name = report.get("task") or run_config.get("task") or "unknown"
+            model_config = run_config.get("model") or {}
+            judge_config = run_config.get("judge") or {}
+            model_name = (
+                model_config.get("name")
+                or report.get("model_A")
+                or report.get("evaluation_model")
+                or judge_config.get("model")
+                or "unknown"
+            )
+            if isinstance(model_name, str) and model_name.startswith("VLLM/"):
+                model_name = model_name.removeprefix("VLLM/")
+
+            metric_pairs = _flatten_numeric_metrics(report.get("metrics", {}))
+            if metric_pairs:
+                if check:
+                    completed_jobs.add((model_name, str(task_name), 0))
+                rows.extend(
+                    {
+                        "model_name": model_name,
+                        "task": task_name,
+                        "n_shot": 0,
+                        "metric_name": metric_name,
+                        "performance": performance,
+                    }
+                    for metric_name, performance in metric_pairs
+                )
+            continue
 
         # Extract model name/path from a few common locations used in different
         # versions of the result JSON schema.

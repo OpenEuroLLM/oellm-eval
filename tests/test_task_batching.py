@@ -55,6 +55,8 @@ TEMPLATE_FIELDS = {
     "additional_model_args": "batch_size=32",
     "evalchemy_dir": "/opt/evalchemy",
     "tasks_per_job": 8,
+    "judgearena_args": "",
+    "judgearena_data": "/tmp/judgearena-data",
 }
 
 requires_awk = pytest.mark.skipif(shutil.which("awk") is None, reason="awk not available")

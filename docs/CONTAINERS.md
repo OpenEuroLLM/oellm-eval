@@ -40,3 +40,34 @@ Images are compressed with zstd (level 3) via mksquashfs for a good balance of s
    ```
 
 4. Push to `main` to trigger the build.
+
+## JudgeArena on LUMI
+
+`containers/lumi-judgearena.def` adds JudgeArena to the pinned ROCm vLLM 0.19.1
+image. The existing workflow builds it with the other matrix images and uploads
+`eval_env-lumi-judgearena.sif` to the Hugging Face dataset repository above.
+Set `JUDGEARENA_GIT_REF` in the definition to the reviewed JudgeArena commit SHA
+before building.
+
+On LUMI, use the image for a separate JudgeArena invocation:
+
+```bash
+export EVAL_CONTAINER_IMAGE=eval_env-lumi-judgearena.sif
+export SINGULARITY_ARGS=""
+
+oellm-eval schedule \
+  --models <model> \
+  --task_groups judgearena \
+  --download_only
+
+oellm-eval schedule \
+  --models <model> \
+  --tasks arena-hard-v0.1 \
+  --n_shot 0 \
+  --limit 1 \
+  --judgearena_kwargs '{"judge.model":"VLLM/<judge>"}'
+```
+
+Do not use LUMI's normal `--rocm` argument with this image. The vLLM image ships
+its own ROCm libraries. Run other evaluation suites separately with the normal
+LUMI image.
