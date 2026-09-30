@@ -1062,6 +1062,16 @@ task_groups:
         n_shots: [0]
         suite: evalchemy
 
+  crows-pairs:
+    description: "CrowS-Pairs social bias benchmark (English, 0-shot)."
+    suite: lm-eval-harness
+    metric: pct_stereotype
+    n_shots: [0]
+    dataset: jannalu/crows_pairs_multilingual
+    subset: english
+    tasks:
+      - task: crows_pairs_english
+
   global-piqa-eu-completions:
     description: "Global PIQA European languages — multiple-choice completions (0-shot, mrlbenchmarks/global-piqa-nonparallel)"
     suite: lm-eval-harness

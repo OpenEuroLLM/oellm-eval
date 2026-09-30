@@ -83,6 +83,7 @@ Task groups are pre-defined evaluation suites in [`task-groups.yaml`](oellm/reso
 | Group | Description | Engine |
 |---|---|---|
 | `open-sci-0.01` | COPA, MMLU, HellaSwag, ARC, etc. | lm-eval |
+| `crows-pairs` | CrowS-Pairs social bias benchmark (English, 0-shot, `pct_stereotype`) | lm-eval |
 | `belebele-eu-5-shot` | Belebele in 23 European languages | lm-eval |
 | `flores-200-eu-to-eng` | EU to English translation | lighteval |
 | `flores-200-eng-to-eu` | English to EU translation | lighteval |
