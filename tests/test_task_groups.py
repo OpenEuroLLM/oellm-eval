@@ -1,10 +1,29 @@
 import pytest
 
 from oellm.task_groups import (
+    TaskGroup,
     _expand_lang_templates,
     _expand_task_groups,
     _load_task_groups_data,
 )
+
+
+def test_group_subset_default_and_task_override():
+    group = TaskGroup.from_dict(
+        "example",
+        {
+            "description": "Subset inheritance",
+            "suite": "lm-eval-harness",
+            "n_shots": [0],
+            "dataset": "example/dataset",
+            "subset": "english",
+            "tasks": [
+                {"task": "inherited"},
+                {"task": "overridden", "subset": "french"},
+            ],
+        },
+    )
+    assert [task.subset for task in group.tasks] == ["english", "french"]
 
 
 class TestExpandLangTemplates:
