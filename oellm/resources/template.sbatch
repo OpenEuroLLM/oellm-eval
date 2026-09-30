@@ -24,6 +24,14 @@ TASKS_PER_JOB={tasks_per_job}
 export HF_HOME=$HF_HOME
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export HF_HUB_OFFLINE={hf_hub_offline}
+# lmms-eval detects a network filesystem (like this one) under HF_DATASETS_CACHE
+# and silently redirects dataset caching to node-local scratch instead -- fatal
+# on offline compute nodes, which never had that cache warmed. This env var is
+# lmms-eval's own escape hatch back to the shared, pre-warmed cache.
+export LMMS_EVAL_DATASETS_CACHE="$HF_HOME/datasets"
+# huggingface_hub's Xet transfer backend caches to $HOME regardless of HF_HOME,
+# which can blow a tight home-directory quota on a multi-GB model download.
+export HF_XET_CACHE="$HF_HOME/xet_cache"
 
 # Path to the shared Singularity image that contains all runtime deps (container mode)
 export EVAL_SIF_PATH="$EVAL_BASE_DIR/$EVAL_CONTAINER_IMAGE"
@@ -265,6 +273,44 @@ do
                 EVAL_STATUS=$?
             else
                 echo "[error] evalchemy suite requires --venv_path (not supported in container mode)."
+                exit 1
+            fi
+            ;;
+        lmms_eval|lmms-eval)
+            RESULTS_SUBDIR="{evals_dir}/$(openssl rand -hex 5)"
+            EVAL_OUT_DIR="$RESULTS_SUBDIR"
+            EVAL_OUT_PAT="*"
+            if [ -n "$VENV_PATH" ]; then
+                source "$VENV_PATH/bin/activate"
+                # Unlike lm_eval/evalchemy's single generic "hf" model wrapper,
+                # lmms-eval has no architecture-agnostic model class: each VLM
+                # family needs its own (llava_hf, qwen2_5_vl, ...). Resolve it
+                # from the checkpoint's own config.json instead of hardcoding one.
+                LMMS_MODEL_TYPE=$(python -c "import json,sys; print(json.load(open(sys.argv[1]+'/config.json')).get('model_type',''))" "$model_path" 2>/dev/null)
+                case "$LMMS_MODEL_TYPE" in
+                    llava|llava_next) LMMS_EVAL_MODEL="llava_hf" ;;
+                    qwen2_5_vl) LMMS_EVAL_MODEL="qwen2_5_vl" ;;
+                    qwen2_vl) LMMS_EVAL_MODEL="qwen2_vl" ;;
+                    *)
+                        echo "[error] lmms-eval suite: no known model class for config.json model_type '$LMMS_MODEL_TYPE' ($model_path). Extend the case in template.sbatch."
+                        EVAL_STATUS=1
+                        LMMS_EVAL_MODEL=""
+                        ;;
+                esac
+                if [ -n "$LMMS_EVAL_MODEL" ]; then
+                    accelerate launch --num-processes "$GPUS_PER_NODE" --num-machines 1 \
+                        $MULTI_GPU_FLAG -m lmms_eval eval \
+                        --model "$LMMS_EVAL_MODEL" \
+                        --model_args "pretrained=$model_path" \
+                        --tasks "$task_path" \
+                        --batch_size 1 \
+                        --output_path "$RESULTS_SUBDIR" \
+                        --log_samples \
+                        ${{LIMIT:+--limit $LIMIT}}
+                    EVAL_STATUS=$?
+                fi
+            else
+                echo "[error] lmms-eval suite requires --venv_path (not supported in container mode)."
                 exit 1
             fi
             ;;

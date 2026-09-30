@@ -1,0 +1,12 @@
+# Dependencies for the lmms-eval suite (image understanding: VQAv2, GQA,
+# TextVQA, ScienceQA, MMMU, MMMU-Pro). See docs/VENV.md for setup and the
+# platform-specific `decord` workaround this suite needs on linux-aarch64.
+
+lmms-eval==0.7.3
+qwen-vl-utils==0.0.14
+
+torch==2.14.0
+torchvision==0.29.0
+transformers==5.17.0
+accelerate==1.15.0
+datasets==5.0.1

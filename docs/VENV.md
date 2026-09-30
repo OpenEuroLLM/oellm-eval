@@ -119,3 +119,75 @@ We use [Ali's fork](https://github.com/Ali-Elganzory/evalchemy) which includes a
    ```
 
 > **Note:** `HF_ALLOW_CODE_EVAL=1` is required because MBPP (run via lm-eval-harness) uses HuggingFace's `code_eval` metric which executes model-generated code. The evalchemy benchmarks (GPQADiamond, MATH500, LiveCodeBench) do not require this variable as they handle code execution safely through internal guards.
+
+## LMMs-Eval (image understanding)
+
+The `vqa` task group (VQAv2, GQA, TextVQA, ScienceQA-img) and `mmmu` task
+group (MMMU, MMMU-Pro standard) run via
+[lmms-eval](https://github.com/EvolvingLMMs-Lab/lmms-eval), a separate
+harness for vision-language models. Validated for parity against public
+numbers: LLaVA-1.5-7B on `vqa` (GQA/TextVQA/ScienceQA-img within a few
+points of lmms-eval's own reported LLaVA-1.5-7B numbers) and
+Qwen2.5-VL-7B-Instruct on `mmmu`.
+
+> **Note:** Unlike lm-eval-harness/evalchemy, lmms-eval has no single
+> architecture-agnostic model wrapper — each VLM family needs its own
+> registered model class (`llava_hf`, `qwen2_5_vl`, `qwen2_vl`, ...). The
+> `lmms_eval` case in `oellm/resources/template.sbatch` resolves the right
+> class automatically from the checkpoint's own `config.json`
+> (`model_type`). If you add a model family not yet in that mapping,
+> extend the `case` there.
+
+1. Create a venv and install dependencies:
+   ```bash
+   uv venv --python 3.12 lmms-eval-venv
+   uv pip install --python lmms-eval-venv/bin/python -r requirements-venv-lmms-eval.txt
+   ```
+
+2. `decord` (a video-loading dependency pulled in unconditionally by
+   `llava_hf` and the Qwen VL model files, even for image-only tasks) has
+   no Linux-aarch64 wheel. On aarch64 (e.g. JUPITER's GH200 nodes),
+   install a stub package that raises only if actually used — image-only
+   tasks never call it:
+   ```bash
+   lmms-eval-venv/bin/python - <<'PY'
+   import pathlib, sysconfig
+   site = pathlib.Path(sysconfig.get_paths()["purelib"]) / "decord"
+   site.mkdir(exist_ok=True)
+   (site / "__init__.py").write_text('''"""Minimal stub: the real decord package has no linux-aarch64 wheel.
+   Raises only if actually called; image-only lmms-eval tasks never hit this."""
+
+   def cpu(*args, **kwargs):
+       raise NotImplementedError("decord stub: video decoding is not available on this platform")
+
+
+   class VideoReader:
+       def __init__(self, *args, **kwargs):
+           raise NotImplementedError("decord stub: video decoding is not available on this platform")
+   ''')
+   print("stubbed decord at:", site)
+   PY
+   ```
+
+3. Some `vqa`/`mmmu` datasets need an `HF_TOKEN` set even though the
+   underlying repos are public — a couple of their loader scripts pass
+   `token=True` explicitly, which fails client-side before ever reaching
+   the network if no token file is present. Any token value (even an
+   expired one) satisfies the client-side check:
+   ```bash
+   export HF_TOKEN=$(cat ~/.cache/huggingface/token 2>/dev/null)
+   ```
+
+4. The `lmms_eval` case in `template.sbatch` always launches with
+   `--batch_size 1` (not user-configurable via the CLI, unlike the
+   `lighteval`/evalchemy task groups): the `llava_hf` model class has no
+   real batching support (`assert self.batch_size_per_gpu == 1`), and
+   `--batch_size auto` (used elsewhere) fails against it with
+   `ValueError: invalid literal for int() with base 10: 'auto'`.
+   ```bash
+   oellm-eval schedule \
+       --models llava-hf/llava-1.5-7b-hf \
+       --task_groups vqa \
+       --venv_path lmms-eval-venv \
+       --skip_checks true
+   ```
