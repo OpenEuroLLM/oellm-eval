@@ -32,6 +32,10 @@ export LMMS_EVAL_DATASETS_CACHE="$HF_HOME/datasets"
 # huggingface_hub's Xet transfer backend caches to $HOME regardless of HF_HOME,
 # which can blow a tight home-directory quota on a multi-GB model download.
 export HF_XET_CACHE="$HF_HOME/xet_cache"
+# Same problem with Triton's JIT kernel cache: it defaults to ~/.triton/cache
+# regardless of HF_HOME, and a long generate_until run (many distinct compiled
+# kernel shapes) can fill a tight home-directory quota mid-run.
+export TRITON_CACHE_DIR="$HF_HOME/triton_cache"
 
 # Path to the shared Singularity image that contains all runtime deps (container mode)
 export EVAL_SIF_PATH="$EVAL_BASE_DIR/$EVAL_CONTAINER_IMAGE"
@@ -284,9 +288,20 @@ do
                 source "$VENV_PATH/bin/activate"
                 # Unlike lm_eval/evalchemy's single generic "hf" model wrapper,
                 # lmms-eval has no architecture-agnostic model class: each VLM
-                # family needs its own (llava_hf, qwen2_5_vl, ...). Resolve it
-                # from the checkpoint's own config.json instead of hardcoding one.
-                LMMS_MODEL_TYPE=$(python -c "import json,sys; print(json.load(open(sys.argv[1]+'/config.json')).get('model_type',''))" "$model_path" 2>/dev/null)
+                # family needs its own (llava_hf, qwen2_5_vl, ...). Resolve the
+                # architecture via AutoConfig (like lm_eval/evalchemy do
+                # internally) so this works for both a local checkpoint
+                # directory AND a bare HF Hub model id -- unlike reading
+                # config.json directly off disk, which only covers the former.
+                LMMS_MODEL_TYPE=$(python -c "
+import sys
+from transformers import AutoConfig
+try:
+    model_type = AutoConfig.from_pretrained(sys.argv[1], trust_remote_code=True).model_type
+except Exception:
+    model_type = ''
+print(model_type)
+" "$model_path" 2>/dev/null)
                 case "$LMMS_MODEL_TYPE" in
                     llava|llava_next) LMMS_EVAL_MODEL="llava_hf" ;;
                     qwen2_5_vl) LMMS_EVAL_MODEL="qwen2_5_vl" ;;
@@ -298,10 +313,20 @@ do
                         ;;
                 esac
                 if [ -n "$LMMS_EVAL_MODEL" ]; then
+                    # llava_hf only auto-assigns device_map from its own
+                    # per-rank accelerator index when num_processes > 1;
+                    # with a single GPU (num_processes == 1, the common
+                    # case here) it's left as "" and crashes on load. Other
+                    # model classes (qwen2_5_vl, qwen2_vl) handle this fine
+                    # on their own, so only patch it in for llava_hf.
+                    LMMS_MODEL_ARGS="pretrained=$model_path"
+                    if [ "$LMMS_EVAL_MODEL" = "llava_hf" ] && [ "$GPUS_PER_NODE" -eq 1 ]; then
+                        LMMS_MODEL_ARGS="$LMMS_MODEL_ARGS,device_map=cuda:0"
+                    fi
                     accelerate launch --num-processes "$GPUS_PER_NODE" --num-machines 1 \
                         $MULTI_GPU_FLAG -m lmms_eval eval \
                         --model "$LMMS_EVAL_MODEL" \
-                        --model_args "pretrained=$model_path" \
+                        --model_args "$LMMS_MODEL_ARGS" \
                         --tasks "$task_path" \
                         --batch_size 1 \
                         --output_path "$RESULTS_SUBDIR" \

@@ -735,6 +735,15 @@ def collect_results(
         with open(json_file) as f:
             data = json.load(f)
 
+        if not isinstance(data, dict):
+            # Some suites write auxiliary JSON alongside the results file that
+            # isn't itself a results dict -- e.g. lmms-eval's textvqa_val task
+            # additionally writes a leaderboard-submission JSON (a bare list)
+            # under a submissions/ subdirectory. Skip anything that doesn't
+            # look like a results file rather than crashing the whole collect.
+            logging.debug(f"Skipping non-results JSON file: {json_file}")
+            continue
+
         # Extract model name/path from a few common locations used in different
         # versions of the result JSON schema.
         model_name = (
