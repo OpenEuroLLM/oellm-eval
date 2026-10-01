@@ -281,8 +281,6 @@ class TaskSuperGroup:
     name: str
     task_groups: list[TaskGroup]
     description: str
-    # Optional members used instead when the super group has a language bracket.
-    language_task_groups: list[TaskGroup] | None = None
 
     def __post_init__(self):
         resolved_groups = []
@@ -307,20 +305,10 @@ class TaskSuperGroup:
                 )
             task_groups.append(available_task_groups[group_name])
 
-        language_task_groups = []
-        for task_group_data in data.get("language_task_groups", []):
-            group_name = task_group_data["task"]
-            if group_name not in available_task_groups:
-                raise ValueError(
-                    f"Task group '{group_name}' not found in available task groups"
-                )
-            language_task_groups.append(available_task_groups[group_name])
-
         return cls(
             name=name,
             task_groups=task_groups,
             description=data["description"],
-            language_task_groups=language_task_groups or None,
         )
 
 
@@ -445,7 +433,7 @@ class TaskGroupResult:
 
 
 def _iter_group_tasks(
-    parsed: dict[str, "TaskSuperGroup | TaskGroup"], *, language_filtered: bool = False
+    parsed: dict[str, "TaskSuperGroup | TaskGroup"],
 ) -> Iterable[tuple[str, _Task]]:
     """Yield ``(resolved_suite, task)`` for every task in the parsed groups.
 
@@ -457,12 +445,7 @@ def _iter_group_tasks(
             for t in group.tasks:
                 yield (t.suite or group.suite), t
         else:
-            task_groups = (
-                group.language_task_groups
-                if language_filtered and group.language_task_groups is not None
-                else group.task_groups
-            )
-            for g in task_groups:
+            for g in group.task_groups:
                 for t in g.tasks:
                     yield (t.suite or g.suite), t
 
@@ -585,9 +568,7 @@ def _select_tasks(group_names: Iterable[str]) -> list[tuple[str, _Task]]:
     selected: list[tuple[str, _Task]] = []
     seen: set[tuple[str, str]] = set()
     for name, filt in specs:
-        group_pairs = list(
-            _iter_group_tasks({name: parsed[name]}, language_filtered=filt is not None)
-        )
+        group_pairs = list(_iter_group_tasks({name: parsed[name]}))
         if filt is None:
             kept = group_pairs
         else:

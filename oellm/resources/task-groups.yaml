@@ -643,14 +643,9 @@ task_groups:
 
 super_groups:
   judgearena:
-    description: "JudgeArena tasks, optionally filtered by language."
+    description: "JudgeArena base tasks."
     task_groups:
       - task: judgearena-default
-    language_task_groups:
-      - task: judgearena-comparia
-      - task: judgearena-lmarena
-      - task: judgearena-m-arena-hard
-      - task: judgearena-fluency
 
   oellm-multilingual:
     description: "Combined Belebele EU set plus multilingual benchmarks"

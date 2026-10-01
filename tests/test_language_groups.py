@@ -211,12 +211,10 @@ def test_templated_tasks_all_resolve_to_a_language():
             )
 
 
-def test_judgearena_uses_all_rows_unless_a_language_is_selected():
-    unfiltered = [task.name for _, task in _select_tasks(["judgearena"])]
-    german = [task.name for _, task in _select_tasks(["judgearena[deu_Latn]"])]
-    hebrew = [task.name for _, task in _select_tasks(["judgearena[heb_Hebr]"])]
+def test_judgearena_selects_base_tasks():
+    tasks = [task.name for _, task in _select_tasks(["judgearena"])]
 
-    assert unfiltered == [
+    assert tasks == [
         "alpaca-eval",
         "alpaca-eval-ja",
         "arena-hard-v0.1",
@@ -232,15 +230,6 @@ def test_judgearena_uses_all_rows_unless_a_language_is_selected():
         "m-arena-hard-v2.0",
         "mt-bench",
     ]
-    assert german == [
-        "elo-lmarena-de",
-        "elo-lmarena-100k-de",
-        "elo-lmarena-140k-de",
-        "m-arena-hard-v0.1-de",
-        "m-arena-hard-v2.0-de",
-        "fluency-german",
-    ]
-    assert hebrew == ["m-arena-hard-v0.1-he", "m-arena-hard-v2.0-he"]
 
 
 # --- multilingual-oellm-eu --------------------------------------------------------

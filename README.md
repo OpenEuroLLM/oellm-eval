@@ -203,12 +203,9 @@ The selected venv or container must include the `judgearena` command. Use
 ```bash
 oellm-eval schedule \
   --models /path/to/model \
-  --task_groups 'judgearena[deu_Latn]' \
+  --task_groups judgearena \
   --download_only
 ```
-
-Without a language bracket, each JudgeArena family uses all rows. A language
-bracket selects the corresponding named variants instead.
 
 `oellm-eval collect` reads `run-metadata.v1.json` and adds its numeric metrics to
 the result CSV. It leaves JudgeArena's reports and annotations unchanged.
