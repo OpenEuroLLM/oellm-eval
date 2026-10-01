@@ -736,11 +736,7 @@ def collect_results(
             data = json.load(f)
 
         if not isinstance(data, dict):
-            # Some suites write auxiliary JSON alongside the results file that
-            # isn't itself a results dict -- e.g. lmms-eval's textvqa_val task
-            # additionally writes a leaderboard-submission JSON (a bare list)
-            # under a submissions/ subdirectory. Skip anything that doesn't
-            # look like a results file rather than crashing the whole collect.
+            # e.g. lmms-eval's textvqa_val also writes a leaderboard-submission JSON (a bare list), not a results dict.
             logging.debug(f"Skipping non-results JSON file: {json_file}")
             continue
 

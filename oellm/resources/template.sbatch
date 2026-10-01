@@ -24,17 +24,10 @@ TASKS_PER_JOB={tasks_per_job}
 export HF_HOME=$HF_HOME
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export HF_HUB_OFFLINE={hf_hub_offline}
-# lmms-eval detects a network filesystem (like this one) under HF_DATASETS_CACHE
-# and silently redirects dataset caching to node-local scratch instead -- fatal
-# on offline compute nodes, which never had that cache warmed. This env var is
-# lmms-eval's own escape hatch back to the shared, pre-warmed cache.
+# lmms-eval otherwise redirects dataset caching off this shared filesystem on offline compute nodes.
 export LMMS_EVAL_DATASETS_CACHE="$HF_HOME/datasets"
-# huggingface_hub's Xet transfer backend caches to $HOME regardless of HF_HOME,
-# which can blow a tight home-directory quota on a multi-GB model download.
+# HF's Xet backend and Triton's kernel cache both ignore HF_HOME and default under $HOME, which can hit a tight quota.
 export HF_XET_CACHE="$HF_HOME/xet_cache"
-# Same problem with Triton's JIT kernel cache: it defaults to ~/.triton/cache
-# regardless of HF_HOME, and a long generate_until run (many distinct compiled
-# kernel shapes) can fill a tight home-directory quota mid-run.
 export TRITON_CACHE_DIR="$HF_HOME/triton_cache"
 
 # Path to the shared Singularity image that contains all runtime deps (container mode)
@@ -286,13 +279,7 @@ do
             EVAL_OUT_PAT="*"
             if [ -n "$VENV_PATH" ]; then
                 source "$VENV_PATH/bin/activate"
-                # Unlike lm_eval/evalchemy's single generic "hf" model wrapper,
-                # lmms-eval has no architecture-agnostic model class: each VLM
-                # family needs its own (llava_hf, qwen2_5_vl, ...). Resolve the
-                # architecture via AutoConfig (like lm_eval/evalchemy do
-                # internally) so this works for both a local checkpoint
-                # directory AND a bare HF Hub model id -- unlike reading
-                # config.json directly off disk, which only covers the former.
+                # lmms-eval has no generic model wrapper; resolve the right one via AutoConfig (works for local paths and Hub ids alike).
                 LMMS_MODEL_TYPE=$(python -c "
 import sys
 from transformers import AutoConfig
@@ -313,12 +300,7 @@ print(model_type)
                         ;;
                 esac
                 if [ -n "$LMMS_EVAL_MODEL" ]; then
-                    # llava_hf only auto-assigns device_map from its own
-                    # per-rank accelerator index when num_processes > 1;
-                    # with a single GPU (num_processes == 1, the common
-                    # case here) it's left as "" and crashes on load. Other
-                    # model classes (qwen2_5_vl, qwen2_vl) handle this fine
-                    # on their own, so only patch it in for llava_hf.
+                    # llava_hf leaves device_map empty (and crashes) unless num_processes > 1; patch it in for the common single-GPU case.
                     LMMS_MODEL_ARGS="pretrained=$model_path"
                     if [ "$LMMS_EVAL_MODEL" = "llava_hf" ] && [ "$GPUS_PER_NODE" -eq 1 ]; then
                         LMMS_MODEL_ARGS="$LMMS_MODEL_ARGS,device_map=cuda:0"
