@@ -736,7 +736,6 @@ def collect_results(
             data = json.load(f)
 
         if not isinstance(data, dict):
-            # e.g. lmms-eval's textvqa_val also writes a leaderboard-submission JSON (a bare list), not a results dict.
             logging.debug(f"Skipping non-results JSON file: {json_file}")
             continue
 

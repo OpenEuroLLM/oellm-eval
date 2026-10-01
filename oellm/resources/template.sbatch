@@ -24,9 +24,7 @@ TASKS_PER_JOB={tasks_per_job}
 export HF_HOME=$HF_HOME
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export HF_HUB_OFFLINE={hf_hub_offline}
-# lmms-eval otherwise redirects dataset caching off this shared filesystem on offline compute nodes.
 export LMMS_EVAL_DATASETS_CACHE="$HF_HOME/datasets"
-# HF's Xet backend and Triton's kernel cache both ignore HF_HOME and default under $HOME, which can hit a tight quota.
 export HF_XET_CACHE="$HF_HOME/xet_cache"
 export TRITON_CACHE_DIR="$HF_HOME/triton_cache"
 
@@ -279,7 +277,6 @@ do
             EVAL_OUT_PAT="*"
             if [ -n "$VENV_PATH" ]; then
                 source "$VENV_PATH/bin/activate"
-                # lmms-eval has no generic model wrapper; resolve the right one via AutoConfig (works for local paths and Hub ids alike).
                 LMMS_MODEL_TYPE=$(python -c "
 import sys
 from transformers import AutoConfig
@@ -300,7 +297,6 @@ print(model_type)
                         ;;
                 esac
                 if [ -n "$LMMS_EVAL_MODEL" ]; then
-                    # llava_hf leaves device_map empty (and crashes) unless num_processes > 1; patch it in for the common single-GPU case.
                     LMMS_MODEL_ARGS="pretrained=$model_path"
                     if [ "$LMMS_EVAL_MODEL" = "llava_hf" ] && [ "$GPUS_PER_NODE" -eq 1 ]; then
                         LMMS_MODEL_ARGS="$LMMS_MODEL_ARGS,device_map=cuda:0"
