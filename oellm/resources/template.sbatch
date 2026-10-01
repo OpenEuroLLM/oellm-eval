@@ -297,9 +297,12 @@ print(model_type)
                         ;;
                 esac
                 if [ -n "$LMMS_EVAL_MODEL" ]; then
-                    LMMS_MODEL_ARGS="pretrained=$model_path,trust_remote_code=True"
-                    if [ "$LMMS_EVAL_MODEL" = "llava_hf" ] && [ "$GPUS_PER_NODE" -eq 1 ]; then
-                        LMMS_MODEL_ARGS="$LMMS_MODEL_ARGS,device_map=cuda:0"
+                    LMMS_MODEL_ARGS="pretrained=$model_path"
+                    if [ "$LMMS_EVAL_MODEL" = "llava_hf" ]; then
+                        LMMS_MODEL_ARGS="$LMMS_MODEL_ARGS,trust_remote_code=True"
+                        if [ "$GPUS_PER_NODE" -eq 1 ]; then
+                            LMMS_MODEL_ARGS="$LMMS_MODEL_ARGS,device_map=cuda:0"
+                        fi
                     fi
                     accelerate launch --num-processes "$GPUS_PER_NODE" --num-machines 1 \
                         $MULTI_GPU_FLAG -m lmms_eval eval \
