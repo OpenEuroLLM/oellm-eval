@@ -73,7 +73,6 @@ jobs:
           - image: jureca
           - image: leonardo
           - image: lumi
-          - image: lumi-judgearena
           - image: jupiter
             arch: arm64
           - image: snellius

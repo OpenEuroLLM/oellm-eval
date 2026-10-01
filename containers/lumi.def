@@ -1,9 +1,13 @@
 Bootstrap: docker
-From: rocm/pytorch:rocm6.4.1_ubuntu24.04_py3.12_pytorch_release_2.7.1
+From: vllm/vllm-openai-rocm@sha256:c3457ab4702a5bd665b06d7ba57e6105fe98adc4f5b3d4afcf98ec45551988e0
+
+%arguments
+    JUDGEARENA_GIT_REF=cdf9a7f1a24cbe0e885ae6f7bca74cb60ee907e1
 
 %labels
     Author      oellm-cli
     Description Apptainer image for LUMI cluster
+    JudgeArenaRef {{ JUDGEARENA_GIT_REF }}
 
 %post
     # Install uv
@@ -22,9 +26,16 @@ From: rocm/pytorch:rocm6.4.1_ubuntu24.04_py3.12_pytorch_release_2.7.1
         accelerate \
         nltk
 
+    # Isolate JudgeArena dependencies while reusing VLLM from the base image.
+    uv venv --python 3.12 --system-site-packages /opt/judgearena
+    uv pip install --python /opt/judgearena/bin/python \
+        "huggingface-hub>=1.5,<2" \
+        "judgearena @ git+https://github.com/OpenEuroLLM/JudgeArena.git@{{ JUDGEARENA_GIT_REF }}"
+    ln -s /opt/judgearena/bin/judgearena /usr/local/bin/judgearena
+
     # lighteval as isolated tool (avoids dependency conflicts).
     #
-    # --torch-backend rocm6.4 is REQUIRED on LUMI. `uv tool install` builds an
+    # --torch-backend rocm7.2 is REQUIRED on LUMI. `uv tool install` builds an
     # isolated venv and re-resolves every dependency from PyPI, including torch --
     # so it pulls the default CUDA wheel (torch==2.10.0+cu128) even though the base
     # image ships ROCm torch. On MI250X that wheel reports device_count() == 0,
@@ -40,7 +51,7 @@ From: rocm/pytorch:rocm6.4.1_ubuntu24.04_py3.12_pytorch_release_2.7.1
     # before hashing" right after COMPUTING METRICS. Independent of lighteval's
     # version -- v0.13.0 and main both hit it.
     uv tool install --python 3.12 \
-        --torch-backend rocm6.4 \
+        --torch-backend rocm7.2 \
         --with "langcodes[data]" \
         --with "pillow" \
         --with "xxhash<4" \
@@ -52,6 +63,13 @@ From: rocm/pytorch:rocm6.4.1_ubuntu24.04_py3.12_pytorch_release_2.7.1
     # NLTK data
     mkdir -p /opt/nltk_data
     python -c "import nltk; nltk.download('punkt', download_dir='/opt/nltk_data'); nltk.download('punkt_tab', download_dir='/opt/nltk_data')"
+
+%test
+    /opt/judgearena/bin/python -c 'import judgearena, torch, vllm; from vllm import LLM, SamplingParams; assert torch.version.hip and vllm.__version__ == "0.19.1"'
+    /opt/uv-tools/lighteval/bin/python -c 'import torch; assert torch.version.hip'
+    judgearena tasks list >/dev/null
+    lm_eval --help >/dev/null
+    lighteval --help >/dev/null
 
 %environment
     export PATH=/usr/local/bin:$PATH
