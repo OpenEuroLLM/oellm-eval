@@ -297,7 +297,7 @@ print(model_type)
                         ;;
                 esac
                 if [ -n "$LMMS_EVAL_MODEL" ]; then
-                    LMMS_MODEL_ARGS="pretrained=$model_path"
+                    LMMS_MODEL_ARGS="pretrained=$model_path,trust_remote_code=True"
                     if [ "$LMMS_EVAL_MODEL" = "llava_hf" ] && [ "$GPUS_PER_NODE" -eq 1 ]; then
                         LMMS_MODEL_ARGS="$LMMS_MODEL_ARGS,device_map=cuda:0"
                     fi
@@ -306,6 +306,7 @@ print(model_type)
                         --model "$LMMS_EVAL_MODEL" \
                         --model_args "$LMMS_MODEL_ARGS" \
                         --tasks "$task_path" \
+                        --num_fewshot "$n_shot" \
                         --batch_size 1 \
                         --output_path "$RESULTS_SUBDIR" \
                         --log_samples \

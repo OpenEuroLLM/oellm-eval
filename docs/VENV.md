@@ -148,9 +148,9 @@ The `img-understanding` task group (VQAv2, GQA, TextVQA, ScienceQA-img, MMMU, MM
    PY
    ```
 
-3. GQA and ScienceQA-img pass `token=True` in their dataset loading code, even though both repos are public. Without a token file that fails before the request ever reaches the network, so set any token, including an expired one:
+3. VQAv2, GQA, and ScienceQA-img pass `token=True` in their dataset loading code, even though all three repos are public. Without a token this fails before the request ever reaches the network. Any token works, including an expired one, but it must be a real cached token: an empty `HF_TOKEN` is the same as unsetting it, so run `huggingface-cli login` first if you don't already have one, then:
    ```bash
-   export HF_TOKEN=$(cat ~/.cache/huggingface/token 2>/dev/null)
+   export HF_TOKEN=$(cat ~/.cache/huggingface/token)
    ```
 
 `llava_hf` has no real batching support, so the `lmms_eval` case always runs with `--batch_size 1`. Unlike lighteval and evalchemy, this isn't exposed as a CLI option.
