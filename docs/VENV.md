@@ -122,13 +122,13 @@ We use [Ali's fork](https://github.com/Ali-Elganzory/evalchemy) which includes a
 
 ## LMMs-Eval (image understanding)
 
-The `vqa` task group (VQAv2, GQA, TextVQA, ScienceQA-img) and `mmmu` task
-group (MMMU, MMMU-Pro standard) run via
+The `img-understanding` task group (VQAv2, GQA, TextVQA, ScienceQA-img,
+MMMU, MMMU-Pro standard) runs via
 [lmms-eval](https://github.com/EvolvingLMMs-Lab/lmms-eval), a separate
 harness for vision-language models. Validated for parity against public
-numbers: LLaVA-1.5-7B on `vqa` (GQA/TextVQA/ScienceQA-img within a few
-points of lmms-eval's own reported LLaVA-1.5-7B numbers) and
-Qwen2.5-VL-7B-Instruct on `mmmu`.
+numbers: LLaVA-1.5-7B (GQA/TextVQA/ScienceQA-img within a few points of
+lmms-eval's own reported LLaVA-1.5-7B numbers) and Qwen2.5-VL-7B-Instruct
+(MMMU/MMMU-Pro).
 
 > **Note:** Unlike lm-eval-harness/evalchemy, lmms-eval has no single
 > architecture-agnostic model wrapper — each VLM family needs its own
@@ -169,7 +169,7 @@ Qwen2.5-VL-7B-Instruct on `mmmu`.
    PY
    ```
 
-3. Some `vqa`/`mmmu` datasets need an `HF_TOKEN` set even though the
+3. Some `img-understanding` datasets need an `HF_TOKEN` set even though the
    underlying repos are public — a couple of their loader scripts pass
    `token=True` explicitly, which fails client-side before ever reaching
    the network if no token file is present. Any token value (even an
@@ -187,7 +187,7 @@ Qwen2.5-VL-7B-Instruct on `mmmu`.
    ```bash
    oellm-eval schedule \
        --models llava-hf/llava-1.5-7b-hf \
-       --task_groups vqa \
+       --task_groups img-understanding \
        --venv_path lmms-eval-venv \
        --skip_checks true
    ```

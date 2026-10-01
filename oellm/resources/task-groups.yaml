@@ -503,8 +503,8 @@ task_groups:
         n_shots: [0]
         suite: evalchemy
 
-  vqa:
-    description: "Visual question answering / image understanding: VQAv2, GQA, TextVQA, ScienceQA (all 0-shot)"
+  img-understanding:
+    description: "Image understanding: VQAv2, GQA, TextVQA, ScienceQA, MMMU, MMMU-Pro (standard, 10-option) (all 0-shot)"
     suite: lmms-eval
     metric: exact_match
     tasks:
@@ -520,18 +520,14 @@ task_groups:
       - task: scienceqa_img
         n_shots: [0]
         dataset: lmms-lab-encoder/ScienceQA
-
-  mmmu:
-    description: "MMMU and MMMU-Pro (standard, 10-option) college-level multi-discipline multimodal understanding (0-shot)"
-    suite: lmms-eval
-    metric: mmmu_acc
-    tasks:
       - task: mmmu_val
         n_shots: [0]
         dataset: lmms-lab-encoder/MMMU
+        metric: mmmu_acc
       - task: mmmu_pro_standard
         n_shots: [0]
         dataset: MMMU/MMMU_Pro
+        metric: mmmu_acc
 
   crows-pairs:
     description: "CrowS-Pairs social bias benchmark (English, 0-shot)."
