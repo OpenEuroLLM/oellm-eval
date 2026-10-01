@@ -414,8 +414,6 @@ def schedule_evals(
     )
     judgearena_data = shlex.quote(str(judgearena_data_path)).replace("$", "$$")
 
-    has_judgearena_jobs = df["eval_suite"].eq("judgearena").any()
-
     # Ensure that all datasets required by the tasks are cached locally to avoid
     # network access on compute nodes.
     if not skip_checks:
@@ -436,7 +434,7 @@ def schedule_evals(
             _pre_download_datasets_from_specs(
                 dataset_specs, trust_remote_code=trust_remote_code
             )
-        if has_judgearena_jobs:
+        if judgearena_rows.any():
             _download_judgearena_tasks(
                 df.loc[judgearena_rows, "task_path"].unique().tolist(),
                 venv_path=venv_path,
