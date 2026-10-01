@@ -560,9 +560,11 @@ def _select_tasks(group_names: Iterable[str]) -> list[tuple[str, _Task]]:
                     ", ".join(lang for lang in filt if lang in matched),
                 )
         # De-duplicate tasks shared by several groups (e.g. the `all` super_group
-        # spans groups whose benchmarks overlap), so they are scheduled once.
+        # spans groups whose benchmarks overlap), so they are scheduled once. A task
+        # listed with other n_shots elsewhere is kept; _expand_task_groups then
+        # schedules each (task, n_shot) once.
         for suite, t in kept:
-            key = (suite, t.name)
+            key = (suite, t.name, tuple(t.n_shots or ()))
             if key not in seen:
                 seen.add(key)
                 selected.append((suite, t))
@@ -572,9 +574,12 @@ def _select_tasks(group_names: Iterable[str]) -> list[tuple[str, _Task]]:
 
 def _expand_task_groups(group_names: Iterable[str]) -> list[TaskGroupResult]:
     results: list[TaskGroupResult] = []
+    seen: set[tuple[str, str, int]] = set()
     for suite, t in _select_tasks(group_names):
         for shot in (int(s) for s in (t.n_shots or [])):
-            results.append(TaskGroupResult(task=t.name, n_shot=shot, suite=suite))
+            if (suite, t.name, shot) not in seen:
+                seen.add((suite, t.name, shot))
+                results.append(TaskGroupResult(task=t.name, n_shot=shot, suite=suite))
     return results
 
 

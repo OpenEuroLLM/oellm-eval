@@ -189,10 +189,10 @@ class TestFlagEvals:
     def test_halves_split_by_backend(self):
         vllm = _expand_task_groups(["flag-evals-vllm"])
         lighteval = _expand_task_groups(["flag-evals-lighteval"])
-        assert (len(vllm), len(lighteval)) == (363, 73)
+        assert (len(vllm), len(lighteval)) == (365, 73)
         assert {r.suite for r in vllm} == {"lm-eval-harness", "evalchemy"}
         assert {r.suite for r in lighteval} == {"lighteval"}
-        assert len(_expand_task_groups(["flag-evals"])) == 436
+        assert len(_expand_task_groups(["flag-evals"])) == 438
 
     def test_sib200_reports_acc(self):
         metrics = primary_metric_map()

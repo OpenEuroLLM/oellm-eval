@@ -8,6 +8,18 @@
 dataset_path: CohereLabs/global-mgsm
 output_type: generate_until
 test_split: test
+# Few-shot: the dataset has only a test split, so examples come from it; fewshot_split == test_split
+# makes lm-eval's default (random) sampler leave the scored item out. The dataset has no worked
+# solutions, so each example ends in the localized final-answer line the instruction asks for
+# (e.g. "Antwort: 18"). Examples are separated by three newlines, which is also a stop sequence:
+# generation ends after the model's answer instead of running on into an invented next problem,
+# whose numbers flexible-extract (last number) would otherwise score.
+fewshot_split: test
+fewshot_delimiter: "\n\n\n"
+fewshot_config:
+  sampler: default
+  doc_to_target: "{{answer_prefix}}: {{answer}}"
+  target_delimiter: "\n"   # the answer line on its own, as the instruction asks
 doc_to_text: "{{instruction}}\n\n{{question}}"
 doc_to_target: "{{answer}}"
 generation_kwargs:
@@ -31,6 +43,6 @@ metric_list:
     ignore_case: true
     ignore_punctuation: true
 metadata:
-  version: 0.0
+  version: 1.0
 dataset_kwargs:
   trust_remote_code: true

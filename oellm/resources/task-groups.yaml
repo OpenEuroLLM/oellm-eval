@@ -214,10 +214,10 @@ task_groups:
         subset: fr
 
   global-mgsm-eu:
-    description: "Global-MGSM EU grade-school math (0-shot, exact_match)."
+    description: "Global-MGSM EU grade-school math (5-shot, direct-answer examples, exact_match)."
     suite: lm-eval-harness
     metric: exact_match
-    n_shots: [0]
+    n_shots: [5]
     dataset: CohereLabs/global-mgsm
     valid_langs: [de, fr, es, el, cs, hu, en, ca, eu, gl, sr]
     tasks:
@@ -443,17 +443,41 @@ task_groups:
       - task: "xcopa:{lang}"
         subset: "{lang}"
 
+  # ARC-Challenge family protocol: 25-shot, examples from each dataset's train split. English is the
+  # separate arc-challenge-25 group (it has no language code); dclm-core-22 and open-sci-0.01 keep
+  # their own 10-shot arc_challenge.
   arc-challenge-mt-eu:
-    description: "ARC Challenge multilingual (22 European languages)"
+    description: "ARC Challenge multilingual (22 European languages), 25-shot"
     suite: lm-eval-harness
     metric: acc_norm
-    n_shots: [0]
+    n_shots: [25]
     dataset: LumiOpen/arc_challenge_mt
     valid_langs: [bg, cs, da, nl, et, fi, fr, de, el, hu, it, lv, lt, pl, pt, ro, sk, sl, es, sv, nb]
     tasks:
       - task: "arc_challenge_mt_{lang}"
         subset: "{lang}"
       - task: arc_challenge_mt_is  # no subset in the source dataset
+
+  # PIQA family protocol: 0-shot, as the global-piqa-eu groups. English piqa stays 10-shot in
+  # dclm-core-22 and open-sci-0.01; piqa|0 here is the family member.
+  piqa-0:
+    description: "PIQA (English), 0-shot: the English member of the global-piqa-eu-completions protocol"
+    suite: lm-eval-harness
+    metric: acc_norm
+    n_shots: [0]
+    tasks:
+      - task: piqa
+        dataset: baber/piqa
+
+  arc-challenge-25:
+    description: "ARC Challenge (English), 25-shot: the English member of the arc-challenge-mt-eu protocol"
+    suite: lm-eval-harness
+    metric: acc_norm
+    n_shots: [25]
+    tasks:
+      - task: arc_challenge
+        dataset: allenai/ai2_arc
+        subset: ARC-Challenge
 
   hellaswag-eu:
     description: "Okapi HellaSwag multilingual (16 EU languages, 0-shot)."
@@ -641,6 +665,8 @@ super_groups:
       - task: reasoning
       - task: jeebench
       - task: arc-challenge-mt-eu
+      - task: arc-challenge-25
+      - task: piqa-0
       - task: belebele-eu-5-shot
       - task: global-mgsm-eu
       - task: global-mmlu-eu
@@ -674,6 +700,8 @@ super_groups:
       - task: reasoning
       - task: jeebench
       - task: arc-challenge-mt-eu
+      - task: arc-challenge-25
+      - task: piqa-0
       - task: belebele-eu-5-shot
       - task: global-mgsm-eu
       - task: global-mmlu-eu
