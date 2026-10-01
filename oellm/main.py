@@ -847,25 +847,15 @@ def collect_results(
             data = json.load(f)
 
         if data.get("schema_version") == "judgearena-run-metadata/v1":
-            run_config = data.get("run", {})
-            report = data.get("results", {})
-            task_name = report.get("task") or run_config.get("task") or "unknown"
-            model_config = run_config.get("model") or {}
-            judge_config = run_config.get("judge") or {}
-            model_name = (
-                model_config.get("name")
-                or report.get("model_A")
-                or report.get("evaluation_model")
-                or judge_config.get("model")
-                or "unknown"
-            )
-            if isinstance(model_name, str) and model_name.startswith("VLLM/"):
-                model_name = model_name.removeprefix("VLLM/")
+            run_config = data["run"]
+            report = data["results"]
+            task_name = run_config["task"]
+            model_name = run_config["model"]["name"].removeprefix("VLLM/")
 
             metric_pairs = _flatten_numeric_metrics(report.get("metrics", {}))
             if metric_pairs:
                 if check:
-                    completed_jobs.add((model_name, str(task_name), 0))
+                    completed_jobs.add((model_name, task_name, 0))
                 rows.extend(
                     {
                         "model_name": model_name,
