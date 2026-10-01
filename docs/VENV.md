@@ -122,21 +122,7 @@ We use [Ali's fork](https://github.com/Ali-Elganzory/evalchemy) which includes a
 
 ## LMMs-Eval (image understanding)
 
-The `img-understanding` task group (VQAv2, GQA, TextVQA, ScienceQA-img,
-MMMU, MMMU-Pro standard) runs via
-[lmms-eval](https://github.com/EvolvingLMMs-Lab/lmms-eval), a separate
-harness for vision-language models. Validated for parity against public
-numbers: LLaVA-1.5-7B (GQA/TextVQA/ScienceQA-img within a few points of
-lmms-eval's own reported LLaVA-1.5-7B numbers) and Qwen2.5-VL-7B-Instruct
-(MMMU/MMMU-Pro).
-
-> **Note:** Unlike lm-eval-harness/evalchemy, lmms-eval has no single
-> architecture-agnostic model wrapper — each VLM family needs its own
-> registered model class (`llava_hf`, `qwen2_5_vl`, `qwen2_vl`, ...). The
-> `lmms_eval` case in `oellm/resources/template.sbatch` resolves the right
-> class automatically from the checkpoint's own `config.json`
-> (`model_type`). If you add a model family not yet in that mapping,
-> extend the `case` there.
+The `img-understanding` task group (VQAv2, GQA, TextVQA, ScienceQA-img, MMMU, MMMU-Pro standard) runs via [lmms-eval](https://github.com/EvolvingLMMs-Lab/lmms-eval), since lm-eval-harness and evalchemy don't handle image inputs. lmms-eval has no single model wrapper the way those suites do; each VLM family needs its own registered model class. The `lmms_eval` case in `template.sbatch` resolves the right one (`llava_hf`, `qwen2_5_vl`, `qwen2_vl`) from the checkpoint's `config.json`. Extend that case if you add a model family it doesn't recognize.
 
 1. Create a venv and install dependencies:
    ```bash
@@ -144,50 +130,35 @@ lmms-eval's own reported LLaVA-1.5-7B numbers) and Qwen2.5-VL-7B-Instruct
    uv pip install --python lmms-eval-venv/bin/python -r requirements-venv-lmms-eval.txt
    ```
 
-2. `decord` (a video-loading dependency pulled in unconditionally by
-   `llava_hf` and the Qwen VL model files, even for image-only tasks) has
-   no Linux-aarch64 wheel. On aarch64 (e.g. JUPITER's GH200 nodes),
-   install a stub package that raises only if actually used — image-only
-   tasks never call it:
+2. `decord` has no Linux-aarch64 wheel, but `llava_hf` and the Qwen VL model files import it unconditionally, even for image-only tasks. Stub it out; nothing in this task group calls it:
    ```bash
    lmms-eval-venv/bin/python - <<'PY'
    import pathlib, sysconfig
    site = pathlib.Path(sysconfig.get_paths()["purelib"]) / "decord"
    site.mkdir(exist_ok=True)
-   (site / "__init__.py").write_text('''"""Minimal stub: the real decord package has no linux-aarch64 wheel.
-   Raises only if actually called; image-only lmms-eval tasks never hit this."""
-
-   def cpu(*args, **kwargs):
-       raise NotImplementedError("decord stub: video decoding is not available on this platform")
+   (site / "__init__.py").write_text('''def cpu(*args, **kwargs):
+       raise NotImplementedError("decord is not available on this platform")
 
 
    class VideoReader:
        def __init__(self, *args, **kwargs):
-           raise NotImplementedError("decord stub: video decoding is not available on this platform")
+           raise NotImplementedError("decord is not available on this platform")
    ''')
    print("stubbed decord at:", site)
    PY
    ```
 
-3. Some `img-understanding` datasets need an `HF_TOKEN` set even though the
-   underlying repos are public — a couple of their loader scripts pass
-   `token=True` explicitly, which fails client-side before ever reaching
-   the network if no token file is present. Any token value (even an
-   expired one) satisfies the client-side check:
+3. GQA and ScienceQA-img pass `token=True` in their dataset loading code, even though both repos are public. Without a token file that fails before the request ever reaches the network, so set any token, including an expired one:
    ```bash
    export HF_TOKEN=$(cat ~/.cache/huggingface/token 2>/dev/null)
    ```
 
-4. The `lmms_eval` case in `template.sbatch` always launches with
-   `--batch_size 1` (not user-configurable via the CLI, unlike the
-   `lighteval`/evalchemy task groups): the `llava_hf` model class has no
-   real batching support (`assert self.batch_size_per_gpu == 1`), and
-   `--batch_size auto` (used elsewhere) fails against it with
-   `ValueError: invalid literal for int() with base 10: 'auto'`.
-   ```bash
-   oellm-eval schedule \
-       --models llava-hf/llava-1.5-7b-hf \
-       --task_groups img-understanding \
-       --venv_path lmms-eval-venv \
-       --skip_checks true
-   ```
+`llava_hf` has no real batching support, so the `lmms_eval` case always runs with `--batch_size 1`. Unlike lighteval and evalchemy, this isn't exposed as a CLI option.
+
+```bash
+oellm-eval schedule \
+    --models llava-hf/llava-1.5-7b-hf \
+    --task_groups img-understanding \
+    --venv_path lmms-eval-venv \
+    --skip_checks true
+```
