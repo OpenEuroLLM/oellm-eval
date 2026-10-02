@@ -24,6 +24,9 @@ TASKS_PER_JOB={tasks_per_job}
 export HF_HOME=$HF_HOME
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export HF_HUB_OFFLINE={hf_hub_offline}
+export LMMS_EVAL_DATASETS_CACHE="$HF_HOME/datasets"
+export HF_XET_CACHE="$HF_HOME/xet_cache"
+export TRITON_CACHE_DIR="$HF_HOME/triton_cache"
 
 # Path to the shared Singularity image that contains all runtime deps (container mode)
 export EVAL_SIF_PATH="$EVAL_BASE_DIR/$EVAL_CONTAINER_IMAGE"
@@ -188,6 +191,7 @@ do
                 --num_fewshot "$n_shot" \
                 --output_path "$EVAL_OUT_DIR/$RUN_ID.json" \
                 --trust_remote_code \
+                --confirm_run_unsafe_code \
                 ${{LM_EVAL_INCLUDE_PATH:+--include_path $$LM_EVAL_INCLUDE_PATH}} \
                 --batch_size auto \
                 ${{LIMIT:+--limit $LIMIT}}
@@ -265,6 +269,70 @@ do
                 EVAL_STATUS=$?
             else
                 echo "[error] evalchemy suite requires --venv_path (not supported in container mode)."
+                exit 1
+            fi
+            ;;
+        lmms_eval|lmms-eval)
+            RESULTS_SUBDIR="{evals_dir}/$(openssl rand -hex 5)"
+            EVAL_OUT_DIR="$RESULTS_SUBDIR"
+            EVAL_OUT_PAT="*"
+            if [ -n "$VENV_PATH" ]; then
+                source "$VENV_PATH/bin/activate"
+                LMMS_MODEL_TYPE=$(python -c "
+import sys
+from transformers import AutoConfig, AutoTokenizer
+path = sys.argv[1]
+result = ''
+try:
+    tok = AutoTokenizer.from_pretrained(path, trust_remote_code=True)
+    seed2_id = tok.convert_tokens_to_ids('<seed2_0>')
+    if seed2_id is not None and seed2_id != tok.unk_token_id:
+        result = 'seed2_omni'
+except Exception:
+    pass
+if not result:
+    try:
+        result = AutoConfig.from_pretrained(path, trust_remote_code=True).model_type
+    except Exception:
+        result = ''
+print(result)
+" "$model_path" 2>/dev/null)
+                case "$LMMS_MODEL_TYPE" in
+                    llava|llava_next) LMMS_EVAL_MODEL="llava_hf" ;;
+                    qwen2_5_vl) LMMS_EVAL_MODEL="qwen2_5_vl" ;;
+                    qwen2_vl) LMMS_EVAL_MODEL="qwen2_vl" ;;
+                    seed2_omni) LMMS_EVAL_MODEL="seed2_omni" ;;
+                    *)
+                        echo "[error] lmms-eval suite: no known model class for config.json model_type '$LMMS_MODEL_TYPE' ($model_path). Extend the case in template.sbatch."
+                        EVAL_STATUS=1
+                        LMMS_EVAL_MODEL=""
+                        ;;
+                esac
+                if [ -n "$LMMS_EVAL_MODEL" ]; then
+                    LMMS_MODEL_ARGS="pretrained=$model_path"
+                    if [ "$LMMS_EVAL_MODEL" = "llava_hf" ]; then
+                        LMMS_MODEL_ARGS="$LMMS_MODEL_ARGS,trust_remote_code=True"
+                        if [ "$GPUS_PER_NODE" -eq 1 ]; then
+                            LMMS_MODEL_ARGS="$LMMS_MODEL_ARGS,device_map=cuda:0"
+                        fi
+                    fi
+                    if [ "$LMMS_EVAL_MODEL" = "seed2_omni" ]; then
+                        export LMMS_EVAL_PLUGINS=mv2_lmms_plugin
+                    fi
+                    accelerate launch --num-processes "$GPUS_PER_NODE" --num-machines 1 \
+                        $MULTI_GPU_FLAG -m lmms_eval eval \
+                        --model "$LMMS_EVAL_MODEL" \
+                        --model_args "$LMMS_MODEL_ARGS" \
+                        --tasks "$task_path" \
+                        --num_fewshot "$n_shot" \
+                        --batch_size 1 \
+                        --output_path "$RESULTS_SUBDIR" \
+                        --log_samples \
+                        ${{LIMIT:+--limit $LIMIT}}
+                    EVAL_STATUS=$?
+                fi
+            else
+                echo "[error] lmms-eval suite requires --venv_path (not supported in container mode)."
                 exit 1
             fi
             ;;
