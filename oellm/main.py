@@ -718,7 +718,7 @@ def collect_results(
     # ------------------------------------------------------------------
     # 2. Recursively find all JSON result files.
     # ------------------------------------------------------------------
-    json_files = sorted(results_path.rglob("*.json"))
+    json_files = sorted(p for p in results_path.rglob("*.json") if p.is_file())
 
     if not json_files:
         logging.warning(f"No JSON files found under {results_dir}")
