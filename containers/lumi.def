@@ -1,5 +1,5 @@
 Bootstrap: docker
-From: vllm/vllm-openai-rocm@sha256:c3457ab4702a5bd665b06d7ba57e6105fe98adc4f5b3d4afcf98ec45551988e0
+From: rocm/pytorch:rocm7.2.1_ubuntu24.04_py3.12_pytorch_release_2.9.1
 
 %arguments
     JUDGEARENA_GIT_REF=cdf9a7f1a24cbe0e885ae6f7bca74cb60ee907e1
@@ -15,8 +15,8 @@ From: vllm/vllm-openai-rocm@sha256:c3457ab4702a5bd665b06d7ba57e6105fe98adc4f5b3d
     export UV_TOOL_BIN_DIR=/usr/local/bin
     export UV_TOOL_DIR=/opt/uv-tools
 
-    # lm-eval and dependencies (system Python)
-    uv pip install --system --break-system-packages \
+    # lm-eval and dependencies in the ROCm/PyTorch base venv.
+    uv pip install --python /opt/venv/bin/python \
         lm-eval \
         transformers \
         "datasets<4.0.0" \
@@ -26,9 +26,13 @@ From: vllm/vllm-openai-rocm@sha256:c3457ab4702a5bd665b06d7ba57e6105fe98adc4f5b3d
         accelerate \
         nltk
 
-    # Isolate JudgeArena dependencies while reusing VLLM from the base image.
-    uv venv --python 3.12 --system-site-packages /opt/judgearena
+    # Keep the ROCm/PyTorch base for lm-eval; isolate vLLM in JudgeArena.
+    uv venv --python 3.12 /opt/judgearena
     uv pip install --python /opt/judgearena/bin/python \
+        --extra-index-url https://wheels.vllm.ai/rocm/0.19.1/rocm721/ \
+        "torch==2.10.0+git8514f05" \
+        "vllm==0.19.1+rocm721" \
+        "transformers==5.5.4" \
         "huggingface-hub>=1.5,<2" \
         "judgearena @ git+https://github.com/OpenEuroLLM/JudgeArena.git@{{ JUDGEARENA_GIT_REF }}"
     ln -s /opt/judgearena/bin/judgearena /usr/local/bin/judgearena
@@ -42,8 +46,8 @@ From: vllm/vllm-openai-rocm@sha256:c3457ab4702a5bd665b06d7ba57e6105fe98adc4f5b3d
     # accelerate then selects cpu, and lighteval logs "putting model on device cpu"
     # and runs on CPU until it hits the walltime. No *_VISIBLE_DEVICES setting can
     # help: the wheel has no HIP support compiled in. See issue #96.
-    # lm-eval is unaffected because it is installed with `uv pip install --system`
-    # above, reusing the base image's ROCm torch.
+    # lm-eval is unaffected because it is installed in the base venv above,
+    # reusing the base image's ROCm torch.
     #
     # xxhash<4 is also required: 4.0 dropped implicit str encoding, and lighteval
     # hashes doc.query directly (logging/info_loggers.py), so a fresh resolve picks
@@ -65,7 +69,8 @@ From: vllm/vllm-openai-rocm@sha256:c3457ab4702a5bd665b06d7ba57e6105fe98adc4f5b3d
     python -c "import nltk; nltk.download('punkt', download_dir='/opt/nltk_data'); nltk.download('punkt_tab', download_dir='/opt/nltk_data')"
 
 %test
-    /opt/judgearena/bin/python -c 'import judgearena, torch, vllm; from vllm import LLM, SamplingParams; assert torch.version.hip and vllm.__version__ == "0.19.1"'
+    python -c 'import torch; assert torch.version.hip and torch.__version__.startswith("2.9.1")'
+    /opt/judgearena/bin/python -c 'import judgearena, torch, vllm; from vllm import LLM, SamplingParams; assert torch.version.hip and torch.__version__ == "2.10.0+git8514f05" and vllm.__version__ == "0.19.1" and "/opt/judgearena/" in torch.__file__'
     /opt/uv-tools/lighteval/bin/python -c 'import torch; assert torch.version.hip'
     judgearena tasks list >/dev/null
     lm_eval --help >/dev/null
