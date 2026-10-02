@@ -588,7 +588,75 @@ task_groups:
       - task: "polymath_{lang}_top"
         subset: "{lang}"
 
+  judgearena-default:
+    description: "JudgeArena tasks used when no language filter is given."
+    suite: judgearena
+    n_shots: [0]
+    tasks:
+      - task: alpaca-eval
+      - task: alpaca-eval-ja
+      - task: arena-hard-v0.1
+      - task: arena-hard-v0.1-ja
+      - task: arena-hard-v2.0
+      - task: arena-hard-v2.0-ja
+      - task: elo-comparia
+      - task: elo-lmarena
+      - task: elo-lmarena-100k
+      - task: elo-lmarena-140k
+      - task: fluency
+      - task: m-arena-hard-v0.1
+      - task: m-arena-hard-v2.0
+      - task: mt-bench
+
+  judgearena-comparia:
+    description: "JudgeArena ComparIA ELO language variants."
+    suite: judgearena
+    n_shots: [0]
+    valid_langs: [fr, en]
+    tasks:
+      - task: "elo-comparia-{lang}"
+        subset: "{lang}"
+
+  judgearena-lmarena:
+    description: "JudgeArena LMSYS Arena ELO language variants."
+    suite: judgearena
+    n_shots: [0]
+    valid_langs: [en, pl, ru, zh, de, ja, es, fr, ko, pt, fa, it, tr, vi, cs, ar, uk]
+    tasks:
+      - task: "elo-lmarena-{lang}"
+        subset: "{lang}"
+      - task: "elo-lmarena-100k-{lang}"
+        subset: "{lang}"
+      - task: "elo-lmarena-140k-{lang}"
+        subset: "{lang}"
+
+  judgearena-m-arena-hard:
+    description: "JudgeArena m-ArenaHard language variants."
+    suite: judgearena
+    n_shots: [0]
+    valid_langs: [ar, cs, de, el, en, es, fa, fr, he, hi, id, it, ja, ko, nl, pl, pt, ro, ru, tr, uk, vi, zh]
+    tasks:
+      - task: "m-arena-hard-v0.1-{lang}"
+        subset: "{lang}"
+      - task: "m-arena-hard-v2.0-{lang}"
+        subset: "{lang}"
+
+  judgearena-fluency:
+    description: "JudgeArena fluency language variants."
+    suite: judgearena
+    n_shots: [0]
+    valid_langs: [albanian, basque, bengali, bosnian, bulgarian, catalan, croatian, czech, danish, dutch, english, estonian, finnish, french, galician, georgian, german, greek, hindi, hungarian, icelandic, indonesian, irish, italian, japanese, latvian, lithuanian, macedonian, maltese, mandarin-chinese, norwegian, polish, portuguese, romanian, russian, serbian, slovak, slovene, spanish, standard-arabic, swedish, turkish, ukrainian]
+    tasks:
+      - task: "fluency-{lang}"
+        subset: "{lang}"
+
+
 super_groups:
+  judgearena:
+    description: "JudgeArena base tasks."
+    task_groups:
+      - task: judgearena-default
+
   oellm-multilingual:
     description: "Combined Belebele EU set plus multilingual benchmarks"
     task_groups:

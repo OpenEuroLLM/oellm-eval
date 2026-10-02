@@ -191,3 +191,40 @@ def test_results_without_groups_are_unaffected(tmp_path: Path) -> None:
     assert list(df["task"]) == ["belebele_eus_Latn_cf"]
     assert df.loc[0, "performance"] == 0.31
     assert _missing(case_dir).empty
+
+
+def test_judgearena_metadata_is_collected_without_reading_artifact_json(
+    tmp_path: Path,
+) -> None:
+    payload = {
+        "schema_version": "judgearena-run-metadata/v1",
+        "run": {
+            "task": "arena-hard-v2.0",
+            "model": {"name": f"VLLM/{MODEL}"},
+            "judge": {"model": "OpenRouter/example-judge"},
+        },
+        "results": {
+            "task": "arena-hard-v2.0",
+            "metrics": {"arena_hard_v20": {"winrate": 0.625, "num_battles": 500}},
+        },
+    }
+    jobs = [
+        {
+            "model_path": MODEL,
+            "task_path": "arena-hard-v2.0",
+            "n_shot": 0,
+            "eval_suite": "judgearena",
+        }
+    ]
+    case_dir = _write_case(tmp_path, "judgearena", payload, jobs)
+    (case_dir / "results" / "results-native.json").write_text(
+        json.dumps(payload["results"])
+    )
+
+    df = _collect(case_dir)
+
+    assert dict(zip(df["metric_name"], df["performance"], strict=True)) == {
+        "arena_hard_v20.winrate": 0.625,
+        "arena_hard_v20.num_battles": 500,
+    }
+    assert _missing(case_dir).empty
