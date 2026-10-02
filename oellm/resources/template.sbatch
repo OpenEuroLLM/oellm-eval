@@ -191,6 +191,7 @@ do
                 --num_fewshot "$n_shot" \
                 --output_path "$EVAL_OUT_DIR/$RUN_ID.json" \
                 --trust_remote_code \
+                --confirm_run_unsafe_code \
                 ${{LM_EVAL_INCLUDE_PATH:+--include_path $$LM_EVAL_INCLUDE_PATH}} \
                 --batch_size auto \
                 ${{LIMIT:+--limit $LIMIT}}
@@ -279,17 +280,28 @@ do
                 source "$VENV_PATH/bin/activate"
                 LMMS_MODEL_TYPE=$(python -c "
 import sys
-from transformers import AutoConfig
+from transformers import AutoConfig, AutoTokenizer
+path = sys.argv[1]
+result = ''
 try:
-    model_type = AutoConfig.from_pretrained(sys.argv[1], trust_remote_code=True).model_type
+    tok = AutoTokenizer.from_pretrained(path, trust_remote_code=True)
+    seed2_id = tok.convert_tokens_to_ids('<seed2_0>')
+    if seed2_id is not None and seed2_id != tok.unk_token_id:
+        result = 'seed2_omni'
 except Exception:
-    model_type = ''
-print(model_type)
+    pass
+if not result:
+    try:
+        result = AutoConfig.from_pretrained(path, trust_remote_code=True).model_type
+    except Exception:
+        result = ''
+print(result)
 " "$model_path" 2>/dev/null)
                 case "$LMMS_MODEL_TYPE" in
                     llava|llava_next) LMMS_EVAL_MODEL="llava_hf" ;;
                     qwen2_5_vl) LMMS_EVAL_MODEL="qwen2_5_vl" ;;
                     qwen2_vl) LMMS_EVAL_MODEL="qwen2_vl" ;;
+                    seed2_omni) LMMS_EVAL_MODEL="seed2_omni" ;;
                     *)
                         echo "[error] lmms-eval suite: no known model class for config.json model_type '$LMMS_MODEL_TYPE' ($model_path). Extend the case in template.sbatch."
                         EVAL_STATUS=1
@@ -303,6 +315,9 @@ print(model_type)
                         if [ "$GPUS_PER_NODE" -eq 1 ]; then
                             LMMS_MODEL_ARGS="$LMMS_MODEL_ARGS,device_map=cuda:0"
                         fi
+                    fi
+                    if [ "$LMMS_EVAL_MODEL" = "seed2_omni" ]; then
+                        export LMMS_EVAL_PLUGINS=mv2_lmms_plugin
                     fi
                     accelerate launch --num-processes "$GPUS_PER_NODE" --num-machines 1 \
                         $MULTI_GPU_FLAG -m lmms_eval eval \

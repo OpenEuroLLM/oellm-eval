@@ -122,7 +122,7 @@ We use [Ali's fork](https://github.com/Ali-Elganzory/evalchemy) which includes a
 
 ## LMMs-Eval (image understanding)
 
-The `img-understanding` task group (VQAv2, GQA, TextVQA, ScienceQA-img, MMMU, MMMU-Pro standard) runs via [lmms-eval](https://github.com/EvolvingLMMs-Lab/lmms-eval), since lm-eval-harness and evalchemy don't handle image inputs. lmms-eval has no single model wrapper the way those suites do; each VLM family needs its own registered model class. The `lmms_eval` case in `template.sbatch` resolves the right one (`llava_hf`, `qwen2_5_vl`, `qwen2_vl`) from the checkpoint's `config.json`. Extend that case if you add a model family it doesn't recognize.
+The `img-understanding` task group (VQAv2, GQA, TextVQA, ScienceQA-img, MMMU, MMMU-Pro standard) runs via [lmms-eval](https://github.com/EvolvingLMMs-Lab/lmms-eval), since lm-eval-harness and evalchemy don't handle image inputs. lmms-eval has no single model wrapper the way those suites do; each VLM family needs its own registered model class. The `lmms_eval` case in `template.sbatch` resolves the right one (`llava_hf`, `qwen2_5_vl`, `qwen2_vl`, `seed2_omni`) from the checkpoint's `config.json` or tokenizer. Extend that case if you add a model family it doesn't recognize.
 
 1. Create a venv and install dependencies:
    ```bash
@@ -154,6 +154,12 @@ The `img-understanding` task group (VQAv2, GQA, TextVQA, ScienceQA-img, MMMU, MM
    ```
 
 `llava_hf` has no real batching support, so the `lmms_eval` case always runs with `--batch_size 1`. Unlike lighteval and evalchemy, this isn't exposed as a CLI option.
+
+4. `seed2_omni` (mixturevitae2's own omni checkpoints, detected via the `<seed2_0>` token in the tokenizer rather than `config.json`, since those checkpoints report `model_type: qwen3` like any plain text model) is registered through lmms-eval's plugin mechanism rather than shipped inside lmms-eval itself. Copy it into the venv:
+   ```bash
+   cp -r oellm/resources/mv2_lmms_plugin lmms-eval-venv/lib/python3.12/site-packages/
+   ```
+   It imports `multimodal_processing.model_backends.seed2` from a `mixturevitae2` checkout at runtime, found via `MV2_MULTIMODAL_DIR` (defaults to `/e/project1/jureap59/raj3/mixturevitae2`).
 
 ```bash
 oellm-eval schedule \
