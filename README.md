@@ -8,7 +8,7 @@ A lightweight CLI for scheduling LLM evaluations across multiple HPC clusters us
 - **Collect results** and check for missing evaluations: `oellm-eval collect`
 - **Task groups** for pre-defined evaluation suites with automatic dataset pre-downloading
 - **Multi-cluster support** with auto-detection (Leonardo, LUMI, JURECA, Snellius)
-- **Automatic building and deployment of containers** 
+- **Automatic building and deployment of containers**
 
 ## Quick Start
 
@@ -54,6 +54,7 @@ Available task groups:
 - `polymath-eu-low` / `polymath-eu-medium` / `polymath-eu-high` / `polymath-eu-top` - PolyMath multilingual math reasoning (EU languages, 0-shot, `\boxed{}` answer extraction), one group per difficulty tier
 - `generic-multilingual` - XWinograd, XCOPA, XStoryCloze
 - `include` - INCLUDE benchmarks
+- `gpqa-diamond` - GPQA Diamond, generative (0-shot, pass@1, up to 32768 new tokens) for instruct/reasoning checkpoints, in English and Finnish (professionally post-edited `LumiOpen/GPQA-FI`). English reads the gated `Idavidrein/gpqa`, so the HF token must have access. Defined as custom lighteval tasks, see [docs/TASKS.md](docs/TASKS.md#custom-lighteval-tasks). Schedule it separately with a small `BATCH_SIZE`, see [Lighteval Batch Size](#lighteval-batch-size)
 
 Super groups combine multiple task groups:
 - `oellm-multilingual` - All multilingual benchmarks combined
@@ -239,6 +240,28 @@ for example:
 MODEL_ARGS='batch_size=8' oellm-eval schedule \
   --models "model-name" --task_groups "belebele-eu-cf" --venv_path .venv
 ```
+
+### Long generations (`gpqa-diamond`)
+
+These tasks generate up to 32768 tokens per sample, and `lighteval accelerate`
+keeps a float32 score vector the size of the vocabulary for every generated
+token of every sequence in the batch. At 32k tokens that is ~20 GB per
+sequence for a 150k-token vocabulary (Qwen, Llama 3), plus ~5 GB of KV cache
+for a 7-8B model, on top of the weights. Reasoning models write that much: with
+Qwen3-8B, `batch_size=8` ran out of memory on a 256 GB MI325X, so the default
+`batch_size=32` does not fit either. Schedule the group on its own with a batch
+size that fits, for example:
+
+```bash
+# 64 GB GPU (one LUMI MI250X GCD): Qwen2.5-7B-Instruct completed both languages
+BATCH_SIZE=1 oellm-eval schedule --models "model-name" --task_groups "gpqa-diamond"
+# 256 GB GPU (MI325X): Qwen3-8B completed 40 Finnish questions
+BATCH_SIZE=4 oellm-eval schedule --models "model-name" --task_groups "gpqa-diamond"
+```
+
+Expect hours per language: a batch runs until its longest sample stops, so one
+long answer holds up the whole batch. With `BATCH_SIZE=1` on one MI250X GCD,
+Qwen2.5-7B-Instruct took 1.5 h for English and 2.8 h for Finnish.
 
 ### Workaround for `acc_norm` tasks
 

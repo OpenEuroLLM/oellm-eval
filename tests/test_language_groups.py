@@ -31,6 +31,7 @@ EXPLICIT_MULTILINGUAL_GROUPS = [
     "pawsx-eu",
     "xnli-eu",
     "mmmlu-eu",
+    "gpqa-diamond",
 ]
 
 
@@ -58,6 +59,19 @@ def test_bracket_allows_per_group_languages():
         "sib200_fra_Latn",
         "flores200:deu_Latn-eng_Latn",
     }
+
+
+def test_lighteval_colon_suffix_resolves_language():
+    """Custom lighteval tasks carry an HF config name as subset (``gpqa_diamond``,
+    ``default``) and encode their language as a ``:lang`` name suffix."""
+    assert _resolve_task_languages("gpqa_diamond:en", "gpqa_diamond") == ["eng_Latn"]
+    assert _resolve_task_languages("gpqa_diamond:fi", "default") == ["fin_Latn"]
+
+
+def test_bracket_scopes_custom_lighteval_group():
+    jobs = _expand_task_groups(["gpqa-diamond[fin_Latn]"])
+    assert {j.task for j in jobs} == {"gpqa_diamond:fi"}
+    assert {j.suite for j in jobs} == {"lighteval"}
 
 
 def test_bracket_accepts_comma_or_pipe_separator():

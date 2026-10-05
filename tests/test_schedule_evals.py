@@ -123,6 +123,35 @@ def test_schedule_evals_no_nodelist(tmp_path):
     assert "--nodelist" not in sbatch_content
 
 
+def test_schedule_evals_passes_bundled_lighteval_custom_tasks(tmp_path):
+    """lighteval runs load the bundled custom tasks file, which is also bound
+    into the container."""
+    env = {k: v for k, v in os.environ.items() if k != "LIGHTEVAL_CUSTOM_TASKS"}
+    with (
+        patch("oellm.main._load_cluster_env"),
+        patch("oellm.main._num_jobs_in_queue", return_value=0),
+        patch.dict(
+            os.environ,
+            {**env, "EVAL_OUTPUT_DIR": str(tmp_path), "HF_HOME": str(tmp_path / "hf")},
+            clear=True,
+        ),
+    ):
+        schedule_evals(
+            models="EleutherAI/pythia-70m",
+            task_groups="gpqa-diamond[fin_Latn]",
+            skip_checks=True,
+            venv_path=str(Path(sys.prefix)),
+            dry_run=True,
+        )
+
+    bundled = files("oellm.resources") / "custom_lighteval_tasks" / "reasoning.py"
+    sbatch_content = next(tmp_path.glob("**/submit_evals.sbatch")).read_text()
+    assert Path(str(bundled)).is_file()
+    assert f'LIGHTEVAL_CUSTOM_TASKS="{Path(str(bundled)).resolve()}"' in sbatch_content
+    assert '--custom-tasks "$LIGHTEVAL_CUSTOM_TASKS"' in sbatch_content
+    assert ",$LIGHTEVAL_CUSTOM_TASKS:$LIGHTEVAL_CUSTOM_TASKS" in sbatch_content
+
+
 def test_schedule_evals_slurm_template_var_invalid_json(tmp_path):
     """Verify invalid slurm_template_var raises ValueError."""
     with (

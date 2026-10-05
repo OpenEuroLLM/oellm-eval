@@ -18,6 +18,7 @@ TOTAL_EVALS={total_evals}
 LIMIT="{limit}"
 VENV_PATH="{venv_path}"
 LM_EVAL_INCLUDE_PATH="{lm_eval_include_path}"
+LIGHTEVAL_CUSTOM_TASKS="{lighteval_custom_tasks}"
 TASKS_PER_JOB={tasks_per_job}
 JUDGEARENA_ARGS=({judgearena_args})
 export JUDGEARENA_DATA={judgearena_data}
@@ -137,7 +138,7 @@ do
 
     # Build bind paths: always mount the shared eval directory, and additionally
     # bind the directory that contains the model checkpoint when the path exists
-    BIND_PATHS="$EVAL_BASE_DIR:$EVAL_BASE_DIR,$HF_HOME:$HF_HOME,$HF_DATASETS_CACHE:$HF_DATASETS_CACHE${{LM_EVAL_INCLUDE_PATH:+,$$LM_EVAL_INCLUDE_PATH:$$LM_EVAL_INCLUDE_PATH}}"
+    BIND_PATHS="$EVAL_BASE_DIR:$EVAL_BASE_DIR,$HF_HOME:$HF_HOME,$HF_DATASETS_CACHE:$HF_DATASETS_CACHE${{LM_EVAL_INCLUDE_PATH:+,$$LM_EVAL_INCLUDE_PATH:$$LM_EVAL_INCLUDE_PATH}}${{LIGHTEVAL_CUSTOM_TASKS:+,$$LIGHTEVAL_CUSTOM_TASKS:$$LIGHTEVAL_CUSTOM_TASKS}}"
 
     if [ -e "$model_path" ]; then
         # If the model_path is a file, bind its parent directory; otherwise bind the dir itself
@@ -179,7 +180,7 @@ do
             singularity exec $SINGULARITY_ARGS \
                 $SINGULARITY_ENV_ARGS \
                 $SINGULARITY_HOME_ARG \
-                --bind $BIND_PATHS \
+                --bind "$BIND_PATHS" \
                 $EVAL_SIF_PATH \
                 env CUDA_VISIBLE_DEVICES=$GPU_DEVICES \
                 python "$@"
@@ -243,6 +244,7 @@ do
                     "model_name=$model_path,trust_remote_code=True,cache_dir=$LIGHTEVAL_CACHE_DIR,{additional_model_args}" \
                     "$LIGHT_TASK_ARG" \
                     --load-tasks-multilingual \
+                    --custom-tasks "$$LIGHTEVAL_CUSTOM_TASKS" \
                     --output-dir "$RESULTS_SUBDIR" \
                     ${{LIMIT:+--max-samples $LIMIT}}
                 EVAL_STATUS=$?
@@ -250,13 +252,14 @@ do
                 singularity exec $SINGULARITY_ARGS \
                     $SINGULARITY_ENV_ARGS \
                     $SINGULARITY_HOME_ARG \
-                    --bind $BIND_PATHS \
+                    --bind "$BIND_PATHS" \
                     $EVAL_SIF_PATH \
                     env CUDA_VISIBLE_DEVICES=$GPU_DEVICES \
                     lighteval accelerate \
                         "model_name=$model_path,cache_dir=$LIGHTEVAL_CACHE_DIR,{additional_model_args}" \
                         "$LIGHT_TASK_ARG" \
                         --load-tasks-multilingual \
+                        --custom-tasks "$$LIGHTEVAL_CUSTOM_TASKS" \
                         --output-dir "$RESULTS_SUBDIR" \
                         ${{LIMIT:+--max-samples $LIMIT}}
                 EVAL_STATUS=$?

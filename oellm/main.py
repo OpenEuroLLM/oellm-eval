@@ -165,6 +165,7 @@ def schedule_evals(
     trust_remote_code: bool = True,
     venv_path: str | None = None,
     lm_eval_include_path: str | None = None,
+    lighteval_custom_tasks: str | None = None,
     local: bool = False,
     slurm_template_var: str | None = None,
     nodelist: str | None = None,
@@ -218,6 +219,9 @@ def schedule_evals(
             Passed as --include_path to lm_eval. Defaults to the bundled custom_lm_eval_tasks
             directory shipped with the package, which overrides broken upstream tasks
             (e.g. mgsm_native_cot_fr/de/es). Override to point at additional task YAMLs.
+        lighteval_custom_tasks: Path to a Python file of custom lighteval task definitions.
+            Passed as --custom-tasks to lighteval. Defaults to the bundled
+            custom_lighteval_tasks/reasoning.py (multilingual GPQA Diamond).
         local: If True, run evaluations directly on the local machine using bash instead of
             submitting to SLURM. Requires --venv_path. Skips cluster environment detection and
             runs all evaluations sequentially in a single process.
@@ -584,6 +588,15 @@ def schedule_evals(
                 lm_eval_include_path
                 or os.environ.get("LM_EVAL_INCLUDE_PATH")
                 or str(files("oellm.resources") / "custom_lm_eval_tasks")
+            ).resolve()
+        ),
+        lighteval_custom_tasks=str(
+            Path(
+                lighteval_custom_tasks
+                or os.environ.get("LIGHTEVAL_CUSTOM_TASKS")
+                or str(
+                    files("oellm.resources") / "custom_lighteval_tasks" / "reasoning.py"
+                )
             ).resolve()
         ),
         hf_hub_offline=_resolve_hf_hub_offline(local),

@@ -687,6 +687,24 @@ task_groups:
       - task: m-arena-hard-v0.1-EU
       - task: m-arena-hard-v2.0-EU
 
+  # Multilingual GPQA Diamond from LumiOpen, defined as custom lighteval tasks
+  # in custom_lighteval_tasks/reasoning.py. Generative, 0-shot, greedy pass@1
+  # with up to 32768 new tokens: meant for instruct/reasoning checkpoints.
+  # Long generations need a small lighteval BATCH_SIZE, see README
+  # "Lighteval Batch Size".
+  gpqa-diamond:
+    description: "GPQA Diamond, generative 0-shot pass@1 (en: gated Idavidrein/gpqa, fi: LumiOpen/GPQA-FI)."
+    suite: lighteval
+    metric: "gpqa_pass@k:k=1"
+    n_shots: [0]
+    tasks:
+      - task: "gpqa_diamond:en"
+        dataset: Idavidrein/gpqa
+        subset: gpqa_diamond
+      - task: "gpqa_diamond:fi"
+        dataset: LumiOpen/GPQA-FI
+        subset: default
+
 super_groups:
   judgearena:
     description: "JudgeArena base tasks."
