@@ -1,0 +1,21 @@
+# FLORES-200: BPB of the reference translation given the source sentence,
+# using the same "DE: <source> EN:" prompt shape as lighteval's flores200 CF
+# formulation. Included by the two direction templates below; per-pair tasks
+# live in flores200/.
+include: _bpb_template_yaml
+tag:
+  - bpb
+  - bpb_multilingual
+  - flores200_bpb
+dataset_path: facebook/flores
+test_split: devtest
+fewshot_split: dev
+fewshot_config:
+  sampler: first_n
+output_type: loglikelihood
+# doc_to_target supplies the leading space itself (see utils.py).
+target_delimiter: ""
+metric_list:
+  - metric: bits_per_byte
+    aggregation: bits_per_byte
+    higher_is_better: false

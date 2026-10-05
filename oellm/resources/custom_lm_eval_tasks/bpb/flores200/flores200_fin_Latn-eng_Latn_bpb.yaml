@@ -1,0 +1,4 @@
+include: ../_flores200_xx_eng_bpb_template_yaml
+task: flores200_fin_Latn-eng_Latn_bpb
+dataset_name: fin_Latn-eng_Latn
+doc_to_text: 'FI: {{sentence_fin_Latn}} EN:'

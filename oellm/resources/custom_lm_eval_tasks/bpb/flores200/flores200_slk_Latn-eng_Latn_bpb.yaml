@@ -1,0 +1,4 @@
+include: ../_flores200_xx_eng_bpb_template_yaml
+task: flores200_slk_Latn-eng_Latn_bpb
+dataset_name: slk_Latn-eng_Latn
+doc_to_text: 'SK: {{sentence_slk_Latn}} EN:'

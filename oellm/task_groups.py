@@ -49,6 +49,20 @@ _LANG_ALIAS = {
     "ca": "cat_Latn",
     "eu": "eus_Latn",
     "gl": "glg_Latn",
+    # non-EU languages of xwinograd / xcopa / xstorycloze
+    "ar": "arb_Arab",
+    "hi": "hin_Deva",
+    "ht": "hat_Latn",
+    "id": "ind_Latn",
+    "jp": "jpn_Jpan",
+    "my": "mya_Mymr",
+    "qu": "que_Latn",
+    "sw": "swh_Latn",
+    "ta": "tam_Taml",
+    "te": "tel_Telu",
+    "th": "tha_Thai",
+    "vi": "vie_Latn",
+    "zh": "zho_Hans",
     # full English names (include)
     "albanian": "als_Latn",
     "armenian": "hye_Armn",
@@ -109,18 +123,23 @@ def _canonical_language(code: str | None) -> str | None:
     return None
 
 
+_FLORES_PAIR = re.compile(
+    r"^flores200[:_]([a-z]{3}_[A-Z][a-z]{3})-([a-z]{3}_[A-Z][a-z]{3})"
+)
+
+
 def _resolve_task_languages(name: str, subset: str | None) -> list[str]:
     """Return the canonical language code(s) a task belongs to, if any.
 
-    Translation pairs (``flores200:src-tgt`` and
+    Translation pairs (``flores200:src-tgt``, ``flores200_src-tgt_bpb`` and
     ``opensubtitles_multi40_src_to_tgt``) resolve to their non-English side;
     every other task resolves via its ``subset``. Tasks with no recognisable
     language (e.g. English-only standard benchmarks) return [].
     """
-    if name.startswith("flores200:"):
-        pair = name.split(":", 1)[1]
+    flores = _FLORES_PAIR.match(name)
+    if flores:
         langs = [
-            _canonical_language(part) for part in pair.split("-") if part != "eng_Latn"
+            _canonical_language(part) for part in flores.groups() if part != "eng_Latn"
         ]
         return [lang for lang in langs if lang]
     if name.startswith("opensubtitles_multi40_"):

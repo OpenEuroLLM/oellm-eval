@@ -1,0 +1,20 @@
+# MGSM: BPB of the final answer number after the upstream lm-eval
+# mgsm_direct_<lang> prompt (the test split has no worked solutions).
+# Per-language tasks live in mgsm/ and carry the localized prompt.
+include: _bpb_template_yaml
+tag:
+  - bpb
+  - bpb_multilingual
+  - mgsm_bpb
+dataset_path: jbross-ibm-research/mgsm
+training_split: train
+test_split: test
+output_type: loglikelihood
+# doc_to_target supplies the leading space itself (see utils.py).
+target_delimiter: ""
+doc_to_target: !function utils.doc_to_target_mgsm
+process_results: !function utils.process_results_mgsm
+metric_list:
+  - metric: bits_per_byte
+    aggregation: bits_per_byte
+    higher_is_better: false

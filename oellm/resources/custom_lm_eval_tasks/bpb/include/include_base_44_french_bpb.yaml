@@ -1,0 +1,3 @@
+include: ../_include_bpb_template_yaml
+task: include_base_44_french_bpb
+dataset_name: French

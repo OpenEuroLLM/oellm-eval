@@ -1,0 +1,4 @@
+include: ../_flores200_xx_eng_bpb_template_yaml
+task: flores200_ell_Grek-eng_Latn_bpb
+dataset_name: ell_Grek-eng_Latn
+doc_to_text: 'EL: {{sentence_ell_Grek}} EN:'

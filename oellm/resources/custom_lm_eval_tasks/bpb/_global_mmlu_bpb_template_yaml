@@ -1,0 +1,18 @@
+# Global-MMLU in cloze form, like _mmlu_stem_bpb_template_yaml. Each language
+# is a single task over the whole test split (all 57 subjects), so BPB is one
+# byte-weighted corpus aggregate per language. Per-language tasks live in
+# global_mmlu/.
+include: _bpb_template_yaml
+tag:
+  - bpb
+  - bpb_multilingual
+  - global_mmlu_bpb
+dataset_path: CohereForAI/Global-MMLU
+test_split: test
+fewshot_split: dev
+fewshot_config:
+  sampler: first_n
+doc_to_text: "Question: {{question.strip()}}\nAnswer:"
+doc_to_target: "{{['A', 'B', 'C', 'D'].index(answer.strip())}}"
+doc_to_choice: "{{[option_a, option_b, option_c, option_d]}}"
+process_results: !function utils.process_results_global_mmlu

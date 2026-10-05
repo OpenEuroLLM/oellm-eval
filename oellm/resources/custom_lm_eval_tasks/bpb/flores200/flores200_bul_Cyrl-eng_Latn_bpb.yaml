@@ -1,0 +1,4 @@
+include: ../_flores200_xx_eng_bpb_template_yaml
+task: flores200_bul_Cyrl-eng_Latn_bpb
+dataset_name: bul_Cyrl-eng_Latn
+doc_to_text: 'BG: {{sentence_bul_Cyrl}} EN:'

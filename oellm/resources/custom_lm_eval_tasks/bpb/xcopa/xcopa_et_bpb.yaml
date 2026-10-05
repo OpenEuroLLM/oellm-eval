@@ -1,0 +1,4 @@
+include: ../_xcopa_bpb_template_yaml
+task: xcopa_et_bpb
+dataset_name: et
+doc_to_text: '{{premise.strip()[:-1]}} {{"sest" if question == "cause" else "seetõttu"}}'

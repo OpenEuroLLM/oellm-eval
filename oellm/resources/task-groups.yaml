@@ -29,6 +29,176 @@ task_metrics:
   mmlu_high_school_physics_bpb: bits_per_byte
   mmlu_high_school_statistics_bpb: bits_per_byte
   mmlu_machine_learning_bpb: bits_per_byte
+  # Multilingual BPB tasks (oellm-multilingual-bpb): bits_per_byte, lower is better.
+  flores200_als_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_bos_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_bul_Cyrl-eng_Latn_bpb: bits_per_byte
+  flores200_cat_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_ces_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_dan_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_deu_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_ell_Grek-eng_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-als_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-bos_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-bul_Cyrl_bpb: bits_per_byte
+  flores200_eng_Latn-cat_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-ces_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-dan_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-deu_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-ell_Grek_bpb: bits_per_byte
+  flores200_eng_Latn-est_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-eus_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-fin_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-fra_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-gle_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-glg_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-hrv_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-hun_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-isl_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-ita_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-kat_Geor_bpb: bits_per_byte
+  flores200_eng_Latn-lit_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-lvs_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-mkd_Cyrl_bpb: bits_per_byte
+  flores200_eng_Latn-mlt_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-nld_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-nob_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-pol_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-por_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-ron_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-slk_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-slv_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-spa_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-srp_Cyrl_bpb: bits_per_byte
+  flores200_eng_Latn-swe_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-tur_Latn_bpb: bits_per_byte
+  flores200_eng_Latn-ukr_Cyrl_bpb: bits_per_byte
+  flores200_est_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_eus_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_fin_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_fra_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_gle_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_glg_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_hrv_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_hun_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_isl_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_ita_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_kat_Geor-eng_Latn_bpb: bits_per_byte
+  flores200_lit_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_lvs_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_mkd_Cyrl-eng_Latn_bpb: bits_per_byte
+  flores200_mlt_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_nld_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_nob_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_pol_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_por_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_ron_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_slk_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_slv_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_spa_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_srp_Cyrl-eng_Latn_bpb: bits_per_byte
+  flores200_swe_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_tur_Latn-eng_Latn_bpb: bits_per_byte
+  flores200_ukr_Cyrl-eng_Latn_bpb: bits_per_byte
+  belebele_bul_Cyrl_bpb: bits_per_byte
+  belebele_ces_Latn_bpb: bits_per_byte
+  belebele_dan_Latn_bpb: bits_per_byte
+  belebele_deu_Latn_bpb: bits_per_byte
+  belebele_ell_Grek_bpb: bits_per_byte
+  belebele_eng_Latn_bpb: bits_per_byte
+  belebele_est_Latn_bpb: bits_per_byte
+  belebele_fin_Latn_bpb: bits_per_byte
+  belebele_fra_Latn_bpb: bits_per_byte
+  belebele_hrv_Latn_bpb: bits_per_byte
+  belebele_hun_Latn_bpb: bits_per_byte
+  belebele_ita_Latn_bpb: bits_per_byte
+  belebele_lit_Latn_bpb: bits_per_byte
+  belebele_lvs_Latn_bpb: bits_per_byte
+  belebele_mlt_Latn_bpb: bits_per_byte
+  belebele_nld_Latn_bpb: bits_per_byte
+  belebele_nob_Latn_bpb: bits_per_byte
+  belebele_pol_Latn_bpb: bits_per_byte
+  belebele_por_Latn_bpb: bits_per_byte
+  belebele_ron_Latn_bpb: bits_per_byte
+  belebele_slk_Latn_bpb: bits_per_byte
+  belebele_slv_Latn_bpb: bits_per_byte
+  belebele_spa_Latn_bpb: bits_per_byte
+  belebele_swe_Latn_bpb: bits_per_byte
+  global_mmlu_cs_bpb: bits_per_byte
+  global_mmlu_de_bpb: bits_per_byte
+  global_mmlu_el_bpb: bits_per_byte
+  global_mmlu_en_bpb: bits_per_byte
+  global_mmlu_es_bpb: bits_per_byte
+  global_mmlu_fr_bpb: bits_per_byte
+  global_mmlu_he_bpb: bits_per_byte
+  global_mmlu_it_bpb: bits_per_byte
+  global_mmlu_lt_bpb: bits_per_byte
+  global_mmlu_nl_bpb: bits_per_byte
+  global_mmlu_pl_bpb: bits_per_byte
+  global_mmlu_pt_bpb: bits_per_byte
+  global_mmlu_ro_bpb: bits_per_byte
+  global_mmlu_ru_bpb: bits_per_byte
+  global_mmlu_sr_bpb: bits_per_byte
+  global_mmlu_sv_bpb: bits_per_byte
+  global_mmlu_tr_bpb: bits_per_byte
+  global_mmlu_uk_bpb: bits_per_byte
+  mgsm_direct_de_bpb: bits_per_byte
+  mgsm_direct_en_bpb: bits_per_byte
+  mgsm_direct_es_bpb: bits_per_byte
+  mgsm_direct_fr_bpb: bits_per_byte
+  xwinograd_en_bpb: bits_per_byte
+  xwinograd_fr_bpb: bits_per_byte
+  xwinograd_jp_bpb: bits_per_byte
+  xwinograd_pt_bpb: bits_per_byte
+  xwinograd_ru_bpb: bits_per_byte
+  xwinograd_zh_bpb: bits_per_byte
+  xcopa_et_bpb: bits_per_byte
+  xcopa_ht_bpb: bits_per_byte
+  xcopa_id_bpb: bits_per_byte
+  xcopa_it_bpb: bits_per_byte
+  xcopa_qu_bpb: bits_per_byte
+  xcopa_sw_bpb: bits_per_byte
+  xcopa_ta_bpb: bits_per_byte
+  xcopa_th_bpb: bits_per_byte
+  xcopa_tr_bpb: bits_per_byte
+  xcopa_vi_bpb: bits_per_byte
+  xcopa_zh_bpb: bits_per_byte
+  xstorycloze_ar_bpb: bits_per_byte
+  xstorycloze_en_bpb: bits_per_byte
+  xstorycloze_es_bpb: bits_per_byte
+  xstorycloze_eu_bpb: bits_per_byte
+  xstorycloze_hi_bpb: bits_per_byte
+  xstorycloze_id_bpb: bits_per_byte
+  xstorycloze_my_bpb: bits_per_byte
+  xstorycloze_ru_bpb: bits_per_byte
+  xstorycloze_sw_bpb: bits_per_byte
+  xstorycloze_te_bpb: bits_per_byte
+  xstorycloze_zh_bpb: bits_per_byte
+  include_base_44_albanian_bpb: bits_per_byte
+  include_base_44_armenian_bpb: bits_per_byte
+  include_base_44_azerbaijani_bpb: bits_per_byte
+  include_base_44_basque_bpb: bits_per_byte
+  include_base_44_belarusian_bpb: bits_per_byte
+  include_base_44_bulgarian_bpb: bits_per_byte
+  include_base_44_croatian_bpb: bits_per_byte
+  include_base_44_dutch_bpb: bits_per_byte
+  include_base_44_estonian_bpb: bits_per_byte
+  include_base_44_finnish_bpb: bits_per_byte
+  include_base_44_french_bpb: bits_per_byte
+  include_base_44_georgian_bpb: bits_per_byte
+  include_base_44_german_bpb: bits_per_byte
+  include_base_44_greek_bpb: bits_per_byte
+  include_base_44_hungarian_bpb: bits_per_byte
+  include_base_44_italian_bpb: bits_per_byte
+  include_base_44_lithuanian_bpb: bits_per_byte
+  include_base_44_north_macedonian_bpb: bits_per_byte
+  include_base_44_polish_bpb: bits_per_byte
+  include_base_44_portuguese_bpb: bits_per_byte
+  include_base_44_russian_bpb: bits_per_byte
+  include_base_44_serbian_bpb: bits_per_byte
+  include_base_44_spanish_bpb: bits_per_byte
+  include_base_44_turkish_bpb: bits_per_byte
+  include_base_44_ukrainian_bpb: bits_per_byte
   mmlu: acc
   mmlu_prox_cs: exact_match
   mmlu_prox_de: exact_match
@@ -970,6 +1140,164 @@ task_groups:
       - task: mmlu_machine_learning_bpb
         subset: machine_learning
 
+  # ------------------------------------------------------------------
+  # Multilingual BPB groups: the BPB counterparts of the oellm-multilingual
+  # super group, with the same conventions as the English BPB groups above
+  # (0-shot; multiple-choice exams in cloze form). FLORES and MGSM score a
+  # single reference (translation / final answer number) instead of a choice.
+  # Task definitions live in custom_lm_eval_tasks/bpb/<benchmark>/.
+  # ------------------------------------------------------------------
+  flores-200-eu-to-eng-bpb:
+    description: "Bits-per-byte of FLORES-200 EU->English reference translations (0-shot)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: facebook/flores
+    valid_langs: [bul_Cyrl, hrv_Latn, ces_Latn, dan_Latn, nld_Latn, est_Latn,
+                  fin_Latn, fra_Latn, deu_Latn, ell_Grek, hun_Latn, gle_Latn,
+                  ita_Latn, lvs_Latn, lit_Latn, mlt_Latn, pol_Latn, por_Latn,
+                  ron_Latn, slk_Latn, slv_Latn, spa_Latn, swe_Latn, cat_Latn,
+                  eus_Latn, glg_Latn, bos_Latn, kat_Geor, mkd_Cyrl, als_Latn,
+                  srp_Cyrl, tur_Latn, ukr_Cyrl, isl_Latn, nob_Latn]
+    tasks:
+      - task: "flores200_{lang}-eng_Latn_bpb"
+        subset: "{lang}-eng_Latn"
+
+  flores-200-eng-to-eu-bpb:
+    description: "Bits-per-byte of FLORES-200 English->EU reference translations (0-shot)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: facebook/flores
+    valid_langs: [bul_Cyrl, hrv_Latn, ces_Latn, dan_Latn, nld_Latn, est_Latn,
+                  fin_Latn, fra_Latn, deu_Latn, ell_Grek, hun_Latn, gle_Latn,
+                  ita_Latn, lvs_Latn, lit_Latn, mlt_Latn, pol_Latn, por_Latn,
+                  ron_Latn, slk_Latn, slv_Latn, spa_Latn, swe_Latn, cat_Latn,
+                  eus_Latn, glg_Latn, bos_Latn, kat_Geor, mkd_Cyrl, als_Latn,
+                  srp_Cyrl, tur_Latn, ukr_Cyrl, isl_Latn, nob_Latn]
+    tasks:
+      - task: "flores200_eng_Latn-{lang}_bpb"
+        subset: "eng_Latn-{lang}"
+
+  belebele-eu-bpb:
+    description: "Bits-per-byte on Belebele European languages, cloze form (0-shot)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: facebook/belebele
+    valid_langs: [bul_Cyrl, hrv_Latn, ces_Latn, dan_Latn, nld_Latn, eng_Latn, est_Latn, fin_Latn,
+                  fra_Latn, deu_Latn, ell_Grek, hun_Latn, ita_Latn, lvs_Latn, lit_Latn, mlt_Latn,
+                  pol_Latn, por_Latn, ron_Latn, slk_Latn, slv_Latn, spa_Latn, swe_Latn, nob_Latn]
+    tasks:
+      - task: "belebele_{lang}_bpb"
+        subset: "{lang}"
+
+  global-mmlu-eu-bpb:
+    description: "Bits-per-byte on Global-MMLU (all subjects per language), cloze form (0-shot)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: CohereForAI/Global-MMLU
+    valid_langs: [cs, de, el, en, es, fr, it, lt, nl, pl, pt, ro, ru, sr, sv, tr, uk, he]
+    tasks:
+      - task: "global_mmlu_{lang}_bpb"
+        subset: "{lang}"
+
+  mgsm-eu-bpb:
+    description: "Bits-per-byte of the MGSM final answer after the direct prompt (0-shot)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: jbross-ibm-research/mgsm
+    valid_langs: [en, de, es, fr]
+    tasks:
+      - task: "mgsm_direct_{lang}_bpb"
+        subset: "{lang}"
+
+  # XWinograd, XCOPA and XStoryCloze together mirror generic-multilingual, split
+  # per benchmark so each task carries its language.
+  xwinograd-bpb:
+    description: "Bits-per-byte on XWinograd (0-shot)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: Muennighoff/xwinograd
+    valid_langs: [en, fr, jp, pt, ru, zh]
+    tasks:
+      - task: "xwinograd_{lang}_bpb"
+        subset: "{lang}"
+
+  xcopa-bpb:
+    description: "Bits-per-byte on XCOPA (0-shot)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: cambridgeltl/xcopa
+    valid_langs: [et, ht, id, it, qu, sw, ta, th, tr, vi, zh]
+    tasks:
+      - task: "xcopa_{lang}_bpb"
+        subset: "{lang}"
+
+  xstorycloze-bpb:
+    description: "Bits-per-byte on XStoryCloze (0-shot)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: juletxara/xstory_cloze
+    valid_langs: [ar, en, es, eu, hi, id, my, ru, sw, te, zh]
+    tasks:
+      - task: "xstorycloze_{lang}_bpb"
+        subset: "{lang}"
+
+  include-bpb:
+    description: "Bits-per-byte on INCLUDE (all domains per language), cloze form (0-shot)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: CohereForAI/include-base-44
+    tasks:
+      - task: include_base_44_albanian_bpb
+        subset: Albanian
+      - task: include_base_44_armenian_bpb
+        subset: Armenian
+      - task: include_base_44_azerbaijani_bpb
+        subset: Azerbaijani
+      - task: include_base_44_basque_bpb
+        subset: Basque
+      - task: include_base_44_belarusian_bpb
+        subset: Belarusian
+      - task: include_base_44_bulgarian_bpb
+        subset: Bulgarian
+      - task: include_base_44_croatian_bpb
+        subset: Croatian
+      - task: include_base_44_dutch_bpb
+        subset: Dutch
+      - task: include_base_44_estonian_bpb
+        subset: Estonian
+      - task: include_base_44_finnish_bpb
+        subset: Finnish
+      - task: include_base_44_french_bpb
+        subset: French
+      - task: include_base_44_georgian_bpb
+        subset: Georgian
+      - task: include_base_44_german_bpb
+        subset: German
+      - task: include_base_44_greek_bpb
+        subset: Greek
+      - task: include_base_44_hungarian_bpb
+        subset: Hungarian
+      - task: include_base_44_italian_bpb
+        subset: Italian
+      - task: include_base_44_lithuanian_bpb
+        subset: Lithuanian
+      - task: include_base_44_north_macedonian_bpb
+        subset: North Macedonian
+      - task: include_base_44_polish_bpb
+        subset: Polish
+      - task: include_base_44_portuguese_bpb
+        subset: Portuguese
+      - task: include_base_44_russian_bpb
+        subset: Russian
+      - task: include_base_44_serbian_bpb
+        subset: Serbian
+      - task: include_base_44_spanish_bpb
+        subset: Spanish
+      - task: include_base_44_turkish_bpb
+        subset: Turkish
+      - task: include_base_44_ukrainian_bpb
+        subset: Ukrainian
+
 super_groups:
   oellm-multilingual:
     description: "Combined Belebele EU set plus multilingual benchmarks"
@@ -987,3 +1315,16 @@ super_groups:
     task_groups:
       - task: bpb-core
       - task: bpb-mmlu-stem
+
+  oellm-multilingual-bpb:
+    description: "Bits-per-byte counterparts of the oellm-multilingual benchmarks"
+    task_groups:
+      - task: flores-200-eu-to-eng-bpb
+      - task: flores-200-eng-to-eu-bpb
+      - task: belebele-eu-bpb
+      - task: global-mmlu-eu-bpb
+      - task: mgsm-eu-bpb
+      - task: xwinograd-bpb
+      - task: xcopa-bpb
+      - task: xstorycloze-bpb
+      - task: include-bpb

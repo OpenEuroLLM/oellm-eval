@@ -1,0 +1,3 @@
+include: ../_belebele_bpb_template_yaml
+task: belebele_dan_Latn_bpb
+dataset_name: dan_Latn

@@ -1,0 +1,4 @@
+include: ../_xcopa_bpb_template_yaml
+task: xcopa_qu_bpb
+dataset_name: qu
+doc_to_text: '{{premise.strip()[:-1]}} {{"imataq" if question == "cause" else "chaymi"}}'

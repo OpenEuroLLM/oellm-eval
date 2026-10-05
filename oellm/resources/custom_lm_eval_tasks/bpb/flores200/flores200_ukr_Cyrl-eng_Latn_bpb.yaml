@@ -1,0 +1,4 @@
+include: ../_flores200_xx_eng_bpb_template_yaml
+task: flores200_ukr_Cyrl-eng_Latn_bpb
+dataset_name: ukr_Cyrl-eng_Latn
+doc_to_text: 'UK: {{sentence_ukr_Cyrl}} EN:'
