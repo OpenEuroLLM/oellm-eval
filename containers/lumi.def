@@ -2,7 +2,7 @@ Bootstrap: docker
 From: rocm/pytorch:rocm7.2.1_ubuntu24.04_py3.12_pytorch_release_2.9.1
 
 %arguments
-    JUDGEARENA_GIT_REF=cdf9a7f1a24cbe0e885ae6f7bca74cb60ee907e1
+    JUDGEARENA_GIT_REF=29f3091f16ca5df7ea287748528aecbaad29b620
 
 %labels
     Author      oellm-cli
