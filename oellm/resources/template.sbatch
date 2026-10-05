@@ -25,6 +25,23 @@ export HF_HOME=$HF_HOME
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export HF_HUB_OFFLINE={hf_hub_offline}
 
+# Neither harness caches under HF_HOME on its own. lighteval hardcodes
+# ~/.cache/huggingface/lighteval and never reads HF_HOME, which fills the user's
+# home directory and fails mid-run on clusters with a small home quota
+# ("OSError: [Errno 122] Disk quota exceeded"). lm-eval keeps request caches
+# inside its own install directory, which is read-only in the container. Point
+# both at the shared cache instead.
+export LIGHTEVAL_CACHE_DIR="$HF_HOME/lighteval"
+export LM_HARNESS_CACHE_PATH="$HF_HOME/lm_eval"
+mkdir -p "$LIGHTEVAL_CACHE_DIR" "$LM_HARNESS_CACHE_PATH"
+
+# lighteval caches unconditionally, so it always uses LIGHTEVAL_CACHE_DIR.
+# lm-eval only caches with --cache_requests, which stays opt-in: set
+# CACHE_REQUESTS=true to enable it, or =refresh to rebuild entries after editing
+# a task YAML (the cache key covers task, shots and tokenizer, but not the task
+# definition). Leaving it off keeps --limit runs fast -- lm-eval ignores --limit
+# while building contexts whenever caching is on.
+
 # Path to the shared Singularity image that contains all runtime deps (container mode)
 export EVAL_SIF_PATH="$EVAL_BASE_DIR/$EVAL_CONTAINER_IMAGE"
 
@@ -139,7 +156,7 @@ do
         JOB_HOME="$EVAL_BASE_DIR/$USER/container_home/$SLURM_JOB_ID"
         mkdir -p "$JOB_HOME"
         SINGULARITY_HOME_ARG="--home $JOB_HOME"
-        SINGULARITY_ENV_ARGS="--env HF_HOME=$HF_HOME --env HF_DATASETS_CACHE=$HF_DATASETS_CACHE --env HF_HUB_OFFLINE=$HF_HUB_OFFLINE --env TRANSFORMERS_OFFLINE=$TRANSFORMERS_OFFLINE --env NLTK_DATA=$NLTK_DATA"
+        SINGULARITY_ENV_ARGS="--env HF_HOME=$HF_HOME --env HF_DATASETS_CACHE=$HF_DATASETS_CACHE --env HF_HUB_OFFLINE=$HF_HUB_OFFLINE --env TRANSFORMERS_OFFLINE=$TRANSFORMERS_OFFLINE --env NLTK_DATA=$NLTK_DATA --env LM_HARNESS_CACHE_PATH=$LM_HARNESS_CACHE_PATH"
     fi
 
     GPU_DEVICES=$(seq -s, 0 $(($GPUS_PER_NODE - 1)))
@@ -190,6 +207,7 @@ do
                 --trust_remote_code \
                 ${{LM_EVAL_INCLUDE_PATH:+--include_path $$LM_EVAL_INCLUDE_PATH}} \
                 --batch_size auto \
+                ${{CACHE_REQUESTS:+--cache_requests $CACHE_REQUESTS}} \
                 ${{LIMIT:+--limit $LIMIT}}
             EVAL_STATUS=$?
             echo "----------------------------------------------------"
@@ -220,7 +238,7 @@ do
             if [ -n "$VENV_PATH" ]; then
                 source "$VENV_PATH/bin/activate"
                 lighteval accelerate \
-                    "model_name=$model_path,trust_remote_code=True,{additional_model_args}" \
+                    "model_name=$model_path,trust_remote_code=True,cache_dir=$LIGHTEVAL_CACHE_DIR,{additional_model_args}" \
                     "$LIGHT_TASK_ARG" \
                     --load-tasks-multilingual \
                     --output-dir "$RESULTS_SUBDIR" \
@@ -234,7 +252,7 @@ do
                     $EVAL_SIF_PATH \
                     env CUDA_VISIBLE_DEVICES=$GPU_DEVICES \
                     lighteval accelerate \
-                        "model_name=$model_path,{additional_model_args}" \
+                        "model_name=$model_path,cache_dir=$LIGHTEVAL_CACHE_DIR,{additional_model_args}" \
                         "$LIGHT_TASK_ARG" \
                         --load-tasks-multilingual \
                         --output-dir "$RESULTS_SUBDIR" \
