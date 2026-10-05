@@ -49,6 +49,7 @@ dev = [
 # [unitxt], [wandb], [zeno], [trackio], [sentencepiece], [archiver].
 eval-base = [
     "lm_eval[api,tasks]>=0.4.12",
+    "word2number",  # polymath scorer
     "datasets>=4.0",
 ]
 eval = [
