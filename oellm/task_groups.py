@@ -223,7 +223,7 @@ class TaskGroup:
             task_name = task_data["task"]
             task_n_shots = task_data.get("n_shots")
             task_dataset = task_data.get("dataset")
-            task_subset = task_data.get("subset")
+            task_subset = task_data.get("subset", data.get("subset"))
             tasks.append(
                 _Task(
                     name=task_name,

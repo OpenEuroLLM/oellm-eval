@@ -2,7 +2,7 @@ task_groups:
   sib200-eu:
     description: "SIB-200 European language topic classification tasks (0-shot)"
     suite: lm-eval-harness
-    metric: acc_norm
+    metric: acc
     n_shots: [0]
     dataset: Davlan/sib200
     valid_langs: [bul_Cyrl, hrv_Latn, ces_Latn, dan_Latn, nld_Latn, eng_Latn, est_Latn, fin_Latn,
@@ -502,6 +502,16 @@ task_groups:
       - task: AMC23
         n_shots: [0]
         suite: evalchemy
+
+  crows-pairs:
+    description: "CrowS-Pairs social bias benchmark (English, 0-shot)."
+    suite: lm-eval-harness
+    metric: pct_stereotype
+    n_shots: [0]
+    dataset: jannalu/crows_pairs_multilingual
+    subset: english
+    tasks:
+      - task: crows_pairs_english
 
   global-piqa-eu-completions:
     description: "Global PIQA European languages — multiple-choice completions (0-shot, mrlbenchmarks/global-piqa-nonparallel)"
