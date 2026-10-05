@@ -119,3 +119,31 @@ We use [Ali's fork](https://github.com/Ali-Elganzory/evalchemy) which includes a
    ```
 
 > **Note:** `HF_ALLOW_CODE_EVAL=1` is required because MBPP (run via lm-eval-harness) uses HuggingFace's `code_eval` metric which executes model-generated code. The evalchemy benchmarks (GPQADiamond, MATH500, LiveCodeBench) do not require this variable as they handle code execution safely through internal guards.
+
+## lmms-eval (image, video, audio)
+
+Image, video and audio models run via [lmms-eval](https://github.com/EvolvingLMMs-Lab/lmms-eval). It is supported in venv mode only.
+
+1. Install lmms-eval from a clone at the pinned commit:
+   ```bash
+   git clone https://github.com/EvolvingLMMs-Lab/lmms-eval.git
+   git -C lmms-eval checkout 45c766f60b6f8c153e4c72d06ca636e2db0ebcdb  # v0.7.2
+   uv pip install --python /path/to/.venv/bin/python -e lmms-eval
+   ```
+
+2. Run with a jobs CSV that sets `eval_suite` to `lmms-eval`:
+   ```csv
+   model_path,task_path,n_shot,eval_suite
+   llava-hf/llava-interleave-qwen-0.5b-hf,realworldqa,0,lmms-eval
+   ```
+   ```bash
+   oellm-eval schedule --eval_csv_path jobs.csv --venv_path /path/to/.venv
+   ```
+
+The lmms-eval model class is picked from the model name (see the `lmms_eval` case in `template.sbatch`). To set it yourself, use `lmms-eval:<class>` as the suite, e.g. `lmms-eval:internvl2`.
+
+Optional environment variables:
+- `LMMS_MODEL_ARGS`: extra model arguments, e.g. `device_map=cuda:0`
+- `MAX_NUM_FRAMES`: frames per video for Qwen VL models (default 8)
+
+> **Note:** Datasets are pre-downloaded only for task groups, and there are no lmms-eval task groups yet. Until they are added, download the datasets yourself before submitting the job.
