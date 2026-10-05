@@ -1,0 +1,4 @@
+include: ../_xcopa_bpb_template_yaml
+task: xcopa_tr_bpb
+dataset_name: tr
+doc_to_text: '{{premise.strip()[:-1]}} {{"çünkü" if question == "cause" else "bu yüzden"}}'

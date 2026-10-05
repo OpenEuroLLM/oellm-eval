@@ -1,0 +1,4 @@
+include: ../_xcopa_bpb_template_yaml
+task: xcopa_th_bpb
+dataset_name: th
+doc_to_text: '{{premise.strip()[:-1]}} {{"เพราะ" if question == "cause" else "ดังนั้น"}}'

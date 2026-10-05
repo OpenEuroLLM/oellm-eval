@@ -1,0 +1,4 @@
+include: ../_flores200_xx_eng_bpb_template_yaml
+task: flores200_als_Latn-eng_Latn_bpb
+dataset_name: als_Latn-eng_Latn
+doc_to_text: 'SQ: {{sentence_als_Latn}} EN:'

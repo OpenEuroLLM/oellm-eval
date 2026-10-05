@@ -1,0 +1,13 @@
+# XCOPA with the upstream lm-eval prompt; the per-language connector comes from
+# each task's doc_to_text. Per-language tasks live in xcopa/.
+include: _bpb_template_yaml
+tag:
+  - bpb
+  - bpb_multilingual
+  - xcopa_bpb
+dataset_path: cambridgeltl/xcopa
+validation_split: validation
+test_split: test
+doc_to_target: label
+doc_to_choice: !function utils.doc_to_choice_xcopa
+process_results: !function utils.process_results_xcopa

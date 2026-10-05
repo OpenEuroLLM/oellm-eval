@@ -1,0 +1,4 @@
+include: ../_flores200_xx_eng_bpb_template_yaml
+task: flores200_cat_Latn-eng_Latn_bpb
+dataset_name: cat_Latn-eng_Latn
+doc_to_text: 'CA: {{sentence_cat_Latn}} EN:'

@@ -1,0 +1,4 @@
+include: ../_flores200_xx_eng_bpb_template_yaml
+task: flores200_mkd_Cyrl-eng_Latn_bpb
+dataset_name: mkd_Cyrl-eng_Latn
+doc_to_text: 'MK: {{sentence_mkd_Cyrl}} EN:'

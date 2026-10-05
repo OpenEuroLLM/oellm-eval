@@ -1,0 +1,3 @@
+include: ../_xwinograd_bpb_template_yaml
+task: xwinograd_pt_bpb
+dataset_name: pt

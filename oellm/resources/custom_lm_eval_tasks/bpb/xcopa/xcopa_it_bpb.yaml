@@ -1,0 +1,4 @@
+include: ../_xcopa_bpb_template_yaml
+task: xcopa_it_bpb
+dataset_name: it
+doc_to_text: '{{premise.strip()[:-1]}} {{"perché" if question == "cause" else "quindi"}}'

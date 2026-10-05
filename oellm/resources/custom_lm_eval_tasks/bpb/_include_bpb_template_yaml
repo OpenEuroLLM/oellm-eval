@@ -1,0 +1,14 @@
+# INCLUDE in cloze form, like _mmlu_stem_bpb_template_yaml. Each language is a
+# single task over the whole test split (all domains). Per-language tasks live
+# in include/.
+include: _bpb_template_yaml
+tag:
+  - bpb
+  - bpb_multilingual
+  - include_bpb
+dataset_path: CohereForAI/include-base-44
+test_split: test
+doc_to_text: "Question: {{question.strip()}}\nAnswer:"
+doc_to_target: answer
+doc_to_choice: "{{[option_a, option_b, option_c, option_d]}}"
+process_results: !function utils.process_results_include

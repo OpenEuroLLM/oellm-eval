@@ -1,0 +1,4 @@
+include: ../_xcopa_bpb_template_yaml
+task: xcopa_sw_bpb
+dataset_name: sw
+doc_to_text: '{{premise.strip()[:-1]}} {{"kwa sababu" if question == "cause" else "kwa hiyo"}}'

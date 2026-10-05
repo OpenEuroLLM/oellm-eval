@@ -42,10 +42,16 @@ Write a ``process_results_<task>(doc, results)`` that resolves the document's
 choice strings and gold index, then returns ``_score(results, choices, gold)``.
 ``results`` is the list of ``(loglikelihood, is_greedy)`` pairs lm-eval
 produces, one per choice, in ``doc_to_choice`` order.
+
+Single-reference tasks (FLORES translation, MGSM answers) use
+``output_type: loglikelihood`` instead and return
+``_score_continuation(results, text)``. lm-eval does not insert
+``target_delimiter`` for ``loglikelihood`` requests, so their ``doc_to_target``
+prepends the space itself and ``text`` is the reference *without* it, keeping
+the byte convention above.
 """
 
 import re
-
 
 # --------------------------------------------------------------------------
 # Core scoring
@@ -125,6 +131,17 @@ def _score(results, choices, gold, continuation=None):
         # Consumed by lm-eval's registered "bits_per_byte" aggregation.
         "bits_per_byte": (lls[gold_idx], gold_bytes),
     }
+
+
+def _score_continuation(results, continuation):
+    """Return the metric dict for one ``loglikelihood`` (single-reference) doc.
+
+    Args:
+        results: one-element list holding the reference's (loglikelihood, is_greedy).
+        continuation: the reference text, without the leading space that the
+            task's ``doc_to_target`` prepends.
+    """
+    return {"bits_per_byte": (_loglikelihoods(results)[0], _byte_len(continuation))}
 
 
 # --------------------------------------------------------------------------
@@ -281,3 +298,114 @@ def process_results_winogrande(doc, results):
         doc_to_text_winogrande(doc),
         continuation=doc_to_target_winogrande(doc),
     )
+
+
+# ==========================================================================
+# Multilingual tasks (the oellm-multilingual-bpb super group)
+#
+# Task YAMLs live in per-benchmark subdirectories and include the
+# _<benchmark>_bpb_template_yaml files next to this module. XWinograd has the
+# Winogrande schema and reuses the Winogrande functions above.
+# ==========================================================================
+
+
+# --------------------------------------------------------------------------
+# Belebele -- cloze form: the continuation is the answer text, not a letter
+# --------------------------------------------------------------------------
+
+
+def process_results_belebele(doc, results):
+    choices = [doc[f"mc_answer{i}"] for i in range(1, 5)]
+    return _score(results, choices, int(doc["correct_answer_num"]) - 1)
+
+
+# --------------------------------------------------------------------------
+# Global-MMLU / INCLUDE -- cloze form, for the same reason as MMLU
+# --------------------------------------------------------------------------
+
+
+def _exam_choices(doc):
+    return [doc["option_a"], doc["option_b"], doc["option_c"], doc["option_d"]]
+
+
+def process_results_global_mmlu(doc, results):
+    # Global-MMLU stores the gold answer as a letter.
+    gold = {"A": 0, "B": 1, "C": 2, "D": 3}.get(str(doc["answer"]).strip())
+    return _score(results, _exam_choices(doc), gold)
+
+
+def process_results_include(doc, results):
+    return _score(results, _exam_choices(doc), int(doc["answer"]))
+
+
+# --------------------------------------------------------------------------
+# XCOPA -- same prompt as the upstream lm-eval xcopa tasks. The per-language
+# cause/effect connector is in each task's doc_to_text (xcopa/*.yaml).
+# --------------------------------------------------------------------------
+
+
+def doc_to_choice_xcopa(doc):
+    return [_copa_convert_choice(doc["choice1"]), _copa_convert_choice(doc["choice2"])]
+
+
+def process_results_xcopa(doc, results):
+    return _score(results, doc_to_choice_xcopa(doc), int(doc["label"]))
+
+
+# --------------------------------------------------------------------------
+# XStoryCloze
+# --------------------------------------------------------------------------
+
+
+def process_results_xstorycloze(doc, results):
+    choices = [doc["sentence_quiz1"], doc["sentence_quiz2"]]
+    return _score(results, choices, int(doc["answer_right_ending"]) - 1)
+
+
+# --------------------------------------------------------------------------
+# MGSM -- the test split has no worked solutions, only the final number, so
+# BPB is measured on the number that follows the upstream "direct" prompt.
+# --------------------------------------------------------------------------
+
+
+def _mgsm_answer(doc):
+    answer = doc["answer_number"]
+    if isinstance(answer, float) and answer.is_integer():
+        answer = int(answer)
+    return str(answer)
+
+
+def doc_to_target_mgsm(doc):
+    return " " + _mgsm_answer(doc)
+
+
+def process_results_mgsm(doc, results):
+    return _score_continuation(results, _mgsm_answer(doc))
+
+
+# --------------------------------------------------------------------------
+# FLORES-200 -- BPB of the reference translation given the source sentence.
+# The facebook/flores pair configs (e.g. deu_Latn-eng_Latn) carry exactly two
+# sentence_<lang> columns, one of which is English.
+# --------------------------------------------------------------------------
+
+
+def _flores_non_english(doc):
+    (key,) = [k for k in doc if k.startswith("sentence_") and k != "sentence_eng_Latn"]
+    return doc[key]
+
+
+def doc_to_target_flores_xx_eng(doc):
+    return " " + doc["sentence_eng_Latn"]
+
+
+def process_results_flores_xx_eng(doc, results):
+    return _score_continuation(results, doc["sentence_eng_Latn"])
+
+
+def doc_to_target_flores_eng_xx(doc):
+    return " " + _flores_non_english(doc)
+
+
+def process_results_flores_eng_xx(doc, results):
+    return _score_continuation(results, _flores_non_english(doc))

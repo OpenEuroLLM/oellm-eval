@@ -1,0 +1,4 @@
+include: ../_xcopa_bpb_template_yaml
+task: xcopa_zh_bpb
+dataset_name: zh
+doc_to_text: '{{premise.strip()[:-1]}} {{"因为" if question == "cause" else "所以"}}'

@@ -1,0 +1,4 @@
+include: ../_flores200_xx_eng_bpb_template_yaml
+task: flores200_dan_Latn-eng_Latn_bpb
+dataset_name: dan_Latn-eng_Latn
+doc_to_text: 'DA: {{sentence_dan_Latn}} EN:'

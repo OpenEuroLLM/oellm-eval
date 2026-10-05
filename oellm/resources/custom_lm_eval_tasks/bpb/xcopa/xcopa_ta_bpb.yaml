@@ -1,0 +1,4 @@
+include: ../_xcopa_bpb_template_yaml
+task: xcopa_ta_bpb
+dataset_name: ta
+doc_to_text: '{{premise.strip()[:-1]}} {{"காரணமாக" if question == "cause" else "எனவே"}}'

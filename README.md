@@ -56,6 +56,7 @@ Available task groups:
 
 Super groups combine multiple task groups:
 - `oellm-multilingual` - All multilingual benchmarks combined
+- `oellm-multilingual-bpb` - Bits-per-byte counterparts of the `oellm-multilingual` benchmarks (0-shot, lm-eval-harness; see [`bpb/utils.py`](oellm/resources/custom_lm_eval_tasks/bpb/utils.py) for the scoring convention)
 
 ```bash
 # Use a task group

@@ -1,0 +1,3 @@
+include: ../_belebele_bpb_template_yaml
+task: belebele_eng_Latn_bpb
+dataset_name: eng_Latn

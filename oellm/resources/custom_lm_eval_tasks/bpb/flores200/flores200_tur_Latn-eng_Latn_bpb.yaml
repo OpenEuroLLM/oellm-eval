@@ -1,0 +1,4 @@
+include: ../_flores200_xx_eng_bpb_template_yaml
+task: flores200_tur_Latn-eng_Latn_bpb
+dataset_name: tur_Latn-eng_Latn
+doc_to_text: 'TR: {{sentence_tur_Latn}} EN:'

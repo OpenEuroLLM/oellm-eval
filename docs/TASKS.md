@@ -83,7 +83,7 @@ Languages are **derived in code** — there is no `languages` field to set in th
 YAML. A task resolves to a canonical [`lang_Script`](https://en.wikipedia.org/wiki/IETF_language_tag)
 code (e.g. `deu_Latn`) from, in order:
 
-1. **`flores200:src-tgt` task names** → the non-English side(s) of the pair.
+1. **`flores200:src-tgt` (and `flores200_src-tgt_bpb`) task names** → the non-English side(s) of the pair.
 2. **The `{lang}` value** substituted into a `valid_langs` template (preferred
    for new multilingual groups — see the template expansion above).
 3. **The task's `subset`** (e.g. `de`, `german`, `deu_Latn` all fold to

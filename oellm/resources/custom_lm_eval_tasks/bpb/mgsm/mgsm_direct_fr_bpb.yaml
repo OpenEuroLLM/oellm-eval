@@ -1,0 +1,4 @@
+include: ../_mgsm_bpb_template_yaml
+task: mgsm_direct_fr_bpb
+dataset_name: fr
+doc_to_text: '{% if answer is not none %}{{question+"\nRéponse :"}}{% else %}{{"Question : "+question+"\nRéponse :"}}{% endif %}'
