@@ -13,6 +13,18 @@ _config = yaml.safe_load((files("oellm.resources") / "task-groups.yaml").read_te
 ALL_TASK_GROUPS = list(_config["task_groups"].keys())
 
 
+@pytest.fixture
+def schedule_env(tmp_path):
+    with (
+        patch("oellm.main._load_cluster_env"),
+        patch.dict(
+            os.environ,
+            {"EVAL_OUTPUT_DIR": str(tmp_path), "HF_HOME": str(tmp_path / "hf")},
+        ),
+    ):
+        yield
+
+
 @pytest.mark.parametrize("n_shot", [None, 0])
 @pytest.mark.parametrize("task_groups", ALL_TASK_GROUPS)
 def test_schedule_evals(tmp_path, n_shot, task_groups):
@@ -138,3 +150,33 @@ def test_schedule_evals_slurm_template_var_invalid_json(tmp_path):
                 dry_run=True,
                 slurm_template_var='["partition", "dev-g"]',
             )
+
+
+def test_download_only_prepares_packaged_judgearena_task(schedule_env):
+    with (
+        patch("oellm.main._ensure_runtime_environment"),
+        patch("oellm.main._process_model_paths"),
+        patch("oellm.main._download_judgearena_tasks") as download,
+    ):
+        schedule_evals(
+            models="local-model",
+            tasks="arena-hard-v2.0",
+            n_shot=0,
+            download_only=True,
+            venv_path=sys.prefix,
+        )
+
+    assert download.call_args.args[0] == ["arena-hard-v2.0"]
+
+
+def test_schedule_rejects_nested_judgearena_overrides(schedule_env):
+    with pytest.raises(ValueError, match="judge"):
+        schedule_evals(
+            models="local-model",
+            tasks="arena-hard-v2.0",
+            n_shot=0,
+            judgearena_kwargs={"judge": {"prompt_preset": "custom"}},
+            skip_checks=True,
+            venv_path=sys.prefix,
+            dry_run=True,
+        )

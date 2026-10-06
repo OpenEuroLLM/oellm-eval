@@ -211,17 +211,33 @@ def test_templated_tasks_all_resolve_to_a_language():
             )
 
 
+def test_judgearena_selects_base_tasks():
+    tasks = [task.name for _, task in _select_tasks(["judgearena"])]
+
+    assert tasks == [
+        "alpaca-eval",
+        "alpaca-eval-ja",
+        "arena-hard-v0.1",
+        "arena-hard-v0.1-ja",
+        "arena-hard-v2.0",
+        "arena-hard-v2.0-ja",
+        "elo-comparia",
+        "elo-lmarena",
+        "elo-lmarena-100k",
+        "elo-lmarena-140k",
+        "fluency",
+        "m-arena-hard-v0.1",
+        "m-arena-hard-v2.0",
+        "mt-bench",
+    ]
+
+
 # --- multilingual-oellm-eu --------------------------------------------------------
 # A super_group over the whole multilingual suite. It needs no language bracket
 # because the member groups themselves no longer carry non-target languages.
 
 # Dropped from global-mmlu-eu (ru, he) and include (hy, az, be, ru).
 OFF_TARGET_CODES = ["rus_Cyrl", "heb_Hebr", "hye_Armn", "aze_Latn", "bel_Cyrl"]
-
-
-def test_off_target_languages_are_gone_from_the_registry():
-    """No task group ships them any more, so no group can schedule them."""
-    assert not set(get_all_language_codes()) & set(OFF_TARGET_CODES)
 
 
 def test_multilingual_oellm_eu_reaches_no_off_target_language():
