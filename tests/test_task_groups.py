@@ -1,8 +1,27 @@
 from oellm.task_groups import (
+    TaskGroup,
     _expand_lang_templates,
     _expand_task_groups,
     _load_task_groups_data,
 )
+
+
+def test_group_subset_default_and_task_override():
+    group = TaskGroup.from_dict(
+        "example",
+        {
+            "description": "Subset inheritance",
+            "suite": "lm-eval-harness",
+            "n_shots": [0],
+            "dataset": "example/dataset",
+            "subset": "english",
+            "tasks": [
+                {"task": "inherited"},
+                {"task": "overridden", "subset": "french"},
+            ],
+        },
+    )
+    assert [task.subset for task in group.tasks] == ["english", "french"]
 
 
 class TestExpandLangTemplates:
@@ -163,10 +182,21 @@ class TestExpandTaskGroupsWithTemplates:
     def test_flores_eu_to_eng_expands_to_35_tasks(self):
         results = _expand_task_groups(["flores-200-eu-to-eng"])
         assert len(results) == 35
+        assert {result.n_shot for result in results} == {4}
 
-    def test_global_mmlu_expands_to_18_tasks(self):
+    def test_flores_eng_to_eu_uses_four_shots(self):
+        results = _expand_task_groups(["flores-200-eng-to-eu"])
+
+        assert len(results) == 35
+        assert {result.n_shot for result in results} == {4}
+
+    def test_global_mmlu_expands_to_16_tasks(self):
+        """16, not 18: Russian and Hebrew are not OpenEuroLLM target languages."""
         results = _expand_task_groups(["global-mmlu-eu"])
-        assert len(results) == 18
+        assert len(results) == 16
+        task_names = {r.task for r in results}
+        assert "global_mmlu_full_ru" not in task_names
+        assert "global_mmlu_full_he" not in task_names
 
     def test_global_piqa_completions_expands_to_32_tasks(self):
         results = _expand_task_groups(["global-piqa-eu-completions"])

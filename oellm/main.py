@@ -18,6 +18,7 @@ from oellm.task_groups import (
     _collect_dataset_specs,
     _expand_task_groups,
     _lookup_dataset_specs_for_tasks,
+    primary_metric_map,
     split_group_tokens,
 )
 from oellm.utils import (
@@ -110,6 +111,7 @@ def schedule_evals(
     eval_csv_path: str | None = None,
     *,
     max_array_len: int = 128,
+    tasks_per_job: int = 8,
     limit: int | None = None,
     verbose: bool = False,
     download_only: bool = False,
@@ -149,6 +151,11 @@ def schedule_evals(
             Warning: exclusive argument. Cannot specify `models`, `tasks`, `task_groups`, or `n_shot` when `eval_csv_path` is provided.
         max_array_len: The maximum number of jobs to schedule to run concurrently.
             Warning: this is not the number of jobs in the array job. This is determined by the environment variable `QUEUE_LIMIT`.
+        tasks_per_job: The maximum number of lm-eval-harness tasks evaluated by a single
+            `lm_eval` invocation. Tasks that share a model and shot count are evaluated
+            together so the model is loaded once instead of once per task. `lm_eval`
+            fails the whole invocation if one task raises, so this caps how many tasks
+            a single failure takes down; 1 restores one invocation per task.
         limit: If set, limit the number of samples per task (useful for quick testing).
             Passes --limit to lm_eval and --max_samples to lighteval.
         download_only: If True, only download the datasets and models and exit.
@@ -191,6 +198,16 @@ def schedule_evals(
         os.environ.setdefault("HF_HOME", str(Path.home() / ".cache" / "huggingface"))
     else:
         _load_cluster_env()
+        # The generated script bakes HF_HOME in and binds it into the container.
+        # Unset, it becomes an empty bind path and every array element dies
+        # inside singularity, so fail here with something actionable instead.
+        if not os.environ.get("HF_HOME"):
+            raise ValueError(
+                "HF_HOME is not set. Models and datasets are cached there and "
+                "compute nodes have no internet access, so it must point at a "
+                "directory on a shared filesystem, e.g.\n\n"
+                '    export HF_HOME="/path/to/your/hf_home"'
+            )
 
     use_venv = venv_path is not None
 
@@ -361,8 +378,26 @@ def schedule_evals(
     slurm_logs_dir.mkdir(parents=True, exist_ok=True)
     csv_path = evals_dir / "jobs.csv"
 
-    # Shuffle the dataframe to distribute fast/slow evaluations evenly across array jobs
-    df = df.sample(frac=1, random_state=42).reset_index(drop=True)
+    # Shuffle to distribute fast/slow evaluations evenly across array jobs, but
+    # shuffle *groups* of evaluations that share a model, shot count and suite
+    # rather than individual rows. The sbatch template collapses each such run
+    # of adjacent rows into a single lm_eval invocation, so keeping them
+    # adjacent is what lets the model be loaded once instead of once per task.
+    batch_key = ["model_path", "n_shot", "eval_suite"]
+    group_order = (
+        df[batch_key]
+        .drop_duplicates()
+        .sample(frac=1, random_state=42)
+        .reset_index(drop=True)
+        .reset_index()
+        .rename(columns={"index": "_group_rank"})
+    )
+    df = (
+        df.merge(group_order, on=batch_key, how="left")
+        .sort_values("_group_rank", kind="stable")
+        .drop(columns="_group_rank")
+        .reset_index(drop=True)
+    )
     logging.info(
         "Shuffled evaluation jobs for even load distribution across array workers"
     )
@@ -439,6 +474,7 @@ def schedule_evals(
     sbatch_script = sbatch_template.format(
         csv_path=csv_path,
         max_array_len=max_array_len,
+        tasks_per_job=max(1, tasks_per_job),
         array_limit=actual_array_size - 1,  # Array is 0-indexed
         num_jobs=actual_array_size,  # This is the number of array jobs, not total evals
         total_evals=len(df),  # Pass the total number of evaluations
@@ -537,10 +573,12 @@ def schedule_evals(
     except subprocess.CalledProcessError as e:
         logging.error(f"Failed to submit job: {e}")
         logging.error(f"sbatch stderr: {e.stderr}")
-    except FileNotFoundError:
+        raise SystemExit(1) from e
+    except FileNotFoundError as e:
         logging.error(
             "sbatch command not found. Please make sure you are on a system with SLURM installed."
         )
+        raise SystemExit(1) from e
 
 
 def collect_results(
@@ -548,6 +586,7 @@ def collect_results(
     output_csv: str = "eval_results.csv",
     *,
     check: bool = False,
+    fetch_all_metrics: bool = False,
     verbose: bool = False,
 ) -> None:
     """
@@ -567,66 +606,73 @@ def collect_results(
         results_dir: Root directory to search for jobs.csv files and JSON results
         output_csv: Output CSV filename (default: eval_results.csv)
         check: Check for missing evaluations and create a missing jobs CSV
+        fetch_all_metrics: If True, include every computed metric for each task.
+            If False (default), keep only that task's primary metric, as declared
+            by the ``metric:`` key on its task group in ``task-groups.yaml`` (or
+            on the individual task entry, which overrides the group). Tasks that
+            declare no primary metric keep all of theirs.
         verbose: Enable verbose logging
     """
     import json
 
-    import yaml
-
     _setup_logging(verbose)
 
-    task_groups_yaml = files("oellm.resources") / "task-groups.yaml"
-    with open(str(task_groups_yaml)) as _f:
-        _tg_cfg = yaml.safe_load(_f)
-    task_metrics = _tg_cfg.get("task_metrics", {})
+    # ------------------------------------------------------------------
+    # Primary metric per task, taken from the task definitions themselves
+    # (task-groups.yaml): a group declares `metric:`, an individual task may
+    # override it. Tasks whose group declares neither are absent from the map
+    # and keep every metric the harness computed.
+    # ------------------------------------------------------------------
+    _primary_metrics: dict[str, str] = {} if fetch_all_metrics else primary_metric_map()
 
-    def _resolve_metric(
-        task_name: str, result_dict: dict
-    ) -> tuple[float | None, str | None]:
-        """Return (value, metric_name) for task_name from result_dict."""
+    def _resolve_primary_metric(
+        task_name: str, metrics: list[tuple[str, float]]
+    ) -> list[tuple[str, float]]:
+        """Keep only the primary metric for *task_name*.
 
-        # Skip non-metric keys; lm-eval uses suffixes like ",none" or ",remove_whitespace"
-        def _first_numeric(d: dict, *candidates: str) -> tuple[float | None, str | None]:
-            for c in candidates:
-                if c in d and isinstance(d[c], int | float):
-                    return float(d[c]), c
-            return None, None
+        Falls back to every metric when the task declares no primary one, or
+        when the declared metric is absent from this result (so a task is never
+        silently dropped because of a metric-name mismatch).
+        """
+        primary = _primary_metrics.get(task_name)
+        if primary is None:
+            return metrics
+        wanted = primary.lower()
+        filtered = [(m, v) for m, v in metrics if m.lower() == wanted]
+        return filtered or metrics
 
-        def _first_matching_prefix(
-            d: dict, prefix: str
-        ) -> tuple[float | None, str | None]:
-            for k, v in d.items():
-                if (k == prefix or k.startswith(prefix + ",")) and isinstance(
-                    v, int | float
-                ):
-                    return float(v), k
-            return None, None
+    def _extract_all_metrics(result_dict: dict) -> list[tuple[str, float]]:
+        """Return (metric_name, value) for every numeric entry in result_dict.
 
-        preferred = task_metrics.get(task_name)
-        if preferred is not None:
-            val, key = _first_numeric(result_dict, f"{preferred},none", preferred)
-            if val is not None:
-                return val, key
-            val, key = _first_matching_prefix(result_dict, preferred)
-            return val, key
+        lm-eval harness stores keys as ``{metric},{filter}`` (e.g. ``acc,none``
+        or ``acc_norm_stderr,none``).  The ``,{filter}`` suffix is stripped so
+        that the metric name in the output is clean (e.g. ``acc``,
+        ``acc_norm_stderr``).  When two raw keys collapse to the same stripped
+        name the first one encountered wins.
 
-        for metric in [
-            "acc,none",
-            "acc",
-            "accuracy",
-            "acc_norm",
-            "f1",
-            "exact_match",
-            "chrf++",
-            "bleu",
-        ]:
-            val, key = _first_numeric(result_dict, metric)
-            if val is not None:
-                return val, key
-            val, key = _first_matching_prefix(result_dict, metric.split(",")[0])
-            if val is not None:
-                return val, key
-        return None, None
+        A filter other than ``none`` means the task post-processed the model
+        output before scoring -- ``strict-match`` on jeopardy and the bigbench
+        ``generate_until`` tasks, which strip whitespace via ``filter_list``.
+        Stripping the suffix is safe because each task declares exactly one
+        filter, so its keys cannot collide.  A task declaring two (lm-eval's
+        bbh offers ``flexible-extract`` and ``strict-match``) would need
+        ``raw_key`` kept instead of split, to tell the variants apart.
+
+        Both primary metrics and their ``_stderr`` counterparts are emitted as
+        separate rows.
+        """
+        seen: set[str] = set()
+        metrics: list[tuple[str, float]] = []
+        for raw_key, value in result_dict.items():
+            if not isinstance(value, (int, float)):
+                continue
+            # Strip lm-eval harness ",{filter}" suffix
+            metric_name = raw_key.split(",")[0] if "," in raw_key else raw_key
+            if metric_name in seen:
+                continue
+            seen.add(metric_name)
+            metrics.append((metric_name, float(value)))
+        return metrics
 
     def _split_task_and_nshot(name: str) -> tuple[str, int | None]:
         """Split task names of the form 'task|N' returning (task, N) or (task, None)."""
@@ -729,12 +775,15 @@ def collect_results(
             for _s in _subs:
                 group_subtask_names.add(_s)
 
-        # Prefer only the first aggregate metric from groups (simplified)
-        if groups_map:
-            group_name, group_results = next(iter(groups_map.items()))
+        # Record every top-level aggregate. A group listed as another group's
+        # subtask (e.g. `mmlu_humanities` under `mmlu`) is an intermediate
+        # aggregate and is left to its parent, so a grouped run reports the
+        # aggregate the job actually asked for.
+        for orig_group_name, group_results in groups_map.items():
+            if orig_group_name in group_subtask_names:
+                continue
             # Prefer original extraction from n_shot_data and subtasks, then
             # global_n_shot; only fall back to parsing the group name.
-            orig_group_name = group_name
             n_shot = n_shot_data.get(orig_group_name, "unknown")
             if n_shot == "unknown":
                 for subtask_name in group_subtasks_map.get(orig_group_name, []):
@@ -747,21 +796,22 @@ def collect_results(
             group_name, parsed_n = _split_task_and_nshot(orig_group_name)
             if n_shot == "unknown" and parsed_n is not None:
                 n_shot = parsed_n
-            performance, metric_name = _resolve_metric(group_name, group_results)
-            if performance is not None:
+            task_metric_pairs = _extract_all_metrics(group_results)
+            if not fetch_all_metrics:
+                task_metric_pairs = _resolve_primary_metric(group_name, task_metric_pairs)
+            if task_metric_pairs:
                 if check:
                     completed_jobs.add((model_name, group_name, n_shot))
-                rows.append(
-                    {
-                        "model_name": model_name,
-                        "task": group_name,
-                        "n_shot": n_shot,
-                        "performance": performance,
-                        "metric_name": metric_name if metric_name is not None else "",
-                    }
-                )
-                # Skip per-task iteration when groups are present
-                continue
+                for metric_name, performance in task_metric_pairs:
+                    rows.append(
+                        {
+                            "model_name": model_name,
+                            "task": group_name,
+                            "n_shot": n_shot,
+                            "metric_name": metric_name,
+                            "performance": performance,
+                        }
+                    )
 
         for task_name, task_results in results.items():
             # Skip entries already added from groups
@@ -823,23 +873,28 @@ def collect_results(
                 if n_shot == "unknown" and global_n_shot is not None:
                     n_shot = global_n_shot
 
-            # Get the primary metric (usually acc, acc_norm)
-            performance, metric_name = _resolve_metric(task_name, task_results)
+            # Extract all available metrics for this task
+            task_metric_pairs = _extract_all_metrics(task_results)
+            if not fetch_all_metrics:
+                task_metric_pairs = _resolve_primary_metric(
+                    task_name_clean, task_metric_pairs
+                )
 
-            if performance is not None:
-                # Track completed job for check mode
+            if task_metric_pairs:
+                # Track completed job for check mode (once per task, not per metric)
                 if check:
                     completed_jobs.add((model_name, task_name_clean, n_shot))
 
-                rows.append(
-                    {
-                        "model_name": model_name,
-                        "task": task_name_clean,
-                        "n_shot": n_shot,
-                        "performance": performance,
-                        "metric_name": metric_name if metric_name is not None else "",
-                    }
-                )
+                for metric_name, performance in task_metric_pairs:
+                    rows.append(
+                        {
+                            "model_name": model_name,
+                            "task": task_name_clean,
+                            "n_shot": n_shot,
+                            "metric_name": metric_name,
+                            "performance": performance,
+                        }
+                    )
             else:
                 # Debug: log cases where we have a task but no performance metric
                 if verbose:

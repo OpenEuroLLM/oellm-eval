@@ -1,0 +1,3 @@
+dataset_name: cs_algorithms_zero_shot
+include: _generate_until_template_yaml
+task: bigbench_cs_algorithms_generate_until
