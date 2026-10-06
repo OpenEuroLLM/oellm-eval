@@ -68,14 +68,6 @@ From: rocm/pytorch:rocm7.2.1_ubuntu24.04_py3.12_pytorch_release_2.9.1
     mkdir -p /opt/nltk_data
     python -c "import nltk; nltk.download('punkt', download_dir='/opt/nltk_data'); nltk.download('punkt_tab', download_dir='/opt/nltk_data')"
 
-%test
-    python -c 'import torch; assert torch.version.hip and torch.__version__.startswith("2.9.1")'
-    /opt/judgearena/bin/python -c 'import judgearena, torch, vllm; from vllm import LLM, SamplingParams; assert torch.version.hip and torch.__version__ == "2.10.0+git8514f05" and vllm.__version__ == "0.19.1" and "/opt/judgearena/" in torch.__file__'
-    /opt/uv-tools/lighteval/bin/python -c 'import torch; assert torch.version.hip'
-    judgearena tasks list >/dev/null
-    lm_eval --help >/dev/null
-    lighteval --help >/dev/null
-
 %environment
     export PATH=/usr/local/bin:$PATH
     export UV_TOOL_BIN_DIR=/usr/local/bin

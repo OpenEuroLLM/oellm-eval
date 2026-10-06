@@ -1,9 +1,13 @@
 Bootstrap: docker
 From: nvcr.io/nvidia/pytorch:25.10-py3
 
+%arguments
+    JUDGEARENA_GIT_REF=29f3091f16ca5df7ea287748528aecbaad29b620
+
 %labels
     Author      oellm-cli
     Description Apptainer image for Leonardo cluster
+    JudgeArenaRef {{ JUDGEARENA_GIT_REF }}
 
 %post
     # Install uv
@@ -21,6 +25,18 @@ From: nvcr.io/nvidia/pytorch:25.10-py3
         tiktoken \
         accelerate \
         nltk
+
+    # JudgeArena needs a separate CUDA 13 PyTorch/VLLM runtime.
+    uv venv --python 3.12 /opt/judgearena
+    uv pip install --python /opt/judgearena/bin/python \
+        --torch-backend cu130 \
+        "torch==2.10.0" \
+        "vllm @ https://github.com/vllm-project/vllm/releases/download/v0.19.1/vllm-0.19.1+cu130-cp38-abi3-manylinux_2_35_x86_64.whl" \
+        "transformers==5.5.4" \
+        "huggingface-hub>=1.5,<2" \
+        "datasets>=4" \
+        "judgearena @ git+https://github.com/OpenEuroLLM/JudgeArena.git@{{ JUDGEARENA_GIT_REF }}"
+    ln -s /opt/judgearena/bin/judgearena /usr/local/bin/judgearena
 
     # lighteval as isolated tool (avoids dependency conflicts)
     uv tool install --python 3.12 \
