@@ -1,0 +1,4 @@
+task: cs_sqad32_p3
+description: "Odpovězte na tyto otázky na základě textu. Odpověď by měla končit znakem '\n\n'.\n\n"
+doc_to_text: "Kontext: {{title}}-{{context}} Otázka: {{question}}\nOdpověď:"
+include: ../_cs_sqad32.yaml

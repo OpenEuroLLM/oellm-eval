@@ -1,0 +1,5 @@
+dataset_name: informatics
+tag: umimeto_informatics
+task: umimeto_informatics_p2
+include: ../../_umimeto.yaml
+description: "Ukázkové úlohy z informatiky pro žáky základních a středních škol.\n\n"

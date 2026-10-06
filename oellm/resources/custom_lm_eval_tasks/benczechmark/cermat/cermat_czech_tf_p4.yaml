@@ -1,0 +1,4 @@
+task: cermat_czech_tf_p4
+include: ../_cermat_czech_tf.yaml
+description: "Správná řešení úloh z českého jazyka.\n\n"
+doc_to_text: "{{('Zadání: '+ context+' ') if context else ''}}Dotaz: {{query}}\nSprávné řešení:"

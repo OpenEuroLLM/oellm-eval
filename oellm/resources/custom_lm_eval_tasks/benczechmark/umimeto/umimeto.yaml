@@ -1,0 +1,16 @@
+group: umimeto
+task:
+- umimeto_biology
+- umimeto_chemistry
+- umimeto_czech
+- umimeto_history
+- umimeto_informatics
+- umimeto_math
+- umimeto_physics
+aggregate_metric_list:
+  - metric: acc
+    weight_by_size: True
+  - metric: acc_norm
+    weight_by_size: True
+metadata:
+  version: 1.0

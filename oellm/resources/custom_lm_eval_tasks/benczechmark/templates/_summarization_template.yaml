@@ -1,0 +1,12 @@
+dataset_path: CZLC/sumeczech_downsampled
+output_type: generate_until
+training_split: train
+validation_split: validation
+test_split: test
+fewshot_split: train
+include: _n_shot.yaml
+doc_to_target: abstract
+metric_list:
+  - metric: !function ../utils.rouge_raw_r2_mid_f_without_bootstrap
+    higher_is_better: true
+    aggregation: mean
