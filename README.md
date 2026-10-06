@@ -45,6 +45,7 @@ In case you do not want to rely on the containers provided on a given cluster or
 Task groups are pre-defined evaluation suites in [`task-groups.yaml`](oellm/resources/task-groups.yaml). Each group specifies tasks, their n-shot settings, and HuggingFace dataset mappings.
 
 Available task groups:
+- `crows-pairs` - CrowS-Pairs social bias benchmark (English, 0-shot, `pct_stereotype`)
 - `open-sci-0.01` - Standard benchmarks (COPA, MMLU, HellaSwag, ARC, etc.)
 - `belebele-eu-5-shot` - Belebele European language tasks
 - `flores-200-eu-to-eng` / `flores-200-eng-to-eu` - Translation tasks
