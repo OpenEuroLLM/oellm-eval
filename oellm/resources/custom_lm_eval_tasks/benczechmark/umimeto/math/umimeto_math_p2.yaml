@@ -1,0 +1,5 @@
+dataset_name: math
+tag: umimeto_math
+task: umimeto_math_p2
+include: ../../_umimeto.yaml
+description: "Ukázkové úlohy z matematiky pro žáky základních a středních škol.\n\n"

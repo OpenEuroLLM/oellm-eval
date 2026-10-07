@@ -1,0 +1,6 @@
+task: sentiment_fb_p3
+tag: sentiment_fb
+include: ../../_sentiment.yaml
+dataset_path: CZLC/fb_sentiment_balanced
+description: "Proveď klasifikaci sentimentu do tříd: negativní, neutrální, nebo pozitivní.\n"
+doc_to_text: "{{query}} Třída:"

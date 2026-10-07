@@ -1,0 +1,4 @@
+task: cermat_czech_open_p4
+include: ../_cermat_czech_open.yaml
+description: "Správná řešení úloh z českého jazyka. Více odpovědí je oddeleno pomoci ', '. Odpověď uzavřete symbolem '\n\n'.\n\n"
+doc_to_text: "{{('Zadání: '+ context+' ') if context else ''}}Dotaz: {{query}}\nSprávné řešení:"

@@ -1,0 +1,6 @@
+task: sentiment_fb_p1
+tag: sentiment_fb
+include: ../../_sentiment.yaml
+dataset_path: CZLC/fb_sentiment_balanced
+description: "Následují příklady textů s negativním, neutrálním a pozitivním sentimentem.\n"
+doc_to_text: "{{query}} Sentiment tohoto příkladu je:"

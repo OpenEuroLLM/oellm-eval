@@ -1,0 +1,6 @@
+task: sentiment_csfd_p3
+tag: sentiment_csfd
+include: ../../_sentiment.yaml
+dataset_path: CZLC/csfd_sentiment_balanced
+description: "Proveď klasifikaci sentimentu do tříd: negativní, neutrální, nebo pozitivní.\n"
+doc_to_text: "{{query}} Třída:"

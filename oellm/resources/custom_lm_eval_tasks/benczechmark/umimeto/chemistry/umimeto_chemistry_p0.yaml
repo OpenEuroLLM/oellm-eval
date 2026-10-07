@@ -1,0 +1,5 @@
+dataset_name: chemistry
+tag: umimeto_chemistry
+task: umimeto_chemistry_p0
+include: ../../_umimeto.yaml
+description: "Správná řešení úloh z Krajského přeboru v biologii.\n\n"

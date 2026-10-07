@@ -1,0 +1,6 @@
+include:
+ - _multi_class_template.yaml
+
+doc_to_text: !function ../../utils.mmlu_get_question_text_umimeto
+doc_to_target: !function ../../utils.mmlu_get_answer_index
+doc_to_choice: !function ../../utils.mmlu_get_choice

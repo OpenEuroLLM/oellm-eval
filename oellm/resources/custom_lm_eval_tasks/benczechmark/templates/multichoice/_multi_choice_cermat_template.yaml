@@ -1,0 +1,6 @@
+include:
+ - _multi_class_template.yaml
+
+
+doc_to_choice: !function ../../utils.cermat_get_choice
+doc_to_target: gold

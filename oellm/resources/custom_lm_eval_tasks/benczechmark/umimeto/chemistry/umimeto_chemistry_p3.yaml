@@ -1,0 +1,5 @@
+dataset_name: chemistry
+tag: umimeto_chemistry
+task: umimeto_chemistry_p3
+include: ../../_umimeto.yaml
+description: "Chemická Olympiáda.\n\nInstrukce: Vyberte správnou odpověď A-B pro zadanou otázku. Pro každou otázku existuje právě jedna správná odpověď.\nZadání:\n\n"

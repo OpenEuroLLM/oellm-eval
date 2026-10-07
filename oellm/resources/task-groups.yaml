@@ -2,7 +2,7 @@ task_groups:
   sib200-eu:
     description: "SIB-200 European language topic classification tasks (0-shot)"
     suite: lm-eval-harness
-    metric: acc
+    metric: acc_norm
     n_shots: [0]
     dataset: Davlan/sib200
     valid_langs: [bul_Cyrl, hrv_Latn, ces_Latn, dan_Latn, nld_Latn, eng_Latn, est_Latn, fin_Latn,
@@ -150,10 +150,10 @@ task_groups:
         subset: fr
 
   flores-200-eu-to-eng:
-    description: "Flores 200 EU->English translation (4-shot, chrf++)."
+    description: "Flores 200 EU->English translation (0-shot, chrf++)."
     suite: lighteval
     metric: chrf++
-    n_shots: [4]
+    n_shots: [0]
     dataset: facebook/flores
     valid_langs: [bul_Cyrl, hrv_Latn, ces_Latn, dan_Latn, nld_Latn, est_Latn,
                   fin_Latn, fra_Latn, deu_Latn, ell_Grek, hun_Latn, gle_Latn,
@@ -164,10 +164,10 @@ task_groups:
     tasks:
       - task: "flores200:{lang}-eng_Latn"
   flores-200-eng-to-eu:
-    description: "Flores 200 English->EU translation (4-shot, chrf++)."
+    description: "Flores 200 English->EU translation (0-shot, chrf++)."
     suite: lighteval
     metric: chrf++
-    n_shots: [4]
+    n_shots: [0]
     dataset: facebook/flores
     valid_langs: [bul_Cyrl, hrv_Latn, ces_Latn, dan_Latn, nld_Latn, est_Latn,
                   fin_Latn, fra_Latn, deu_Latn, ell_Grek, hun_Latn, gle_Latn,
@@ -182,7 +182,7 @@ task_groups:
     suite: lm-eval-harness
     n_shots: [5]
     dataset: CohereForAI/Global-MMLU
-    valid_langs: [cs, de, el, en, es, fr, it, lt, nl, pl, pt, ro, sr, sv, tr, uk]
+    valid_langs: [cs, de, el, en, es, fr, it, lt, nl, pl, pt, ro, ru, sr, sv, tr, uk, he]
     tasks:
       - task: "global_mmlu_full_{lang}"
         subset: "{lang}"
@@ -260,8 +260,14 @@ task_groups:
     tasks:
       - task: include_base_44_albanian
         subset: Albanian
+      - task: include_base_44_armenian
+        subset: Armenian
+      - task: include_base_44_azerbaijani
+        subset: Azerbaijani
       - task: include_base_44_basque
         subset: Basque
+      - task: include_base_44_belarusian
+        subset: Belarusian
       - task: include_base_44_bulgarian
         subset: Bulgarian
       - task: include_base_44_croatian
@@ -286,12 +292,14 @@ task_groups:
         subset: Italian
       - task: include_base_44_lithuanian
         subset: Lithuanian
-      - task: include_base_44_north_macedonian
+      - task: include_base_44_north macedonian
         subset: North Macedonian
       - task: include_base_44_polish
         subset: Polish
       - task: include_base_44_portuguese
         subset: Portuguese
+      - task: include_base_44_russian
+        subset: Russian
       - task: include_base_44_serbian
         subset: Serbian
       - task: include_base_44_spanish
@@ -353,8 +361,7 @@ task_groups:
         subset: winogrande_xl
       - task: wsc273
         n_shots: [0]
-        dataset: lighteval/winograd_wsc
-        subset: wsc273
+        dataset: winograd_wsc
       - task: lambada_openai
         n_shots: [0]
         dataset: EleutherAI/lambada_openai
@@ -503,16 +510,6 @@ task_groups:
         n_shots: [0]
         suite: evalchemy
 
-  crows-pairs:
-    description: "CrowS-Pairs social bias benchmark (English, 0-shot)."
-    suite: lm-eval-harness
-    metric: pct_stereotype
-    n_shots: [0]
-    dataset: jannalu/crows_pairs_multilingual
-    subset: english
-    tasks:
-      - task: crows_pairs_english
-
   global-piqa-eu-completions:
     description: "Global PIQA European languages — multiple-choice completions (0-shot, mrlbenchmarks/global-piqa-nonparallel)"
     suite: lm-eval-harness
@@ -588,6 +585,110 @@ task_groups:
       - task: "polymath_{lang}_top"
         subset: "{lang}"
 
+  benczechmark-cermat:
+    description: "BenCzechMark Native Czech Language Evaluation Suite (CERMAT)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    tasks:
+      - task: "cermat_math_mc_p0"
+      - task: "cermat_math_mc_p1"
+      - task: "cermat_math_mc_p2"
+      - task: "cermat_math_mc_p3"
+      - task: "cermat_math_mc_p4"
+      - task: "cermat_math_open_p0"
+      - task: "cermat_math_open_p1"
+      - task: "cermat_math_open_p2"
+      - task: "cermat_math_open_p3"
+      - task: "cermat_math_open_p4"
+      - task: "cermat_czech_mc_p0"
+      - task: "cermat_czech_mc_p1"
+      - task: "cermat_czech_mc_p2"
+      - task: "cermat_czech_mc_p3"
+      - task: "cermat_czech_mc_p4"
+      - task: "cermat_czech_open_p0"
+      - task: "cermat_czech_open_p1"
+      - task: "cermat_czech_open_p2"
+      - task: "cermat_czech_open_p3"
+      - task: "cermat_czech_open_p4"
+      - task: "cermat_czech_tf_p0"
+      - task: "cermat_czech_tf_p1"
+      - task: "cermat_czech_tf_p2"
+      - task: "cermat_czech_tf_p3"
+      - task: "cermat_czech_tf_p4"
+
+  benczechmark-sqad32:
+    description: "BenCzechMark Native Czech Language Evaluation Suite (SQAD32)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    tasks:
+      - task: "cs_sqad32_p0"
+      - task: "cs_sqad32_p1"
+      - task: "cs_sqad32_p2"
+      - task: "cs_sqad32_p3"
+      - task: "cs_sqad32_p4"
+
+  benczechmark-sentiment:
+    description: "BenCzechMark Native Czech Language Evaluation Suite (sentiment)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    tasks:
+      - task: "sentiment_csfd_p0"
+      - task: "sentiment_csfd_p1"
+      - task: "sentiment_csfd_p2"
+      - task: "sentiment_csfd_p3"
+      - task: "sentiment_csfd_p4"
+      - task: "sentiment_fb_p0"
+      - task: "sentiment_fb_p1"
+      - task: "sentiment_fb_p2"
+      - task: "sentiment_fb_p3"
+      - task: "sentiment_fb_p4"
+      - task: "sentiment_mall_p0"
+      - task: "sentiment_mall_p1"
+      - task: "sentiment_mall_p2"
+      - task: "sentiment_mall_p3"
+      - task: "sentiment_mall_p4"
+
+  benczechmark-umimeto:
+    description: "BenCzechMark Native Czech Language Evaluation Suite (UmimeTo)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    tasks:
+      - task: "umimeto_biology_p0"
+      - task: "umimeto_biology_p1"
+      - task: "umimeto_biology_p2"
+      - task: "umimeto_biology_p3"
+      - task: "umimeto_biology_p4"
+      - task: "umimeto_chemistry_p0"
+      - task: "umimeto_chemistry_p1"
+      - task: "umimeto_chemistry_p2"
+      - task: "umimeto_chemistry_p3"
+      - task: "umimeto_chemistry_p4"
+      - task: "umimeto_czech_p0"
+      - task: "umimeto_czech_p1"
+      - task: "umimeto_czech_p2"
+      - task: "umimeto_czech_p3"
+      - task: "umimeto_czech_p4"
+      - task: "umimeto_history_p0"
+      - task: "umimeto_history_p1"
+      - task: "umimeto_history_p2"
+      - task: "umimeto_history_p3"
+      - task: "umimeto_history_p4"
+      - task: "umimeto_informatics_p0"
+      - task: "umimeto_informatics_p1"
+      - task: "umimeto_informatics_p2"
+      - task: "umimeto_informatics_p3"
+      - task: "umimeto_informatics_p4"
+      - task: "umimeto_math_p0"
+      - task: "umimeto_math_p1"
+      - task: "umimeto_math_p2"
+      - task: "umimeto_math_p3"
+      - task: "umimeto_math_p4"
+      - task: "umimeto_physics_p0"
+      - task: "umimeto_physics_p1"
+      - task: "umimeto_physics_p2"
+      - task: "umimeto_physics_p3"
+      - task: "umimeto_physics_p4"
+
 super_groups:
   oellm-multilingual:
     description: "Combined Belebele EU set plus multilingual benchmarks"
@@ -601,32 +702,10 @@ super_groups:
       - task: include
       - task: multiblimp-eu
       - task: xcopa-eu
-
-  multilingual-oellm-eu:
-    description: >-
-      Every multilingual benchmark in the OpenEuroLLM evaluation suite, in the
-      36 prioritised target languages: the 24 official EU languages,
-      Catalan/Basque/Galician, the candidate-member languages, and
-      Icelandic/Norwegian.
+  oellm-benczechmark:
+    description: "Combined BenCzechMark Evaluation Suites"
     task_groups:
-      - task: arc-challenge-mt-eu
-      - task: belebele-eu-5-shot
-      - task: flores-200-eng-to-eu
-      - task: flores-200-eu-to-eng
-      - task: global-mgsm-eu
-      - task: global-mmlu-eu
-      - task: global-piqa-eu-completions
-      - task: global-piqa-eu-prompted
-      - task: hellaswag-eu
-      - task: include
-      - task: mgsm-eu
-      - task: multiblimp-eu
-      - task: opensubtitles-eu-en-xx
-      - task: opensubtitles-eu-xx-en
-      - task: polymath-eu-high
-      - task: polymath-eu-low
-      - task: polymath-eu-medium
-      - task: polymath-eu-top
-      - task: sib200-eu
-      - task: xcopa-eu
-      - task: xcsqa-eu
+      - task: benczechmark-cermat
+      - task: benczechmark-sqad32
+      - task: benczechmark-sentiment
+      - task: benczechmark-umimeto

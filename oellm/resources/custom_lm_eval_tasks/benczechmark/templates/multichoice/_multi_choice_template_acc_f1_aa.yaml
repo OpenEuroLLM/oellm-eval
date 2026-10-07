@@ -1,0 +1,4 @@
+include:
+ - _multi_choice_template.yaml
+
+fewshot_split: test

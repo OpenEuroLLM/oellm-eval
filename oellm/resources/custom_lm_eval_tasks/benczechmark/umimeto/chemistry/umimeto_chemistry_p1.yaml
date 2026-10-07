@@ -1,0 +1,5 @@
+dataset_name: chemistry
+tag: umimeto_chemistry
+task: umimeto_chemistry_p1
+include: ../../_umimeto.yaml
+description: "Úkol: Vyberte správnou odpověď A-B na následující otázky.\n\n"
