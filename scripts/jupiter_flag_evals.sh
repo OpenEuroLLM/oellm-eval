@@ -258,7 +258,38 @@ run-one)
     done_dir="$FLAG_WORK/runs/$name/$half/done"; mkdir -p "$done_dir"
     if [ -f "$done_dir/$row.ok" ]; then echo "row $row ($task) already succeeded: $done_dir/$row.ok"; exit 0; fi
     echo "run-one: $name $half row $row = $task  ($script)"
-    SLURM_ARRAY_TASK_ID=$row bash "$script"
+    # Watchdog for a hang after vLLM's shutdown: the eval then sits idle until the time limit
+    # with no result (polymath_it_medium, hellaswag_eu, polymath_fr_medium_cot; 2026-10). A normal
+    # run writes its results seconds after the "[shutdown]" lines (LiveCodeBench grading: ~3 min),
+    # so RUN_ONE_HANG_MIN minutes without output after them end the eval: no done marker, a
+    # nonzero exit, and the array task's FAILED policy retries it. The eval runs in its own process
+    # group; its output goes to a node-local file that is mirrored into the job log.
+    hang_min=${RUN_ONE_HANG_MIN:-15}
+    log=$(mktemp "${TMPDIR:-/tmp}/run-one.XXXXXX.log")
+    SLURM_ARRAY_TASK_ID=$row setsid bash "$script" > "$log" 2>&1 < /dev/null &
+    pid=$!
+    tail -n +1 -f --pid="$pid" "$log" &
+    mirror=$!
+    hung=0
+    tick=0
+    while sleep 5 && kill -0 "$pid" 2>/dev/null; do
+        tick=$((tick + 1))
+        [ $((tick % 6)) = 0 ] || continue  # liveness every 5 s, the hang test every 30 s
+        if grep -q '\[shutdown\]' "$log" && [ $(( $(date +%s) - $(stat -c %Y "$log") )) -gt $((hang_min * 60)) ]; then
+            hung=1
+            echo "run-one watchdog: no output for ${hang_min} min after vLLM's shutdown -- ending the eval" >&2
+            kill -TERM -- "-$pid" 2>/dev/null || true
+            sleep 30
+            kill -KILL -- "-$pid" 2>/dev/null || true
+            break
+        fi
+    done
+    rc=0
+    wait "$pid" || rc=$?
+    wait "$mirror" 2>/dev/null || true
+    rm -f "$log"
+    [ "$hung" = 0 ] || exit 124
+    [ "$rc" = 0 ] || exit "$rc"
     printf '%s %s %s\n' "$(date -Is)" "${SLURM_JOB_ID:-local}" "$task" > "$done_dir/$row.ok"
     ;;
 check)
