@@ -108,7 +108,7 @@ def schedule_evals(
     tasks: str | None = None,
     task_groups: str | None = None,
     n_shot: int | list[int] | None = None,
-    eval_csv_path: str | None = None,
+    eval_tsv_path: str | None = None,
     *,
     max_array_len: int = 128,
     tasks_per_job: int = 8,
@@ -130,7 +130,7 @@ def schedule_evals(
     Args:
         models: A string of comma-separated model paths or Hugging Face model identifiers.
             Warning: does not allow passing model args such as `EleutherAI/pythia-160m,revision=step100000`
-            since we split on commas. If you need to pass model args, use the `eval_csv_path` option.
+            since we split on commas. If you need to pass model args, use the `eval_tsv_path` option.
             For local paths:
             - If a directory contains `.safetensors` files directly, it will be treated as a single model
             - If a directory contains subdirectories with models (e.g., converted_checkpoints/),
@@ -138,7 +138,7 @@ def schedule_evals(
             - For each model directory, if it has an `hf/iter_XXXXX` structure, all checkpoints will be expanded
             - This allows passing a single directory containing multiple models to evaluate them all
         tasks: A string of comma-separated task names (lm_eval) or paths.
-            Requires `n_shot` to be provided. Tasks here are assumed to be lm_eval unless otherwise handled via CSV.
+            Requires `n_shot` to be provided. Tasks here are assumed to be lm_eval unless otherwise handled via TSV.
         task_groups: A string of comma-separated task group names defined in `task-groups.yaml`.
             Each group expands into concrete (task, n_shots, suite) entries; `n_shot` is ignored for groups.
             A group (or super_group) may be scoped to one or more languages with a bracket, e.g.
@@ -147,8 +147,8 @@ def schedule_evals(
             separated by `,` or `|`; unknown codes raise, and a bracket that matches no task in its
             group raises.
         n_shot: An integer or list of integers specifying the number of shots applied to `tasks`.
-        eval_csv_path: A path to a CSV file containing evaluation data.
-            Warning: exclusive argument. Cannot specify `models`, `tasks`, `task_groups`, or `n_shot` when `eval_csv_path` is provided.
+        eval_tsv_path: A path to a TSV file containing evaluation data.
+            Warning: exclusive argument. Cannot specify `models`, `tasks`, `task_groups`, or `n_shot` when `eval_tsv_path` is provided.
         max_array_len: The maximum number of jobs to schedule to run concurrently.
             Warning: this is not the number of jobs in the array job. This is determined by the environment variable `QUEUE_LIMIT`.
         tasks_per_job: The maximum number of lm-eval-harness tasks evaluated by a single
@@ -221,7 +221,7 @@ def schedule_evals(
         logging.info("Skipping runtime environment check (--skip-checks enabled)")
 
     if isinstance(models, str) and models is not None:
-        models = [m.strip() for m in models.split(",") if m.strip()]  # type: ignore
+        models = [m.strip() for m in models.split(";") if m.strip()]  # type: ignore
 
     if isinstance(tasks, str) and tasks is not None:
         tasks = [t.strip() for t in tasks.split(",") if t.strip()]  # type: ignore
@@ -230,16 +230,16 @@ def schedule_evals(
         n_shot = [n_shot]
 
     eval_jobs: list[EvaluationJob] = []
-    if eval_csv_path:
+    if eval_tsv_path:
         if models or tasks or task_groups or n_shot:
             raise ValueError(
-                "Cannot specify `models`, `tasks`, `task_groups`, or `n_shot` when `eval_csv_path` is provided."
+                "Cannot specify `models`, `tasks`, `task_groups`, or `n_shot` when `eval_tsv_path` is provided."
             )
-        df = pd.read_csv(eval_csv_path)
+        df = pd.read_csv(eval_tsv_path, sep="\t")
         required_cols = {"model_path", "task_path", "n_shot"}
         if not required_cols.issubset(df.columns):
             raise ValueError(
-                f"CSV file must contain the columns: {', '.join(required_cols)}"
+                f"TSV file must contain the columns: {', '.join(required_cols)}"
             )
 
         if "eval_suite" not in df.columns:
@@ -376,7 +376,7 @@ def schedule_evals(
 
     slurm_logs_dir = evals_dir / "slurm_logs"
     slurm_logs_dir.mkdir(parents=True, exist_ok=True)
-    csv_path = evals_dir / "jobs.csv"
+    tsv_path = evals_dir / "jobs.tsv"
 
     # Shuffle to distribute fast/slow evaluations evenly across array jobs, but
     # shuffle *groups* of evaluations that share a model, shot count and suite
@@ -402,7 +402,7 @@ def schedule_evals(
         "Shuffled evaluation jobs for even load distribution across array workers"
     )
 
-    df.to_csv(csv_path, index=False)
+    df.to_csv(tsv_path, index=False, sep="\t")
 
     sbatch_template = (files("oellm.resources") / "template.sbatch").read_text()
 
@@ -472,7 +472,7 @@ def schedule_evals(
     logging.info(f"   Requested host memory: {slurm_mem}")
 
     sbatch_script = sbatch_template.format(
-        csv_path=csv_path,
+        tsv_path=tsv_path,
         max_array_len=max_array_len,
         tasks_per_job=max(1, tasks_per_job),
         array_limit=actual_array_size - 1,  # Array is 0-indexed
@@ -532,7 +532,7 @@ def schedule_evals(
 
     logging.info(f"📁 Evaluation directory: {evals_dir}")
     logging.info(f"📄 Script: {sbatch_script_path}")
-    logging.info(f"📋 Job configuration: {csv_path}")
+    logging.info(f"📋 Job configuration: {tsv_path}")
     logging.info(f"📊 Results will be stored in: {evals_dir / 'results'}")
 
     if local:
@@ -583,29 +583,29 @@ def schedule_evals(
 
 def collect_results(
     results_dir: str,
-    output_csv: str = "eval_results.csv",
+    output_tsv: str = "eval_results.tsv",
     *,
     check: bool = False,
     fetch_all_metrics: bool = False,
     verbose: bool = False,
 ) -> None:
     """
-    Collect evaluation results from JSON files and export to CSV.
+    Collect evaluation results from JSON files and export to TSV.
 
     Recursively searches ``results_dir`` for every sub-directory that contains
-    a ``jobs.csv`` file, merges all those CSV files into one (later directories
+    a ``jobs.tsv`` file, merges all those TSV files into one (later directories
     override duplicate rows), then recursively finds every ``.json`` result
     file under ``results_dir``.
 
     With ``--check`` the merged jobs are compared against the extracted results
-    and any missing evaluations are written to a ``*_missing.csv`` file.
+    and any missing evaluations are written to a ``*_missing.tsv`` file.
     Without ``--check`` the results are simply merged and written to
-    ``output_csv``.
+    ``output_tsv``.
 
     Args:
-        results_dir: Root directory to search for jobs.csv files and JSON results
-        output_csv: Output CSV filename (default: eval_results.csv)
-        check: Check for missing evaluations and create a missing jobs CSV
+        results_dir: Root directory to search for jobs.tsv files and JSON results
+        output_tsv: Output TSV filename (default: eval_results.tsv)
+        check: Check for missing evaluations and create a missing jobs TSV
         fetch_all_metrics: If True, include every computed metric for each task.
             If False (default), keep only that task's primary metric, as declared
             by the ``metric:`` key on its task group in ``task-groups.yaml`` (or
@@ -689,16 +689,16 @@ def collect_results(
         raise ValueError(f"Results directory does not exist: {results_dir}")
 
     # ------------------------------------------------------------------
-    # 1. Find all directories containing jobs.csv and merge them.
+    # 1. Find all directories containing jobs.tsv and merge them.
     #    Directories are sorted so that deeper / later-alphabetical paths
     #    are processed last, meaning their rows override earlier duplicates.
     # ------------------------------------------------------------------
-    jobs_csv_paths = sorted(results_path.rglob("jobs.csv"))
-    if jobs_csv_paths:
+    jobs_tsv_paths = sorted(results_path.rglob("jobs.tsv"))
+    if jobs_tsv_paths:
         logging.info(
-            f"Found {len(jobs_csv_paths)} jobs.csv file(s): {[str(p) for p in jobs_csv_paths]}"
+            f"Found {len(jobs_tsv_paths)} jobs.tsv file(s): {[str(p) for p in jobs_tsv_paths]}"
         )
-        jobs_frames = [pd.read_csv(p) for p in jobs_csv_paths]
+        jobs_frames = [pd.read_csv(p, sep="\t") for p in jobs_tsv_paths]
         # Concatenate and let later entries win for duplicate (model_path, task_path, n_shot).
         jobs_df = pd.concat(jobs_frames, ignore_index=True)
         dup_cols = [
@@ -706,12 +706,12 @@ def collect_results(
         ]
         if dup_cols:
             jobs_df = jobs_df.drop_duplicates(subset=dup_cols, keep="last")
-        logging.info(f"Merged jobs.csv: {len(jobs_df)} unique jobs")
+        logging.info(f"Merged jobs.tsv: {len(jobs_df)} unique jobs")
     else:
         jobs_df = None
         if check:
             logging.warning(
-                f"No jobs.csv found under {results_dir}, cannot perform check"
+                f"No jobs.tsv found under {results_dir}, cannot perform check"
             )
             check = False
 
@@ -906,14 +906,14 @@ def collect_results(
         logging.warning("No results extracted from JSON files")
         return
 
-    # Create DataFrame and save to CSV (if we have results)
+    # Create DataFrame and save to TSV (if we have results)
     if rows:
         df = pd.DataFrame(rows)
         df = df.drop_duplicates(
             subset=["model_name", "task", "n_shot", "metric_name"], keep="last"
         )
-        df.to_csv(output_csv, index=False)
-        logging.info(f"Results saved to {output_csv}")
+        df.to_csv(output_tsv, index=False, sep="\t")
+        logging.info(f"Results saved to {output_tsv}")
         logging.info(f"Extracted {len(df)} evaluation results")
 
         # Print summary statistics
@@ -968,11 +968,11 @@ def collect_results(
 
         if len(missing_jobs) > 0:
             missing_df = pd.DataFrame(missing_jobs)
-            missing_csv = output_csv.replace(".csv", "_missing.csv")
-            missing_df.to_csv(missing_csv, index=False)
-            logging.info(f"Missing jobs saved to: {missing_csv}")
+            missing_tsv = output_tsv.replace(".tsv", "_missing.tsv")
+            missing_df.to_csv(missing_tsv, index=False, sep="\t")
+            logging.info(f"Missing jobs saved to: {missing_tsv}")
             logging.info(
-                f"You can run these with: oellm-eval schedule --eval_csv_path {missing_csv}"
+                f"You can run these with: oellm-eval schedule --eval_tsv_path {missing_tsv}"
             )
 
             # Show some examples if verbose

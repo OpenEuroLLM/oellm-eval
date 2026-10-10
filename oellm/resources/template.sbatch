@@ -12,7 +12,7 @@
 #SBATCH --nodelist=$NODELIST
 
 
-CSV_PATH="{csv_path}"
+TSV_PATH="{tsv_path}"
 NUM_JOBS={num_jobs}
 TOTAL_EVALS={total_evals}
 LIMIT="{limit}"
@@ -25,23 +25,6 @@ export HF_HOME=$HF_HOME
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export HF_HUB_OFFLINE={hf_hub_offline}
 
-# Neither harness caches under HF_HOME on its own. lighteval hardcodes
-# ~/.cache/huggingface/lighteval and never reads HF_HOME, which fills the user's
-# home directory and fails mid-run on clusters with a small home quota
-# ("OSError: [Errno 122] Disk quota exceeded"). lm-eval keeps request caches
-# inside its own install directory, which is read-only in the container. Point
-# both at the shared cache instead.
-export LIGHTEVAL_CACHE_DIR="$HF_HOME/lighteval"
-export LM_HARNESS_CACHE_PATH="$HF_HOME/lm_eval"
-mkdir -p "$LIGHTEVAL_CACHE_DIR" "$LM_HARNESS_CACHE_PATH"
-
-# lighteval caches unconditionally, so it always uses LIGHTEVAL_CACHE_DIR.
-# lm-eval only caches with --cache_requests, which stays opt-in: set
-# CACHE_REQUESTS=true to enable it, or =refresh to rebuild entries after editing
-# a task YAML (the cache key covers task, shots and tokenizer, but not the task
-# definition). Leaving it off keeps --limit runs fast -- lm-eval ignores --limit
-# while building contexts whenever caching is on.
-
 # Path to the shared Singularity image that contains all runtime deps (container mode)
 export EVAL_SIF_PATH="$EVAL_BASE_DIR/$EVAL_CONTAINER_IMAGE"
 
@@ -49,7 +32,7 @@ export MIOPEN_USER_DB_PATH="/tmp/$USER-miopen-${{SLURM_JOB_ID:-$$}}"
 export MIOPEN_CUSTOM_CACHE_DIR="$MIOPEN_USER_DB_PATH"
 mkdir -p "$MIOPEN_USER_DB_PATH"
 
-echo "Running eval on $CSV_PATH with $NUM_JOBS array jobs distributing $TOTAL_EVALS evaluations"
+echo "Running eval on $TSV_PATH with $NUM_JOBS array jobs distributing $TOTAL_EVALS evaluations"
 echo "hostname: "`hostname`
 echo "SLURM_JOB_ID: $SLURM_JOB_ID"
 echo "SLURM_ARRAY_JOB_ID: $SLURM_ARRAY_JOB_ID"
@@ -156,7 +139,7 @@ do
         JOB_HOME="$EVAL_BASE_DIR/$USER/container_home/$SLURM_JOB_ID"
         mkdir -p "$JOB_HOME"
         SINGULARITY_HOME_ARG="--home $JOB_HOME"
-        SINGULARITY_ENV_ARGS="--env HF_HOME=$HF_HOME --env HF_DATASETS_CACHE=$HF_DATASETS_CACHE --env HF_HUB_OFFLINE=$HF_HUB_OFFLINE --env TRANSFORMERS_OFFLINE=$TRANSFORMERS_OFFLINE --env NLTK_DATA=$NLTK_DATA --env LM_HARNESS_CACHE_PATH=$LM_HARNESS_CACHE_PATH"
+        SINGULARITY_ENV_ARGS="--env HF_HOME=$HF_HOME --env HF_DATASETS_CACHE=$HF_DATASETS_CACHE --env HF_HUB_OFFLINE=$HF_HUB_OFFLINE --env TRANSFORMERS_OFFLINE=$TRANSFORMERS_OFFLINE --env NLTK_DATA=$NLTK_DATA"
     fi
 
     GPU_DEVICES=$(seq -s, 0 $(($GPUS_PER_NODE - 1)))
@@ -200,14 +183,13 @@ do
             EVAL_OUT_DIR="{evals_dir}"
             EVAL_OUT_PAT="$RUN_ID*.json"
             run_python -m lm_eval --model hf \
-                --model_args pretrained="$model_path",trust_remote_code=True \
+                --model_args "pretrained=$model_path,trust_remote_code=True" \
                 --tasks "$task_path" \
                 --num_fewshot "$n_shot" \
                 --output_path "$EVAL_OUT_DIR/$RUN_ID.json" \
                 --trust_remote_code \
                 ${{LM_EVAL_INCLUDE_PATH:+--include_path $$LM_EVAL_INCLUDE_PATH}} \
                 --batch_size auto \
-                ${{CACHE_REQUESTS:+--cache_requests $CACHE_REQUESTS}} \
                 ${{LIMIT:+--limit $LIMIT}}
             EVAL_STATUS=$?
             echo "----------------------------------------------------"
@@ -309,8 +291,8 @@ do
         echo "Evaluation finished for model: $model_path"
     fi
 
-done < <(tail -n +$((START_INDEX + 1)) "$CSV_PATH" | head -n $((END_INDEX - START_INDEX + 1)) | \
-    awk -F, -v max_tasks="$TASKS_PER_JOB" -v OFS='\t' "$BATCH_ROWS_AWK")
+done < <(tail -n +$((START_INDEX + 1)) "$TSV_PATH" | head -n $((END_INDEX - START_INDEX + 1)) | \
+    awk -F'\t' -v max_tasks="$TASKS_PER_JOB" -v OFS='\t' "$BATCH_ROWS_AWK")
 
 if [ "$FAILED_EVALS" -gt 0 ]; then
     echo "Job $SLURM_ARRAY_TASK_ID finished with $FAILED_EVALS failed evaluation(s)."
