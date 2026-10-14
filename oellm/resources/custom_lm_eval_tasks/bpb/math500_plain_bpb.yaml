@@ -1,0 +1,9 @@
+include: _format_bpb_template_yaml
+task: math500_plain_bpb
+dataset_path: HuggingFaceH4/MATH-500
+dataset_name: default
+test_split: test
+# B: problem as plain text, then the solution
+doc_to_text: "{{problem}}\n"
+doc_to_target: !function utils.doc_to_target_math500_bare
+process_results: !function utils.process_results_math500

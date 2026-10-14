@@ -1,0 +1,9 @@
+include: _format_bpb_template_yaml
+task: mbpp_plain_bpb
+dataset_path: google-research-datasets/mbpp
+dataset_name: full
+test_split: train
+# B: the task description only (no instruction preamble, no tests, no [BEGIN])
+doc_to_text: "{{text}}\n"
+doc_to_target: !function utils.doc_to_target_mbpp
+process_results: !function utils.process_results_mbpp

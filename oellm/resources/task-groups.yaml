@@ -10,6 +10,17 @@ task_metrics:
   commonsense_qa_bpb: bits_per_byte
   social_iqa_bpb: bits_per_byte
   winogrande_bpb: bits_per_byte
+  gsm8k_cot_bpb: bits_per_byte
+  math500_bpb: bits_per_byte
+  mbpp_code_bpb: bits_per_byte
+  humaneval_bpb: bits_per_byte
+  gsm8k_cot_1k_bpb: bits_per_byte
+  gsm8k_plain_bpb: bits_per_byte
+  gsm8k_solo_bpb: bits_per_byte
+  math500_plain_bpb: bits_per_byte
+  math500_solo_bpb: bits_per_byte
+  mbpp_plain_bpb: bits_per_byte
+  mbpp_solo_bpb: bits_per_byte
   mmlu_abstract_algebra_bpb: bits_per_byte
   mmlu_anatomy_bpb: bits_per_byte
   mmlu_astronomy_bpb: bits_per_byte
@@ -1242,6 +1253,47 @@ task_groups:
   # single reference (translation / final answer number) instead of a choice.
   # Task definitions live in custom_lm_eval_tasks/bpb/<benchmark>/.
   # ------------------------------------------------------------------
+
+  bpb-generative:
+    description: "Bits-per-byte of reference solutions for generative maths and code benchmarks (0-shot)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    tasks:
+      - task: gsm8k_cot_bpb
+        dataset: openai/gsm8k
+        subset: main
+      - task: math500_bpb
+        dataset: HuggingFaceH4/MATH-500
+      - task: mbpp_code_bpb
+        dataset: google-research-datasets/mbpp
+        subset: full
+      - task: humaneval_bpb
+        dataset: openai/openai_humaneval
+
+  bpb-format:
+    description: "Format test: generative BPB under benchmark format, plain text, and solution only (0-shot)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    tasks:
+      - task: gsm8k_cot_1k_bpb
+        dataset: openai/gsm8k
+        subset: main
+      - task: gsm8k_plain_bpb
+        dataset: openai/gsm8k
+        subset: main
+      - task: gsm8k_solo_bpb
+        dataset: openai/gsm8k
+        subset: main
+      - task: math500_plain_bpb
+        dataset: HuggingFaceH4/MATH-500
+      - task: math500_solo_bpb
+        dataset: HuggingFaceH4/MATH-500
+      - task: mbpp_plain_bpb
+        dataset: google-research-datasets/mbpp
+        subset: full
+      - task: mbpp_solo_bpb
+        dataset: google-research-datasets/mbpp
+        subset: full
   flores-200-eu-to-eng-bpb:
     description: "Bits-per-byte of FLORES-200 EU->English reference translations (0-shot)"
     suite: lm-eval-harness

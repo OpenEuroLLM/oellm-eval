@@ -206,7 +206,7 @@ do
                 --output_path "$EVAL_OUT_DIR/$RUN_ID.json" \
                 --trust_remote_code \
                 ${{LM_EVAL_INCLUDE_PATH:+--include_path $$LM_EVAL_INCLUDE_PATH}} \
-                --batch_size auto \
+                --batch_size ${{LM_BATCH_SIZE:-auto}} \
                 ${{CACHE_REQUESTS:+--cache_requests $CACHE_REQUESTS}} \
                 ${{LIMIT:+--limit $LIMIT}}
             EVAL_STATUS=$?

@@ -1,0 +1,10 @@
+include: _format_bpb_template_yaml
+task: gsm8k_cot_1k_bpb
+dataset_path: openai/gsm8k
+dataset_name: main
+test_split: train
+process_docs: !function utils.first_1000
+# A: benchmark format, as gsm8k_cot_bpb but on the 1000-item subset
+doc_to_text: "Question: {{question}}\nAnswer:"
+doc_to_target: !function utils.doc_to_target_gsm8k
+process_results: !function utils.process_results_gsm8k

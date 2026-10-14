@@ -1,0 +1,12 @@
+# Generative benchmarks scored as BPB of the reference solution (0-shot).
+# Single-reference loglikelihood tasks, like FLORES and MGSM.
+include: _bpb_template_yaml
+tag:
+  - bpb
+  - bpb_generative
+output_type: loglikelihood
+target_delimiter: ""
+metric_list:
+  - metric: bits_per_byte
+    aggregation: bits_per_byte
+    higher_is_better: false

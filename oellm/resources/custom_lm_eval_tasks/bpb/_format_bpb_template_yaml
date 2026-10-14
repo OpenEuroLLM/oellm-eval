@@ -1,0 +1,12 @@
+# Format test (see utils.py): same continuations as the generative BPB tasks,
+# different context. Single-reference loglikelihood, 0-shot.
+include: _bpb_template_yaml
+tag:
+  - bpb
+  - bpb_format
+output_type: loglikelihood
+target_delimiter: ""
+metric_list:
+  - metric: bits_per_byte
+    aggregation: bits_per_byte
+    higher_is_better: false

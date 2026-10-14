@@ -1,0 +1,10 @@
+include: _format_bpb_template_yaml
+task: gsm8k_plain_bpb
+dataset_path: openai/gsm8k
+dataset_name: main
+test_split: train
+process_docs: !function utils.first_1000
+# B: problem as plain text, then the solution
+doc_to_text: "{{question}}\n"
+doc_to_target: !function utils.doc_to_target_gsm8k_bare
+process_results: !function utils.process_results_gsm8k

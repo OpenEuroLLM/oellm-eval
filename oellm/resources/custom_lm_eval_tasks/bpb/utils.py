@@ -409,3 +409,83 @@ def doc_to_target_flores_eng_xx(doc):
 
 def process_results_flores_eng_xx(doc, results):
     return _score_continuation(results, _flores_non_english(doc))
+
+
+# --------------------------------------------------------------------------
+# Generative benchmarks -- BPB of the reference *solution*, not just the final
+# answer. mgsm_direct_*_bpb scores only the bare number, which penalises models
+# that have learned to write out their working; these score the working itself.
+# Single-reference loglikelihood tasks: doc_to_target supplies any leading
+# space, and bytes are counted on the text without it (see module docstring).
+# --------------------------------------------------------------------------
+
+
+def _clean_code(text):
+    return str(text).replace("\r\n", "\n").rstrip()
+
+
+def _gsm8k_solution(doc):
+    # "steps <<48/2=24>>24 ... #### 72"  ->  "steps 24 ...\nThe answer is 72."
+    solution, answer = doc["answer"].split("####")
+    solution = re.sub(r"<<[^>]*>>", "", solution).strip()
+    return f"{solution}\nThe answer is {answer.strip()}."
+
+
+def doc_to_target_gsm8k(doc):
+    return " " + _gsm8k_solution(doc)
+
+
+def process_results_gsm8k(doc, results):
+    return _score_continuation(results, _gsm8k_solution(doc))
+
+
+def doc_to_target_math500(doc):
+    return " " + doc["solution"].strip()
+
+
+def process_results_math500(doc, results):
+    return _score_continuation(results, doc["solution"].strip())
+
+
+# Code: the prompt ends in a newline (mbpp "[BEGIN]\n", humaneval docstring),
+# so the continuation starts directly with code -- no leading space.
+
+
+def doc_to_target_mbpp(doc):
+    return _clean_code(doc["code"])
+
+
+def process_results_mbpp(doc, results):
+    return _score_continuation(results, _clean_code(doc["code"]))
+
+
+def doc_to_target_humaneval(doc):
+    return _clean_code(doc["canonical_solution"])
+
+
+def process_results_humaneval(doc, results):
+    return _score_continuation(results, _clean_code(doc["canonical_solution"]))
+
+
+# --------------------------------------------------------------------------
+# Format test: the same reference solutions scored under three contexts.
+#   A  "Question: ...\nAnswer:" (benchmark format; gsm8k_cot_1k_bpb, math500_bpb,
+#      mbpp_code_bpb)
+#   B  the problem as plain text, then the solution (no benchmark labels)
+#   C  the solution alone (no context; lm-eval conditions on BOS/EOS)
+# The continuation and its byte count are identical across A/B/C, so any
+# difference in a model's BPB comes from the context, i.e. from format.
+# GSM8K uses the first 1000 train items in all three conditions.
+# --------------------------------------------------------------------------
+
+
+def first_1000(dataset):
+    return dataset.select(range(min(1000, len(dataset))))
+
+
+def doc_to_target_gsm8k_bare(doc):
+    return _gsm8k_solution(doc)
+
+
+def doc_to_target_math500_bare(doc):
+    return doc["solution"].strip()

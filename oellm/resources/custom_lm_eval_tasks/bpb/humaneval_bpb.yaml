@@ -1,0 +1,8 @@
+include: _generative_bpb_template_yaml
+task: humaneval_bpb
+dataset_path: openai/openai_humaneval
+test_split: test
+# signature + docstring; the scored continuation is the function body
+doc_to_text: "{{prompt}}"
+doc_to_target: !function utils.doc_to_target_humaneval
+process_results: !function utils.process_results_humaneval
