@@ -229,9 +229,9 @@ def test_judgearena_elo_categories():
         "elo-lmarena-100k-de",
         "elo-lmarena-140k-de",
     }
-    assert {(result.suite, result.n_shot) for result in _expand_task_groups(["elo-eu"])} == {
-        ("judgearena", 0)
-    }
+    assert {
+        (result.suite, result.n_shot) for result in _expand_task_groups(["elo-eu"])
+    } == {("judgearena", 0)}
 
 
 def test_judgearena_additional_routes_only_three_tasks():
