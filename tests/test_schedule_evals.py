@@ -155,18 +155,52 @@ def test_schedule_evals_slurm_template_var_invalid_json(tmp_path):
 def test_download_only_prepares_packaged_judgearena_task(schedule_env):
     with (
         patch("oellm.main._ensure_runtime_environment"),
-        patch("oellm.main._process_model_paths"),
+        patch("oellm.main._process_model_paths") as models,
         patch("oellm.main._download_judgearena_tasks") as download,
     ):
         schedule_evals(
             models="local-model",
             tasks="arena-hard-v2.0",
             n_shot=0,
+            judgearena_kwargs={"judge.model": "VLLM/Qwen/Qwen3-4B"},
             download_only=True,
             venv_path=sys.prefix,
         )
 
     assert download.call_args.args[0] == ["arena-hard-v2.0"]
+    assert [call.args[0] for call in models.call_args_list] == [
+        {"local-model"},
+        {"Qwen/Qwen3-4B"},
+    ]
+
+
+@pytest.mark.parametrize(
+    "task,judge_model,skip_checks",
+    [
+        ("arena-hard-v0.1", "OpenRouter/google/gemma-4-31b-it", False),
+        ("arena-hard-v0.1", "VLLM/Qwen/Qwen3-4B", True),
+        ("unregistered-task", "VLLM/Qwen/Qwen3-4B", False),
+    ],
+)
+def test_schedule_does_not_download_other_judges(
+    schedule_env, task, judge_model, skip_checks
+):
+    with (
+        patch("oellm.main._ensure_runtime_environment"),
+        patch("oellm.main._process_model_paths") as models,
+        patch("oellm.main._download_judgearena_tasks"),
+    ):
+        schedule_evals(
+            models="local-model",
+            tasks=task,
+            n_shot=0,
+            judgearena_kwargs={"judge.model": judge_model},
+            download_only=True,
+            skip_checks=skip_checks,
+            venv_path=sys.prefix,
+        )
+
+    assert models.call_count == (0 if skip_checks else 1)
 
 
 def test_schedule_forwards_judgearena_options(schedule_env, tmp_path):

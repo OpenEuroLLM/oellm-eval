@@ -397,6 +397,15 @@ def schedule_evals(
             + ", ".join(sorted(conflicts))
         )
 
+    judge_model = judgearena_values.get("judge.model")
+    if (
+        not skip_checks
+        and judgearena_rows.any()
+        and isinstance(judge_model, str)
+        and judge_model.startswith("VLLM/")
+    ):
+        _process_model_paths({judge_model.removeprefix("VLLM/")})
+
     judgearena_cli_args: list[str] = []
     for key, value in judgearena_values.items():
         serialized = value if isinstance(value, str) else json.dumps(value)
