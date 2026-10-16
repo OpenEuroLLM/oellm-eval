@@ -162,7 +162,10 @@ def test_download_only_prepares_packaged_judgearena_task(schedule_env):
             models="local-model",
             tasks="arena-hard-v2.0",
             n_shot=0,
-            judgearena_kwargs={"judge.model": "VLLM/Qwen/Qwen3-4B"},
+            judgearena_kwargs={
+                "judge.model": "VLLM/Qwen/Qwen3-4B",
+                "model.baseline": "VLLM/EleutherAI/pythia-410m",
+            },
             download_only=True,
             venv_path=sys.prefix,
         )
@@ -170,7 +173,7 @@ def test_download_only_prepares_packaged_judgearena_task(schedule_env):
     assert download.call_args.args[0] == ["arena-hard-v2.0"]
     assert [call.args[0] for call in models.call_args_list] == [
         {"local-model"},
-        {"Qwen/Qwen3-4B"},
+        {"Qwen/Qwen3-4B", "EleutherAI/pythia-410m"},
     ]
 
 
@@ -194,7 +197,10 @@ def test_schedule_does_not_download_other_judges(
             models="local-model",
             tasks=task,
             n_shot=0,
-            judgearena_kwargs={"judge.model": judge_model},
+            judgearena_kwargs={
+                "judge.model": judge_model,
+                "model.baseline": "gpt-4-0314",
+            },
             download_only=True,
             skip_checks=skip_checks,
             venv_path=sys.prefix,
