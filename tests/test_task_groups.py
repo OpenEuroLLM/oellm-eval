@@ -201,3 +201,14 @@ class TestExpandTaskGroupsWithTemplates:
     def test_global_piqa_completions_expands_to_32_tasks(self):
         results = _expand_task_groups(["global-piqa-eu-completions"])
         assert len(results) == 32
+
+
+def test_judgearena_additional_routes_only_three_tasks():
+    assert {
+        (result.task, result.suite, result.n_shot)
+        for result in _expand_task_groups(["judgearena-additional"])
+    } == {
+        ("mt-bench-101", "judgearena", 0),
+        ("m-arena-hard-v0.1-EU", "judgearena", 0),
+        ("m-arena-hard-v2.0-EU", "judgearena", 0),
+    }

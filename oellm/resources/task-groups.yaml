@@ -650,6 +650,14 @@ task_groups:
       - task: "fluency-{lang}"
         subset: "{lang}"
 
+  judgearena-additional:
+    description: "Other packaged JudgeArena tasks."
+    suite: judgearena
+    n_shots: [0]
+    tasks:
+      - task: mt-bench-101
+      - task: m-arena-hard-v0.1-EU
+      - task: m-arena-hard-v2.0-EU
 
 super_groups:
   judgearena:
