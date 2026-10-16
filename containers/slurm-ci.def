@@ -2,7 +2,7 @@ Bootstrap: docker
 From: nvcr.io/nvidia/pytorch:25.10-py3
 
 %arguments
-    JUDGEARENA_GIT_REF=29f3091f16ca5df7ea287748528aecbaad29b620
+    JUDGEARENA_GIT_REF=45e3b80705f54463f7b67bdeecd8245413eb7457
 
 %labels
     Author      oellm-cli
@@ -42,6 +42,7 @@ From: nvcr.io/nvidia/pytorch:25.10-py3
     uv tool install --python 3.12 \
         --with "langcodes[data]" \
         --with "pillow" \
+        --with "huggingface-hub<2" \
         "lighteval[multilingual] @ git+https://github.com/huggingface/lighteval.git"
 
     # Pre-load lighteval registry to trigger tinyBenchmarks data download at build time

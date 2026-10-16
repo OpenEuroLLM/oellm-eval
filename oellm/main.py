@@ -195,9 +195,9 @@ def schedule_evals(
         n_shot: An integer or list of integers specifying the number of shots applied to `tasks`.
         eval_csv_path: A path to a CSV file containing evaluation data.
             Warning: exclusive argument. Cannot specify `models`, `tasks`, `task_groups`, or `n_shot` when `eval_csv_path` is provided.
-        judgearena_kwargs: JudgeArena CLI arguments as a JSON object. Keys use
-            JudgeArena's dotted names. The task, candidate model, result folder,
-            and optional sample limit remain controlled by oellm-eval.
+        judgearena_kwargs: Extra JudgeArena CLI arguments as a JSON object.
+            Use names such as `judge.model`. oellm-eval controls the task,
+            candidate model, result folder, and optional sample limit.
         max_array_len: The maximum number of jobs to schedule to run concurrently.
             Warning: this is not the number of jobs in the array job. This is determined by the environment variable `QUEUE_LIMIT`.
         tasks_per_job: The maximum number of lm-eval-harness tasks evaluated by a single
@@ -381,8 +381,8 @@ def schedule_evals(
     judgearena_rows = df["eval_suite"].eq("judgearena")
     df.loc[judgearena_rows, "n_shot"] = 0
 
-    judgearena_values = dict(judgearena_kwargs or {})
-    blocked_judgearena_args = {
+    judgearena_values = judgearena_kwargs or {}
+    owned_args = {
         "config_path",
         "generation.n_instructions",
         "model.name",
@@ -390,16 +390,11 @@ def schedule_evals(
         "task",
         "task_file",
     }
-    conflicts = blocked_judgearena_args.intersection(judgearena_values)
-    prompt_overrides = {
-        key for key in judgearena_values if key.startswith("judge.prompt")
-    }
-    undotted_args = {key for key in judgearena_values if "." not in key}
-    unsupported_judgearena_args = conflicts | prompt_overrides | undotted_args
-    if unsupported_judgearena_args:
+    conflicts = owned_args.intersection(judgearena_values)
+    if conflicts:
         raise ValueError(
-            "oellm-eval does not accept these JudgeArena arguments: "
-            + ", ".join(sorted(unsupported_judgearena_args))
+            "oellm-eval controls these JudgeArena arguments: "
+            + ", ".join(sorted(conflicts))
         )
 
     judgearena_cli_args: list[str] = []

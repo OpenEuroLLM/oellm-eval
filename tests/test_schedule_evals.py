@@ -169,13 +169,33 @@ def test_download_only_prepares_packaged_judgearena_task(schedule_env):
     assert download.call_args.args[0] == ["arena-hard-v2.0"]
 
 
-def test_schedule_rejects_nested_judgearena_overrides(schedule_env):
-    with pytest.raises(ValueError, match="judge"):
+def test_schedule_forwards_judgearena_options(schedule_env, tmp_path):
+    with patch("oellm.main._num_jobs_in_queue", return_value=0):
         schedule_evals(
             models="local-model",
             tasks="arena-hard-v2.0",
             n_shot=0,
-            judgearena_kwargs={"judge": {"prompt_preset": "custom"}},
+            judgearena_kwargs={
+                "judge.prompt_preset": "alpaca-eval",
+                "judge.engine_kwargs": {"enforce_eager": True},
+            },
+            skip_checks=True,
+            venv_path=sys.prefix,
+            dry_run=True,
+        )
+
+    script = next(tmp_path.glob("**/submit_evals.sbatch")).read_text()
+    assert "--judge.prompt_preset alpaca-eval" in script
+    assert "--judge.engine_kwargs '{\"enforce_eager\": true}'" in script
+
+
+def test_schedule_rejects_task_override(schedule_env):
+    with pytest.raises(ValueError, match="task"):
+        schedule_evals(
+            models="local-model",
+            tasks="arena-hard-v2.0",
+            n_shot=0,
+            judgearena_kwargs={"task": "mt-bench"},
             skip_checks=True,
             venv_path=sys.prefix,
             dry_run=True,
