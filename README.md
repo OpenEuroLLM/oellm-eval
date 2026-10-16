@@ -180,7 +180,7 @@ oellm-eval schedule --models "model-name" --task_groups "open-sci-0.01" \
 
 Use exact env var names: `PARTITION`, `ACCOUNT`, `GPUS_PER_NODE`, `SLURM_MEM`. `TIME` (HH:MM:SS) overrides the time limit.
 
-## JudgeArena
+## LLM Judge benchmarks (JudgeArena)
 
 Packaged JudgeArena tasks are registered in `task-groups.yaml`, so they use the
 JudgeArena runner automatically:
