@@ -182,8 +182,9 @@ Use exact env var names: `PARTITION`, `ACCOUNT`, `GPUS_PER_NODE`, `SLURM_MEM`. `
 
 ## LLM Judge benchmarks (JudgeArena)
 
-Packaged JudgeArena tasks are registered in `task-groups.yaml`, so they use the
-JudgeArena runner automatically:
+LLM judge benchmarks are available through JudgeArena. Packaged tasks are
+registered in `task-groups.yaml`, so they use the JudgeArena runner
+automatically:
 
 ```bash
 oellm-eval schedule \
@@ -192,6 +193,10 @@ oellm-eval schedule \
   --n_shot 0 \
   --judgearena_kwargs '{"judge.model":"OpenRouter/google/gemma-4-31b-it"}'
 ```
+
+Use `--task_groups elo-en`, `elo-eu`, or `elo-multilingual` to schedule the
+language-specific ELO tasks. The standalone `-ja` task variants are not
+registered.
 
 Pass JudgeArena runtime settings such as the judge model through
 `--judgearena_kwargs`. Use `--limit` to set the number of instructions. Local

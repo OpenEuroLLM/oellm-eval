@@ -216,11 +216,8 @@ def test_judgearena_selects_base_tasks():
 
     assert tasks == [
         "alpaca-eval",
-        "alpaca-eval-ja",
         "arena-hard-v0.1",
-        "arena-hard-v0.1-ja",
         "arena-hard-v2.0",
-        "arena-hard-v2.0-ja",
         "elo-comparia",
         "elo-lmarena",
         "elo-lmarena-100k",

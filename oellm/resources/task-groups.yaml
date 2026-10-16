@@ -594,11 +594,8 @@ task_groups:
     n_shots: [0]
     tasks:
       - task: alpaca-eval
-      - task: alpaca-eval-ja
       - task: arena-hard-v0.1
-      - task: arena-hard-v0.1-ja
       - task: arena-hard-v2.0
-      - task: arena-hard-v2.0-ja
       - task: elo-comparia
       - task: elo-lmarena
       - task: elo-lmarena-100k
@@ -623,6 +620,37 @@ task_groups:
     n_shots: [0]
     valid_langs: [en, pl, ru, zh, de, ja, es, fr, ko, pt, fa, it, tr, vi, cs, ar, uk]
     tasks:
+      - task: "elo-lmarena-{lang}"
+        subset: "{lang}"
+      - task: "elo-lmarena-100k-{lang}"
+        subset: "{lang}"
+      - task: "elo-lmarena-140k-{lang}"
+        subset: "{lang}"
+
+  elo-en:
+    description: "English ComparIA and LMSYS Arena ELO tasks."
+    suite: judgearena
+    n_shots: [0]
+    tasks:
+      - task: elo-comparia-en
+        subset: en
+      - task: elo-lmarena-en
+        subset: en
+      - task: elo-lmarena-100k-en
+        subset: en
+      - task: elo-lmarena-140k-en
+        subset: en
+
+  elo-eu:
+    description: "ComparIA and LMSYS Arena ELO tasks in supported OpenEuroLLM European languages."
+    suite: judgearena
+    n_shots: [0]
+    valid_langs: [en, pl, de, es, fr, pt, it, tr, cs, uk]
+    tasks:
+      - task: elo-comparia-en
+        subset: en
+      - task: elo-comparia-fr
+        subset: fr
       - task: "elo-lmarena-{lang}"
         subset: "{lang}"
       - task: "elo-lmarena-100k-{lang}"
@@ -664,6 +692,12 @@ super_groups:
     description: "JudgeArena base tasks."
     task_groups:
       - task: judgearena-default
+
+  elo-multilingual:
+    description: "All language-specific ComparIA and LMSYS Arena ELO tasks."
+    task_groups:
+      - task: judgearena-comparia
+      - task: judgearena-lmarena
 
   oellm-multilingual:
     description: "Combined Belebele EU set plus multilingual benchmarks"
