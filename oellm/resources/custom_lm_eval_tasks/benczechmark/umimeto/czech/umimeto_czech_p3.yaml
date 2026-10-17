@@ -1,0 +1,5 @@
+dataset_name: czech
+tag: umimeto_czech
+task: umimeto_czech_p3
+include: ../../_umimeto.yaml
+description: "Olympiáda z českého jazyka.\n\nInstrukce: Vyberte správnou odpověď A-B pro zadanou otázku. Pro každou otázku existuje právě jedna správná odpověď.\nZadání:\n\n"

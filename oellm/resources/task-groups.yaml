@@ -588,6 +588,221 @@ task_groups:
       - task: "polymath_{lang}_top"
         subset: "{lang}"
 
+  benczechmark-cermat:
+    description: "BenCzechMark Native Czech Language Evaluation Suite (CERMAT)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    tasks:
+      - task: cermat_math_mc_p0
+        dataset: CZLC/cermat_math_mc
+      - task: cermat_math_mc_p1
+        dataset: CZLC/cermat_math_mc
+      - task: cermat_math_mc_p2
+        dataset: CZLC/cermat_math_mc
+      - task: cermat_math_mc_p3
+        dataset: CZLC/cermat_math_mc
+      - task: cermat_math_mc_p4
+        dataset: CZLC/cermat_math_mc
+      - task: cermat_math_open_p0
+        dataset: CZLC/cermat_math_open
+      - task: cermat_math_open_p1
+        dataset: CZLC/cermat_math_open
+      - task: cermat_math_open_p2
+        dataset: CZLC/cermat_math_open
+      - task: cermat_math_open_p3
+        dataset: CZLC/cermat_math_open
+      - task: cermat_math_open_p4
+        dataset: CZLC/cermat_math_open
+      - task: cermat_czech_mc_p0
+        dataset: CZLC/cermat_czech_mc
+      - task: cermat_czech_mc_p1
+        dataset: CZLC/cermat_czech_mc
+      - task: cermat_czech_mc_p2
+        dataset: CZLC/cermat_czech_mc
+      - task: cermat_czech_mc_p3
+        dataset: CZLC/cermat_czech_mc
+      - task: cermat_czech_mc_p4
+        dataset: CZLC/cermat_czech_mc
+      - task: cermat_czech_open_p0
+        dataset: CZLC/cermat_czech_open
+      - task: cermat_czech_open_p1
+        dataset: CZLC/cermat_czech_open
+      - task: cermat_czech_open_p2
+        dataset: CZLC/cermat_czech_open
+      - task: cermat_czech_open_p3
+        dataset: CZLC/cermat_czech_open
+      - task: cermat_czech_open_p4
+        dataset: CZLC/cermat_czech_open
+      - task: cermat_czech_tf_p0
+        dataset: CZLC/cermat_czech_tf
+      - task: cermat_czech_tf_p1
+        dataset: CZLC/cermat_czech_tf
+      - task: cermat_czech_tf_p2
+        dataset: CZLC/cermat_czech_tf
+      - task: cermat_czech_tf_p3
+        dataset: CZLC/cermat_czech_tf
+      - task: cermat_czech_tf_p4
+        dataset: CZLC/cermat_czech_tf
+
+  benczechmark-sqad32:
+    description: "BenCzechMark Native Czech Language Evaluation Suite (SQAD32)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    dataset: CZLC/sqad_3.2_filtered
+    tasks:
+      - task: cs_sqad32_p0
+      - task: cs_sqad32_p1
+      - task: cs_sqad32_p2
+      - task: cs_sqad32_p3
+      - task: cs_sqad32_p4
+
+  benczechmark-sentiment:
+    description: "BenCzechMark Native Czech Language Evaluation Suite (sentiment)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    tasks:
+      - task: sentiment_csfd_p0
+        dataset: CZLC/csfd_sentiment_balanced
+      - task: sentiment_csfd_p1
+        dataset: CZLC/csfd_sentiment_balanced
+      - task: sentiment_csfd_p2
+        dataset: CZLC/csfd_sentiment_balanced
+      - task: sentiment_csfd_p3
+        dataset: CZLC/csfd_sentiment_balanced
+      - task: sentiment_csfd_p4
+        dataset: CZLC/csfd_sentiment_balanced
+      - task: sentiment_fb_p0
+        dataset: CZLC/fb_sentiment_balanced
+      - task: sentiment_fb_p1
+        dataset: CZLC/fb_sentiment_balanced
+      - task: sentiment_fb_p2
+        dataset: CZLC/fb_sentiment_balanced
+      - task: sentiment_fb_p3
+        dataset: CZLC/fb_sentiment_balanced
+      - task: sentiment_fb_p4
+        dataset: CZLC/fb_sentiment_balanced
+      - task: sentiment_mall_p0
+        dataset: CZLC/mall_sentiment_balanced
+      - task: sentiment_mall_p1
+        dataset: CZLC/mall_sentiment_balanced
+      - task: sentiment_mall_p2
+        dataset: CZLC/mall_sentiment_balanced
+      - task: sentiment_mall_p3
+        dataset: CZLC/mall_sentiment_balanced
+      - task: sentiment_mall_p4
+        dataset: CZLC/mall_sentiment_balanced
+
+  benczechmark-umimeto:
+    description: "BenCzechMark Native Czech Language Evaluation Suite (UmimeTo)"
+    suite: lm-eval-harness
+    n_shots: [0]
+    tasks:
+      - task: umimeto_biology_p0
+        dataset: CZLC/umimeto-qa
+        subset: biology
+      - task: umimeto_biology_p1
+        dataset: CZLC/umimeto-qa
+        subset: biology
+      - task: umimeto_biology_p2
+        dataset: CZLC/umimeto-qa
+        subset: biology
+      - task: umimeto_biology_p3
+        dataset: CZLC/umimeto-qa
+        subset: biology
+      - task: umimeto_biology_p4
+        dataset: CZLC/umimeto-qa
+        subset: biology
+      - task: umimeto_chemistry_p0
+        dataset: CZLC/umimeto-qa
+        subset: chemistry
+      - task: umimeto_chemistry_p1
+        dataset: CZLC/umimeto-qa
+        subset: chemistry
+      - task: umimeto_chemistry_p2
+        dataset: CZLC/umimeto-qa
+        subset: chemistry
+      - task: umimeto_chemistry_p3
+        dataset: CZLC/umimeto-qa
+        subset: chemistry
+      - task: umimeto_chemistry_p4
+        dataset: CZLC/umimeto-qa
+        subset: chemistry
+      - task: umimeto_czech_p0
+        dataset: CZLC/umimeto-qa
+        subset: czech
+      - task: umimeto_czech_p1
+        dataset: CZLC/umimeto-qa
+        subset: czech
+      - task: umimeto_czech_p2
+        dataset: CZLC/umimeto-qa
+        subset: czech
+      - task: umimeto_czech_p3
+        dataset: CZLC/umimeto-qa
+        subset: czech
+      - task: umimeto_czech_p4
+        dataset: CZLC/umimeto-qa
+        subset: czech
+      - task: umimeto_history_p0
+        dataset: CZLC/umimeto-qa
+        subset: history
+      - task: umimeto_history_p1
+        dataset: CZLC/umimeto-qa
+        subset: history
+      - task: umimeto_history_p2
+        dataset: CZLC/umimeto-qa
+        subset: history
+      - task: umimeto_history_p3
+        dataset: CZLC/umimeto-qa
+        subset: history
+      - task: umimeto_history_p4
+        dataset: CZLC/umimeto-qa
+        subset: history
+      - task: umimeto_informatics_p0
+        dataset: CZLC/umimeto-qa
+        subset: informatics
+      - task: umimeto_informatics_p1
+        dataset: CZLC/umimeto-qa
+        subset: informatics
+      - task: umimeto_informatics_p2
+        dataset: CZLC/umimeto-qa
+        subset: informatics
+      - task: umimeto_informatics_p3
+        dataset: CZLC/umimeto-qa
+        subset: informatics
+      - task: umimeto_informatics_p4
+        dataset: CZLC/umimeto-qa
+        subset: informatics
+      - task: umimeto_math_p0
+        dataset: CZLC/umimeto-qa
+        subset: math
+      - task: umimeto_math_p1
+        dataset: CZLC/umimeto-qa
+        subset: math
+      - task: umimeto_math_p2
+        dataset: CZLC/umimeto-qa
+        subset: math
+      - task: umimeto_math_p3
+        dataset: CZLC/umimeto-qa
+        subset: math
+      - task: umimeto_math_p4
+        dataset: CZLC/umimeto-qa
+        subset: math
+      - task: umimeto_physics_p0
+        dataset: CZLC/umimeto-qa
+        subset: physics
+      - task: umimeto_physics_p1
+        dataset: CZLC/umimeto-qa
+        subset: physics
+      - task: umimeto_physics_p2
+        dataset: CZLC/umimeto-qa
+        subset: physics
+      - task: umimeto_physics_p3
+        dataset: CZLC/umimeto-qa
+        subset: physics
+      - task: umimeto_physics_p4
+        dataset: CZLC/umimeto-qa
+        subset: physics
+
 super_groups:
   oellm-multilingual:
     description: "Combined Belebele EU set plus multilingual benchmarks"
@@ -630,3 +845,11 @@ super_groups:
       - task: sib200-eu
       - task: xcopa-eu
       - task: xcsqa-eu
+
+  oellm-benczechmark:
+    description: "Combined BenCzechMark Evaluation Suites"
+    task_groups:
+      - task: benczechmark-cermat
+      - task: benczechmark-sqad32
+      - task: benczechmark-sentiment
+      - task: benczechmark-umimeto

@@ -1,0 +1,4 @@
+task: cermat_math_open_p1
+include: ../_cermat_math_open.yaml
+description: "Úkol: Nalezněte odpověď na následující slovní úlohy. V případě více odpovědí je spojte pomocí ', '. Odpověď uzavřete symbolem '\n\n'.\n\n"
+doc_to_text: "{{('Text: '+ context+' ') if context else ''}}Otázka: {{query}}\nOdpověď:"

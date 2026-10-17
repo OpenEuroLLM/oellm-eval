@@ -1,0 +1,5 @@
+dataset_name: chemistry
+tag: umimeto_chemistry
+task: umimeto_chemistry_p2
+include: ../../_umimeto.yaml
+description: "Ukázkové úlohy z chemie pro žáky základních a středních škol.\n\n"

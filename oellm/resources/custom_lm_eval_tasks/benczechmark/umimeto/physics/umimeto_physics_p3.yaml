@@ -1,0 +1,5 @@
+dataset_name: physics
+tag: umimeto_physics
+task: umimeto_physics_p3
+include: ../../_umimeto.yaml
+description: "Fyzikální Olympiáda.\n\nInstrukce: Vyberte správnou odpověď A-B pro zadanou otázku. Pro každou otázku existuje právě jedna správná odpověď.\nZadání:\n\n"

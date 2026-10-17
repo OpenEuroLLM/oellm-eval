@@ -1,0 +1,4 @@
+task: cermat_math_open_p4
+include: ../_cermat_math_open.yaml
+description: "Správná řešení úloh z matematiky. Více odpovědí je oddeleno pomoci ', '. Odpověď ukončete symbolem '\n\n'.\n\n"
+doc_to_text: "{{('Zadání: '+ context+' ') if context else ''}}Dotaz: {{query}}\nSprávné řešení:"

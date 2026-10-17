@@ -1,0 +1,18 @@
+dataset_path: CZLC/cermat_czech_mc
+tag: cermat_czech_mc
+test_split: test
+fewshot_split: test
+fewshot_config:
+  sampler: first_n
+output_type: multiple_choice
+doc_to_target: gold
+doc_to_choice: !function utils.cermat_get_choice
+metric_list:
+  - metric: acc
+    aggregation: mean
+    higher_is_better: true
+  - metric: acc_norm
+    aggregation: mean
+    higher_is_better: true
+metadata:
+  version: 1.0

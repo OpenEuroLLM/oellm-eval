@@ -1,0 +1,5 @@
+dataset_name: informatics
+tag: umimeto_informatics
+task: umimeto_informatics_p4
+include: ../../_umimeto.yaml
+description: "Správná řešení úloh z Krajského přeboru v informatice.\n\n"

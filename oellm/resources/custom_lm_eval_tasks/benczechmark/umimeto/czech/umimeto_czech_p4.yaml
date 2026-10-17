@@ -1,0 +1,5 @@
+dataset_name: czech
+tag: umimeto_czech
+task: umimeto_czech_p4
+include: ../../_umimeto.yaml
+description: "Správná řešení úloh z Krajského přeboru v češtině.\n\n"

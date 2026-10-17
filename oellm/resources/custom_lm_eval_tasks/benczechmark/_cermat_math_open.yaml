@@ -1,0 +1,24 @@
+dataset_path: CZLC/cermat_math_open
+tag: cermat_math_open
+include: templates/qa/_qa_template.yaml
+fewshot_split: test
+fewshot_config:
+  sampler: first_n
+generation_kwargs:
+  until:
+    - "\n\n"
+    - "</s>"
+    - "<eos>"
+    - "Otázka:"
+    - "Dotaz:"
+    - "Kontext:"
+    - "Text:"
+    - "Ukázka:"
+    - "Příklad:"
+    - "Zadání:"
+    - "<|im_end|>"
+  do_sample: false
+  temperature: 0.0
+  max_new_tokens: 32
+metadata:
+  version: 1.0

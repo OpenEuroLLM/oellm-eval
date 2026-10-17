@@ -1,0 +1,4 @@
+task: cermat_czech_open_p3
+include: ../_cermat_czech_open.yaml
+description: "Maturitní zkouška.\n\nInstrukce: Výstižně a krátce zodpovězte zadanou otázku.\nV případě seznamu odpovědí je oddělte pomocí ', '. Na závěr odpovědi přidejte symbol '\n\n'. Zadání:\n\n"
+doc_to_text: "{{('Příklad: '+ context+' ') if context else ''}}Dotaz: {{query}}\nVybraná odpověď:"
