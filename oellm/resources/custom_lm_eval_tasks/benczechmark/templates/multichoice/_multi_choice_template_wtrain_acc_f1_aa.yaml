@@ -1,5 +1,0 @@
-include:
- - _multi_choice_template.yaml
-
-training_split: train
-fewshot_split: train

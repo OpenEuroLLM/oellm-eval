@@ -1,6 +1,0 @@
-metric_list:
-  - metric: acc
-  - metric: f1
-    aggregation: !function ../../utils.aggregate_macro_f1_score
-  - metric: !function ../../utils.avg_mcauroc
-    aggregation: !function ../../utils.aggregate_avg_mcauroc
