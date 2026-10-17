@@ -1,29 +1,29 @@
 # -*- coding: UTF-8 -*-
-"""
+r"""
 
 :authors:     Martin Dočekal, Martin Fajčík
 """
-from typing import List, Tuple
-from typing import Optional
+
+import collections
+import re
+import string
 
 import evaluate
 import numpy
-from scipy.special import softmax
-from sklearn.metrics import f1_score, confusion_matrix
-
 from lm_eval.api.metrics import mean
 from lm_eval.api.task import ConfigurableTask, eval_logger
-
-import transformers.data.metrics.squad_metrics as squad_metrics  # csqad32 metrics
+from scipy.special import softmax
+from sklearn.metrics import confusion_matrix, f1_score
 
 ###
 ### F1 metric
 ###
 
+
 # The f1_posterior and _evaluate_statistics implementation is based on [GOUTTE-2005], and these few lines were borrowed
 # and modified from Andre Anjos <anjos@idiap.ch> under Copyright (c) 2022 Idiap Research Institute, http://www.idiap.ch/
 def f1_posterior(tp, fp, fn, lambda_, nb_samples):
-    """Simulates the F1-score posterior of a system with the provided markings
+    r"""Simulates the F1-score posterior of a system with the provided markings
 
     This implementation is based on [GOUTTE-2005]_, equation 11.
 
@@ -58,9 +58,7 @@ def f1_posterior(tp, fp, fn, lambda_, nb_samples):
     """
 
     u = numpy.random.gamma(shape=(tp + lambda_), scale=2.0, size=nb_samples)
-    v = numpy.random.gamma(
-        shape=(fp + fn + (2 * lambda_)), scale=1.0, size=nb_samples
-    )
+    v = numpy.random.gamma(shape=(fp + fn + (2 * lambda_)), scale=1.0, size=nb_samples)
     return u / (u + v)
 
 
@@ -105,15 +103,15 @@ def _evaluate_statistics(variates, coverage):
 
 
 def aggregate_macro_f1_score(items, **kwargs):
-    unzipped_list = list(zip(*items))
+    unzipped_list = list(zip(*items, strict=False))
     golds = unzipped_list[0]
     preds = unzipped_list[1]
-    fscore = f1_score(golds, preds, average='macro')
+    fscore = f1_score(golds, preds, average="macro")
     return fscore
 
 
 def aggregate_macro_f1_CI(items, alpha=0.95):
-    unzipped_list = list(zip(*items))
+    unzipped_list = list(zip(*items, strict=False))
     golds = unzipped_list[0]
     preds = unzipped_list[1]
 
@@ -146,6 +144,7 @@ def aggregate_macro_f1_CI(items, alpha=0.95):
 ###
 ### ROUGE metric
 ###
+
 
 def rouge_raw_r1_low_f(predictions, references):
     return rouge_raw(predictions, references, "1_low_fmeasure")
@@ -183,7 +182,7 @@ def rouge_raw_rl_high_f(predictions, references):
     return rouge_raw(predictions, references, "L_high_fmeasure")
 
 
-def rouge_raw(predictions, references, select: Optional[str] = None):
+def rouge_raw(predictions, references, select: str | None = None):
     module = evaluate.load("CZLC/rouge_raw")
     return module.compute(predictions=predictions, references=references, select=select)
 
@@ -192,21 +191,24 @@ def rouge_raw_r2_mid_f_without_bootstrap(predictions, references):
     return rouge_raw_without_bootstrap(predictions, references, "2_fmeasure")
 
 
-def rouge_raw_without_bootstrap(predictions, references, select: Optional[str] = None):
+def rouge_raw_without_bootstrap(predictions, references, select: str | None = None):
     module = evaluate.load("CZLC/rouge_raw")
-    return module.compute(predictions=predictions, references=references, select=select, aggregate=False)
+    return module.compute(
+        predictions=predictions, references=references, select=select, aggregate=False
+    )
 
 
 ###
 ### MC-AUROC metric
 ###
 
+
 def avg_mcauroc(prediction, reference):
     return prediction, reference  # nothing to process, passthrough metric
 
 
 def aggregate_avg_mcauroc(items):
-    unzipped_list = list(zip(*items))
+    unzipped_list = list(zip(*items, strict=False))
     golds = unzipped_list[0]
     probs = unzipped_list[1]
 
@@ -216,7 +218,7 @@ def aggregate_avg_mcauroc(items):
 
 
 def aggregate_CI_avg_mcauroc(items):
-    unzipped_list = list(zip(*items))
+    unzipped_list = list(zip(*items, strict=False))
     golds = unzipped_list[0]
     probs = unzipped_list[1]
 
@@ -229,10 +231,10 @@ def aggregate_CI_avg_mcauroc(items):
 ### Tasks wrapper
 ###
 
-class MultipleChoiceTask(ConfigurableTask):
 
-    def process_results(self, doc: dict, results: List[Tuple[float, bool]]) -> dict:
-        lls, is_greedy = zip(*results)
+class MultipleChoiceTask(ConfigurableTask):
+    def process_results(self, doc: dict, results: list[tuple[float, bool]]) -> dict:
+        lls, is_greedy = zip(*results, strict=False)
 
         # retrieve choices in List[str] form, to compute choice lengths, etc.
         choices = self.doc_to_choice(doc)
@@ -299,13 +301,13 @@ class MultipleChoiceTask(ConfigurableTask):
 
 
 # MMLU multi-choice style (A....Z)
-ANSWER_LETTERS = [chr(ord('A') + i) for i in range(ord('Z') - ord('A') + 1)]
+ANSWER_LETTERS = [chr(ord("A") + i) for i in range(ord("Z") - ord("A") + 1)]
 
 
 def mmlu_get_choice(dataset):
     choice = [c for c in ANSWER_LETTERS if c in dataset.keys()]
     if len(choice) == 0:
-        raise ValueError(f"No answer columns found in dataset")
+        raise ValueError("No answer columns found in dataset")
     return choice
 
 
@@ -314,9 +316,9 @@ def mmlu_get_answer_index(dataset):
 
 
 def cermat_get_choice(dataset):
-    if len(dataset['choices']) == 4:
+    if len(dataset["choices"]) == 4:
         return ["A", "B", "C", "D"]
-    elif len(dataset['choices']) == 5:
+    elif len(dataset["choices"]) == 5:
         return ["A", "B", "C", "D", "E"]
     else:
         raise ValueError(f"Invalid number of choices: {len(dataset['choices'])}")
@@ -328,7 +330,7 @@ def history_ir_get_choice(dataset):
 
 def mmlu_get_question_text(dataset):
     dataset_answer_keys = mmlu_get_choice(dataset)
-    question_text = dataset['question'].strip()
+    question_text = dataset["question"].strip()
     choices_text = "\n".join(f"{c}. {dataset[c]}" for c in dataset_answer_keys)
     return f"{question_text}\n{choices_text}\nOdpověď: "
 
@@ -338,7 +340,7 @@ def mmlu_get_question_text_umimeto(dataset):
     Umimeto has really bad questions, which require the topic at minimum to make sense
     """
     dataset_answer_keys = mmlu_get_choice(dataset)
-    question_text = dataset['question'].strip()
+    question_text = dataset["question"].strip()
     choices_text = "\n".join(f"{c}. {dataset[c]}" for c in dataset_answer_keys)
     topic = dataset["topic"]
     return f"{topic}: {question_text}\n{choices_text}\nOdpověď: "
@@ -349,17 +351,46 @@ def get_choices_belebele(dataset):
 
 
 def get_target_belebele(dataset):
-    return int(dataset['correct_answer_num']) - 1
+    return int(dataset["correct_answer_num"]) - 1
 
 
 def get_czech_news_target(dataset):
-    return dataset['category'] - 1
+    return dataset["category"] - 1
 
 
-# csqad32 metric
+# csqad32 metric. SQuAD EM/F1 copied from transformers.data.metrics.squad_metrics,
+# which transformers 5 removed; kept verbatim so scores stay comparable.
+def _normalize_answer(s):
+    s = "".join(ch for ch in s.lower() if ch not in set(string.punctuation))
+    s = re.sub(r"\b(a|an|the)\b", " ", s)
+    return " ".join(s.split())
+
+
+def _get_tokens(s):
+    return _normalize_answer(s).split() if s else []
+
+
+def compute_exact(a_gold, a_pred):
+    return int(_normalize_answer(a_gold) == _normalize_answer(a_pred))
+
+
+def compute_f1(a_gold, a_pred):
+    gold_toks, pred_toks = _get_tokens(a_gold), _get_tokens(a_pred)
+    num_same = sum(
+        (collections.Counter(gold_toks) & collections.Counter(pred_toks)).values()
+    )
+    if len(gold_toks) == 0 or len(pred_toks) == 0:
+        return int(gold_toks == pred_toks)
+    if num_same == 0:
+        return 0
+    precision, recall = num_same / len(pred_toks), num_same / len(gold_toks)
+    return (2 * precision * recall) / (precision + recall)
+
+
 def process_results(doc, results):
     preds = results[0]
     reference = doc["answers"][0]
-    f1_sum = squad_metrics.compute_f1(reference, preds)
-    exact_match = squad_metrics.compute_exact(reference, preds)
-    return {"f1": f1_sum, "exact_match": exact_match}
+    return {
+        "f1": compute_f1(reference, preds),
+        "exact_match": compute_exact(reference, preds),
+    }
