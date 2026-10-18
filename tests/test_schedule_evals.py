@@ -144,7 +144,9 @@ def test_schedule_evals_passes_bundled_lighteval_custom_tasks(tmp_path):
             dry_run=True,
         )
 
-    bundled = files("oellm.resources") / "custom_lighteval_tasks" / "reasoning.py"
+    bundled = (
+        files("oellm.resources") / "custom_lighteval_tasks" / "reasoning" / "reasoning.py"
+    )
     sbatch_content = next(tmp_path.glob("**/submit_evals.sbatch")).read_text()
     assert Path(str(bundled)).is_file()
     assert f'LIGHTEVAL_CUSTOM_TASKS="{Path(str(bundled)).resolve()}"' in sbatch_content

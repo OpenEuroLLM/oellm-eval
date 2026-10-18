@@ -20,7 +20,9 @@ CUSTOM_GROUPS = ["gpqa-diamond"]
 
 @pytest.fixture(scope="module")
 def custom_tasks() -> dict:
-    path = files("oellm.resources") / "custom_lighteval_tasks" / "reasoning.py"
+    path = (
+        files("oellm.resources") / "custom_lighteval_tasks" / "reasoning" / "reasoning.py"
+    )
     spec = importlib.util.spec_from_file_location("reasoning", str(path))
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -43,7 +45,9 @@ def test_custom_tasks_load_alongside_builtin_registry(custom_tasks):
     lighteval rejects custom names that collide with built-in tasks."""
     from lighteval.tasks.registry import Registry
 
-    path = files("oellm.resources") / "custom_lighteval_tasks" / "reasoning.py"
+    path = (
+        files("oellm.resources") / "custom_lighteval_tasks" / "reasoning" / "reasoning.py"
+    )
     loaded = Registry.load_all_task_configs(
         custom_tasks=str(path), load_multilingual=True
     )

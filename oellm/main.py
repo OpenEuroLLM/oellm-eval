@@ -221,7 +221,7 @@ def schedule_evals(
             (e.g. mgsm_native_cot_fr/de/es). Override to point at additional task YAMLs.
         lighteval_custom_tasks: Path to a Python file of custom lighteval task definitions.
             Passed as --custom-tasks to lighteval. Defaults to the bundled
-            custom_lighteval_tasks/reasoning.py (multilingual GPQA Diamond).
+            custom_lighteval_tasks/reasoning/reasoning.py (multilingual GPQA Diamond).
         local: If True, run evaluations directly on the local machine using bash instead of
             submitting to SLURM. Requires --venv_path. Skips cluster environment detection and
             runs all evaluations sequentially in a single process.
@@ -595,7 +595,10 @@ def schedule_evals(
                 lighteval_custom_tasks
                 or os.environ.get("LIGHTEVAL_CUSTOM_TASKS")
                 or str(
-                    files("oellm.resources") / "custom_lighteval_tasks" / "reasoning.py"
+                    files("oellm.resources")
+                    / "custom_lighteval_tasks"
+                    / "reasoning"
+                    / "reasoning.py"
                 )
             ).resolve()
         ),

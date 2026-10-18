@@ -113,7 +113,7 @@ about (some languages simply lack certain benchmarks).
 ## Custom lighteval tasks
 
 lighteval tasks that are not built into lighteval live in
-`oellm/resources/custom_lighteval_tasks/reasoning.py` and are passed to every
+`oellm/resources/custom_lighteval_tasks/reasoning/reasoning.py` and are passed to every
 lighteval run as `--custom-tasks` (override with `--lighteval_custom_tasks` or
 `LIGHTEVAL_CUSTOM_TASKS`). The file must expose a `TASKS_TABLE`; lighteval
 rejects names that collide with its built-in tasks. Each registry entry's
