@@ -898,6 +898,17 @@ def collect_results(
             or data.get("model")
             or "unknown"
         )
+        # lm-eval records only the bare `pretrained` value, so two revisions of one
+        # repo would collapse into one model_name; keep the revision it was run with.
+        # lighteval always records one (main by default), so its results are left alone.
+        model_args = data.get("config", {}).get("model_args")
+        if isinstance(model_args, dict):
+            revision = model_args.get("revision")
+        else:
+            found = re.search(r"(?:^|,)revision=([^,]+)", str(model_args or ""))
+            revision = found.group(1) if found else None
+        if revision and "revision=" not in str(model_name):
+            model_name = f"{model_name},revision={revision}"
 
         # Extract results for each task
         results = data.get("results", {})

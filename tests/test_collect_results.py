@@ -228,3 +228,35 @@ def test_judgearena_metadata_is_collected_without_reading_artifact_json(
         "arena_hard_v20.num_battles": 500,
     }
     assert _missing(case_dir).empty
+
+
+@pytest.mark.parametrize(
+    "model_args",
+    [
+        "pretrained=a/b,revision=x,trust_remote_code=True",
+        {"pretrained": "a/b", "revision": "x", "trust_remote_code": True},
+    ],
+    ids=["string", "dict"],
+)
+def test_revision_is_kept_in_the_model_name(tmp_path: Path, model_args) -> None:
+    """lm-eval records only the bare repo id, so two revisions of one model would
+    collapse into one row and the job would be reported missing (#132). Older
+    lm-eval wrote model_args as the CLI string, 0.4.13 writes the parsed dict."""
+    task = "sib200_eng_Latn"
+    jobs = [
+        {
+            "model_path": "a/b,revision=x",
+            "task_path": task,
+            "n_shot": 0,
+            "eval_suite": "lm-eval-harness",
+        }
+    ]
+    payload = {
+        "model_name": "a/b",
+        "config": {"model_args": model_args},
+        "results": {task: _metrics(acc=0.5)},
+        "n-shot": {task: 0},
+    }
+    case = _write_case(tmp_path, "revision", payload, jobs)
+    assert set(_collect(case)["model_name"]) == {"a/b,revision=x"}
+    assert _missing(case).empty
