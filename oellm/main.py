@@ -702,7 +702,7 @@ def collect_results(
         # Concatenate and let later entries win for duplicate (model_path, task_path, n_shot).
         jobs_df = pd.concat(jobs_frames, ignore_index=True)
         dup_cols = [
-            c for c in ("model_path", "task_path", "n_shot") if c in jobs_df.columns
+            c for c in ("model_path", "revision", "task_path", "n_shot") if c in jobs_df.columns
         ]
         if dup_cols:
             jobs_df = jobs_df.drop_duplicates(subset=dup_cols, keep="last")
@@ -746,6 +746,14 @@ def collect_results(
             or data.get("model")
             or "unknown"
         )
+
+        # Get model revision
+        config = data.get("config", None)
+        revision = None
+        if config is not None:
+            revision = config.get("model_revision", None)
+            if revision is not None and revision == "main":
+                revision = None
 
         # Extract results for each task
         results = data.get("results", {})
@@ -806,6 +814,7 @@ def collect_results(
                     rows.append(
                         {
                             "model_name": model_name,
+                            "revision": revision,
                             "task": group_name,
                             "n_shot": n_shot,
                             "metric_name": metric_name,
@@ -889,6 +898,7 @@ def collect_results(
                     rows.append(
                         {
                             "model_name": model_name,
+                            "revision": revision,
                             "task": task_name_clean,
                             "n_shot": n_shot,
                             "metric_name": metric_name,
@@ -910,8 +920,16 @@ def collect_results(
     if rows:
         df = pd.DataFrame(rows)
         df = df.drop_duplicates(
-            subset=["model_name", "task", "n_shot", "metric_name"], keep="last"
+            subset=["model_name", "revision", "task", "n_shot", "metric_name"], keep="last"
         )
+        # Avegage multi-prompt tasks (e.g. from BenCzechMarks)
+        df["base_task"] = df["task"].str.replace(r'_p[0-4]$', '', regex=True)
+        grouping_columns = ["model_name", "revision", "n_shot", "metric_name", "base_task"]
+        df["performance"] = df.groupby(grouping_columns)["performance"].transform("mean")
+        df = df.drop(columns=["task"]).drop_duplicates(grouping_columns)
+        df = df.rename(columns={"base_task": "task"})
+
+        # Save to TSV file
         df.to_csv(output_tsv, index=False, sep="\t")
         logging.info(f"Results saved to {output_tsv}")
         logging.info(f"Extracted {len(df)} evaluation results")

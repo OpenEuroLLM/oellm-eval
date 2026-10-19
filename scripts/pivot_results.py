@@ -6,11 +6,11 @@ import pandas as pd
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Pivot eval CSVs into a model × task leaderboard."
+        description="Pivot eval TSVs into a model × task leaderboard."
     )
-    parser.add_argument("csvs", nargs="+", help="One or more result CSV files")
+    parser.add_argument("tsvs", nargs="+", help="One or more result TSV files")
     parser.add_argument(
-        "-o", "--output", default="leaderboard.csv", help="Output CSV path"
+        "-o", "--output", default="leaderboard.tsv", help="Output TSV path"
     )
     parser.add_argument(
         "--no-average", action="store_true", help="Do not append an average column"
@@ -18,14 +18,14 @@ def main() -> None:
     args = parser.parse_args()
 
     frames = []
-    for path in args.csvs:
+    for path in args.tsvs:
         try:
-            frames.append(pd.read_csv(path))
+            frames.append(pd.read_csv(path, sep="\t"))
         except Exception as e:
             print(f"Warning: skipping {path}: {e}", file=sys.stderr)
 
     if not frames:
-        print("Error: no valid CSV files provided.", file=sys.stderr)
+        print("Error: no valid TSV files provided.", file=sys.stderr)
         sys.exit(1)
 
     df = pd.concat(frames, ignore_index=True)
@@ -33,7 +33,7 @@ def main() -> None:
     required = {"model_name", "task", "n_shot", "metric_name", "performance"}
     if not required.issubset(df.columns):
         missing = required - set(df.columns)
-        print(f"Error: input CSVs missing columns: {missing}", file=sys.stderr)
+        print(f"Error: input TSVs missing columns: {missing}", file=sys.stderr)
         sys.exit(1)
 
     df["task_label"] = df.apply(
@@ -49,7 +49,7 @@ def main() -> None:
         pivot["average"] = pivot.mean(axis=1)
 
     pivot = pivot.reset_index()
-    pivot.to_csv(args.output, index=False)
+    pivot.to_csv(args.output, index=False, sep="\t")
     print(
         f"Wrote {args.output}  ({len(pivot)} models × {len(pivot.columns) - 1} columns)"
     )
