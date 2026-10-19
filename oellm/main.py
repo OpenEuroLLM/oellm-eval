@@ -32,6 +32,7 @@ from oellm.utils import (
     _process_model_paths,
     _setup_logging,
     capture_third_party_output_from_kwarg,
+    split_model_tokens,
 )
 
 
@@ -175,8 +176,8 @@ def schedule_evals(
 
     Args:
         models: A string of comma-separated model paths or Hugging Face model identifiers.
-            Warning: does not allow passing model args such as `EleutherAI/pythia-160m,revision=step100000`
-            since we split on commas. If you need to pass model args, use the `eval_csv_path` option.
+            Model args such as `EleutherAI/pythia-160m,revision=step100000` stay attached to the
+            model before them, so `a/b,revision=x,c/d` is two models.
             For local paths:
             - If a directory contains `.safetensors` files directly, it will be treated as a single model
             - If a directory contains subdirectories with models (e.g., converted_checkpoints/),
@@ -275,7 +276,7 @@ def schedule_evals(
         logging.info("Skipping runtime environment check (--skip-checks enabled)")
 
     if isinstance(models, str) and models is not None:
-        models = [m.strip() for m in models.split(",") if m.strip()]  # type: ignore
+        models = split_model_tokens(models)  # type: ignore
 
     if isinstance(tasks, str) and tasks is not None:
         tasks = [t.strip() for t in tasks.split(",") if t.strip()]  # type: ignore
@@ -897,6 +898,17 @@ def collect_results(
             or data.get("model")
             or "unknown"
         )
+        # lm-eval records only the bare `pretrained` value, so two revisions of one
+        # repo would collapse into one model_name; keep the revision it was run with.
+        # lighteval always records one (main by default), so its results are left alone.
+        model_args = data.get("config", {}).get("model_args")
+        if isinstance(model_args, dict):
+            revision = model_args.get("revision")
+        else:
+            found = re.search(r"(?:^|,)revision=([^,]+)", str(model_args or ""))
+            revision = found.group(1) if found else None
+        if revision and "revision=" not in str(model_name):
+            model_name = f"{model_name},revision={revision}"
 
         # Extract results for each task
         results = data.get("results", {})

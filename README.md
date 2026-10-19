@@ -32,6 +32,9 @@ oellm-eval schedule \
     --n_shot 5
 ```
 
+Model args such as a revision stay attached to the model before them, so
+`--models "openeurollm/prelude,revision=iter_0953312,EleutherAI/pythia-160m"` is two models.
+
 This will automatically:
 - Detect your current HPC cluster (Leonardo, LUMI, JURECA, or Snellius)
 - Download and cache the specified models

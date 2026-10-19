@@ -258,6 +258,23 @@ def _expand_local_model_paths(model: str | Path) -> list[Path]:
     return model_paths
 
 
+def split_model_tokens(raw: str) -> list[str]:
+    """Split a ``--models`` string on commas, keeping ``key=value`` model args with
+    the model before them: ``"a/b,revision=x,c/d"`` -> ``["a/b,revision=x", "c/d"]``.
+
+    Model ids and paths never contain ``=``, so this needs no new syntax.
+    """
+    models: list[str] = []
+    for token in (t.strip() for t in raw.split(",") if t.strip()):
+        if "=" in token:
+            if not models:
+                raise ValueError(f"Model arg {token!r} must follow a model in --models")
+            models[-1] += f",{token}"
+        else:
+            models.append(token)
+    return models
+
+
 def _process_model_paths(models: Iterable[str]):
     """
     Processes model strings into a dict of model paths.

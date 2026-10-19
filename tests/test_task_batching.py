@@ -180,3 +180,46 @@ def test_scheduled_csv_keeps_a_batch_adjacent(tmp_path: Path) -> None:
     keys = list(zip(df["model_path"], df["n_shot"], df["eval_suite"], strict=True))
     runs = [key for index, key in enumerate(keys) if index == 0 or key != keys[index - 1]]
     assert len(runs) == len(set(runs)), "rows sharing a batch key are not adjacent"
+
+
+@requires_awk
+def test_model_args_survive_the_csv() -> None:
+    """A model with args is quoted by the CSV writer because it holds a comma; the
+    batching step must give it back whole and still batch on it."""
+    rows = [
+        '"a/b,revision=x",sib200_eus_Latn,0,lm-eval-harness',
+        '"a/b,revision=x",xnli_spa_Latn,0,lm-eval-harness',
+        "c/d,sib200_eus_Latn,0,lm-eval-harness",
+    ]
+    batches = _batches(rows)
+    assert [b["model"] for b in batches] == ["a/b,revision=x", "c/d"]
+    assert batches[0]["tasks"] == "sib200_eus_Latn,xnli_spa_Latn"
+
+
+@requires_awk
+def test_scheduled_model_args_reach_the_job(tmp_path: Path) -> None:
+    """--models keeps revision=... with its model (issue #132), the CSV round-trips it,
+    and the job's batching step reads it back."""
+    with (
+        patch("oellm.main._load_cluster_env"),
+        patch("oellm.main._num_jobs_in_queue", return_value=0),
+        patch.dict(os.environ, {"EVAL_OUTPUT_DIR": str(tmp_path)}),
+    ):
+        schedule_evals(
+            models="EleutherAI/pythia-70m,revision=step3000,EleutherAI/pythia-160m",
+            task_groups="sib200-eu[eus_Latn|spa_Latn]",
+            skip_checks=True,
+            venv_path=str(Path(sys.prefix)),
+            dry_run=True,
+        )
+
+    jobs_csv = next(iter(tmp_path.glob("**/jobs.csv")))
+    assert set(pd.read_csv(jobs_csv)["model_path"]) == {
+        "EleutherAI/pythia-70m,revision=step3000",
+        "EleutherAI/pythia-160m",
+    }
+    batches = _batches(jobs_csv.read_text().splitlines()[1:])
+    assert {b["model"] for b in batches} == {
+        "EleutherAI/pythia-70m,revision=step3000",
+        "EleutherAI/pythia-160m",
+    }
