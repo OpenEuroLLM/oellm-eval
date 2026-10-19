@@ -1,4 +1,6 @@
-from oellm.utils import _expand_local_model_paths, _num_jobs_in_queue
+import pytest
+
+from oellm.utils import _expand_local_model_paths, _num_jobs_in_queue, split_model_tokens
 
 
 class TestExpandLocalModelPaths:
@@ -54,3 +56,15 @@ class TestNumJobsInQueue:
 
         monkeypatch.setattr("oellm.utils.subprocess.run", lambda *a, **kw: Result())
         assert _num_jobs_in_queue() == 0
+
+
+class TestSplitModelTokens:
+    def test_model_args_stay_with_their_model(self):
+        assert split_model_tokens("a/b,revision=x,c/d") == ["a/b,revision=x", "c/d"]
+
+    def test_plain_list_is_unchanged(self):
+        assert split_model_tokens(" a/b , c/d ,") == ["a/b", "c/d"]
+
+    def test_leading_model_arg_is_rejected(self):
+        with pytest.raises(ValueError, match="must follow a model"):
+            split_model_tokens("revision=x,a/b")

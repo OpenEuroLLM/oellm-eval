@@ -99,15 +99,22 @@ BATCH_ROWS_AWK='
     {{
         gsub(/\r/, "")
         if ($1 == "") next
-        row_suite = ($4 == "" ? "lm_eval" : $4)
+        # model_path is the only field that can hold commas (model args such as
+        # revision=...), and the CSV writer quotes it then: take the other three
+        # fields from the right and join the rest back into the model.
+        if (NF < 4) $4 = ""
+        row_model = $1; for (i = 2; i <= NF - 3; i++) row_model = row_model "," $i
+        gsub(/^"|"$/, "", row_model)
+        row_task = $(NF - 2); row_shots = $(NF - 1)
+        row_suite = ($NF == "" ? "lm_eval" : $NF)
         lowered = tolower(row_suite)
         batchable = (lowered == "lm_eval" || lowered == "lm-eval" || lowered == "lm-eval-harness")
-        row_key = batchable ? ($1 SUBSEP $3 SUBSEP lowered) : ("unbatched" SUBSEP NR)
+        row_key = batchable ? (row_model SUBSEP row_shots SUBSEP lowered) : ("unbatched" SUBSEP NR)
         if (row_key != key || count >= max_tasks) {{
             flush()
-            key = row_key; model = $1; shots = $3; suite = row_suite; tasks = $2; count = 1
+            key = row_key; model = row_model; shots = row_shots; suite = row_suite; tasks = row_task; count = 1
         }} else {{
-            tasks = tasks "," $2; count++
+            tasks = tasks "," row_task; count++
         }}
     }}
     END {{ flush() }}
