@@ -345,6 +345,22 @@ Update to latest:
 uv tool upgrade oellm-eval
 ```
 
+### Versions
+
+`main` is the beta channel. Its version ends in `bN` (for example `0.3.0b1`), and any
+commit on it may change what a task group measures. From 0.3.0 on, releases are git tags
+such as `v0.3.0`, and the `stable` branch points at the latest one. Pin a tag for an
+evaluation campaign so that every run uses the same tasks, shots and metrics:
+
+```bash
+uv tool install -p 3.12 git+https://github.com/OpenEuroLLM/oellm-eval.git@v0.3.0   # pinned
+uv tool install -p 3.12 git+https://github.com/OpenEuroLLM/oellm-eval.git@stable   # latest release
+```
+
+`uv tool upgrade oellm-eval` keeps you on the ref you installed from. Include the output
+of `oellm-eval --version` in bug reports. How versions are chosen and releases are cut is
+described in [docs/RELEASING.md](docs/RELEASING.md).
+
 ### JURECA/JSC Specifics
 
 Due to limited space in `$HOME` on JSC clusters, set these environment variables:

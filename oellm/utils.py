@@ -1,7 +1,9 @@
 import builtins
 import fnmatch
+import json
 import logging
 import os
+import platform
 import re
 import socket
 import subprocess
@@ -9,6 +11,7 @@ import sys
 from collections.abc import Iterable
 from contextlib import contextmanager
 from functools import wraps
+from importlib import metadata
 from importlib.resources import files
 from pathlib import Path
 
@@ -17,6 +20,37 @@ from rich.console import Console
 from rich.logging import RichHandler
 
 _RICH_CONSOLE: Console | None = None
+
+
+def version_info() -> str:
+    """Versions for bug reports: oellm-eval, the commit it was installed from (PEP 610
+    records it for ``git+`` installs), Python, and the libraries that break it most."""
+    try:
+        dist = metadata.distribution("oellm-eval")
+    except metadata.PackageNotFoundError:
+        return "unknown (oellm-eval is not installed)"
+    source = json.loads(dist.read_text("direct_url.json") or "{}")
+    commit = source.get("vcs_info", {}).get("commit_id")
+    if commit:
+        head = f"{dist.version} (git {commit[:10]})"
+    elif source.get("dir_info", {}).get("editable"):
+        head = f"{dist.version} (editable install)"
+    else:
+        head = dist.version
+    parts = [head, f"python {platform.python_version()}"]
+    for name in (
+        "lm_eval",
+        "lighteval",
+        "transformers",
+        "datasets",
+        "huggingface_hub",
+        "torch",
+    ):
+        try:
+            parts.append(f"{name} {metadata.version(name)}")
+        except metadata.PackageNotFoundError:
+            continue
+    return " | ".join(parts)
 
 
 def get_console() -> Console:

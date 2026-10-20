@@ -1,0 +1,59 @@
+name: Bug report
+description: A command failed, or an evaluation produced results that look wrong.
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: oellm-eval version
+      description: >-
+        Paste the output of `oellm-eval --version`. It names the release or the
+        commit you installed and the versions of the evaluation harnesses. For an
+        editable install, add the output of `git rev-parse --short HEAD`.
+      placeholder: "oellm-eval 0.3.0b1 (git 7c24448a1b) | python 3.12.13 | lm_eval 0.4.13 | ..."
+    validations:
+      required: true
+  - type: dropdown
+    id: cluster
+    attributes:
+      label: Cluster
+      options:
+        - Leonardo
+        - LUMI
+        - JURECA
+        - Jupiter
+        - Snellius
+        - UFAL
+        - Local machine (--local)
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Runtime
+      options:
+        - Cluster container (default)
+        - Own environment (--venv_path)
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command
+      description: The full `oellm-eval` command, including environment variables you set for it.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: The relevant part of the `.err` and `.out` files in the run's `slurm_logs/` directory.
+      render: text

@@ -32,6 +32,7 @@ from oellm.utils import (
     _process_model_paths,
     _setup_logging,
     capture_third_party_output_from_kwarg,
+    version_info,
 )
 
 
@@ -1146,4 +1147,5 @@ def main():
         },
         as_positional=False,
         description="OELLM: Multi-cluster evaluation tool for language models",
+        version=version_info(),
     )
