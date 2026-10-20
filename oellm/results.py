@@ -3,6 +3,8 @@ import logging
 import subprocess
 from pathlib import Path
 
+from oellm.bbq import bbq_metrics
+
 
 def read_result(path: Path) -> dict | None:
     """Read JSON results or normalize a successful native Inspect log."""
@@ -43,7 +45,7 @@ def _dump_inspect_log(eval_file: Path, *, header_only: bool = True) -> dict:
 
 
 def _read_inspect_result(eval_file: Path) -> dict | None:
-    """Normalize metrics from a successful native Inspect log."""
+    """Normalize metrics; BBQ also requires saved sample answers and metadata."""
     data = _dump_inspect_log(eval_file)
     if data.get("status") != "success":
         logging.warning(f"Ignoring non-successful Inspect log: {eval_file}")
@@ -64,6 +66,15 @@ def _read_inspect_result(eval_file: Path) -> dict | None:
             if isinstance(value, int | float):
                 metrics[metric_name] = float(value)
 
+    is_bbq = (eval_spec.get("dataset") or {}).get("name") == "bbq"
+    if is_bbq:
+        full_log = _dump_inspect_log(eval_file, header_only=False)
+        samples = full_log.get("samples") or []
+        completed = (full_log.get("results") or {}).get("completed_samples")
+        if full_log.get("status") != "success" or completed != len(samples):
+            raise ValueError(f"BBQ log has incomplete saved samples: {eval_file}")
+        metrics.update(bbq_metrics(samples))
+
     task_name = str(eval_spec.get("task", "unknown"))
     # File-based tasks are scheduled as file.py@task; preserve that identity.
     task_file = eval_spec.get("task_file")
@@ -74,4 +85,6 @@ def _read_inspect_result(eval_file: Path) -> dict | None:
         "results": {task_name: metrics},
         "n-shot": {task_name: 0},
     }
+    if is_bbq:
+        normalized["report_all_metrics"] = True
     return normalized

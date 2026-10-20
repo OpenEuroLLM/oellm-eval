@@ -253,3 +253,36 @@ def test_read_result_preserves_file_based_task_identity(tmp_path):
     task = "/runs/comparison/tasks.py@bbq_reference"
     assert result["results"][task]["accuracy"] == 0.75
     assert result["n-shot"] == {task: 0}
+
+
+def test_collect_bbq_preserves_fairness_metrics_and_completion(tmp_path, monkeypatch):
+    monkeypatch.setattr("oellm.bbq._target_locations", lambda: {("Age", "1", "0"): 0})
+    import pandas as pd
+    from test_bbq import sample
+
+    from oellm.main import collect_results
+
+    payload = _header()
+    payload["eval"]["dataset"] = {"name": "bbq"}
+    payload["results"]["completed_samples"] = 1
+    payload["samples"] = [sample("C", "disambig", "A")]
+    (tmp_path / "result.eval").touch()
+    pd.DataFrame(
+        [{"model_path": "org/model", "task_path": "inspect_evals/bbq", "n_shot": 0}]
+    ).to_csv(tmp_path / "jobs.csv", index=False)
+    with patch("oellm.results.subprocess.run", return_value=_completed_process(payload)):
+        collect_results(str(tmp_path), str(tmp_path / "out.csv"), check=True)
+    rows = pd.read_csv(tmp_path / "out.csv").set_index("metric_name")
+    assert rows.loc["bbq/Age/disambig/unknown_rate", "performance"] == 1
+    assert pd.isna(rows.loc["bbq/Age/disambig/bias_score", "performance"])
+    assert not (tmp_path / "out_missing.csv").exists()
+
+
+def test_bbq_rejects_incomplete_saved_samples(tmp_path):
+    payload = _header()
+    payload["eval"]["dataset"] = {"name": "bbq"}
+    payload["results"]["completed_samples"] = 1
+    payload["samples"] = []
+    with patch("oellm.results.subprocess.run", return_value=_completed_process(payload)):
+        with pytest.raises(ValueError, match="incomplete saved samples"):
+            read_result(tmp_path / "result.eval")

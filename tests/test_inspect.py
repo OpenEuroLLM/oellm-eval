@@ -9,6 +9,7 @@ from unittest.mock import patch
 import pandas as pd
 
 from oellm.main import collect_results, schedule_evals
+from oellm.task_groups import _collect_dataset_specs, _expand_task_groups
 
 
 def _fake_venv(tmp_path: Path) -> Path:
@@ -79,6 +80,15 @@ def _run_generated_script(
 
     args = args_file.read_text().splitlines() if args_file.exists() else []
     return result, args
+
+
+def test_bbq_task_group_metadata():
+    results = _expand_task_groups(["bbq"])
+    assert [(result.task, result.n_shot, result.suite) for result in results] == [
+        ("inspect_evals/bbq", 0, "inspect")
+    ]
+    specs = _collect_dataset_specs(["bbq"])
+    assert [(spec.repo_id, spec.subset) for spec in specs] == [("heegyu/bbq", None)]
 
 
 def test_evaluation_suites_share_runtime_dispatch():

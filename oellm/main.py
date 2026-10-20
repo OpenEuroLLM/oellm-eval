@@ -1042,14 +1042,24 @@ def collect_results(
                 if check:
                     completed_jobs.add((model_name, task_name_clean, n_shot))
 
-                for metric_name, performance in task_metric_pairs:
+                # BBQ fairness needs bias, context accuracy, and coverage together.
+                metric_values = (
+                    task_results.items()
+                    if data.get("report_all_metrics")
+                    else [(metric_name, performance)]
+                )
+                for reported_metric, reported_value in metric_values:
+                    if reported_value is not None and not isinstance(
+                        reported_value, (int, float)
+                    ):
+                        continue
                     rows.append(
                         {
                             "model_name": model_name,
                             "task": task_name_clean,
                             "n_shot": n_shot,
-                            "metric_name": metric_name,
-                            "performance": performance,
+                            "metric_name": reported_metric or "",
+                            "performance": reported_value,
                         }
                     )
             else:

@@ -53,6 +53,7 @@ Available task groups:
 - `mgsm-eu` - Multilingual GSM benchmarks
 - `polymath-eu-low` / `polymath-eu-medium` / `polymath-eu-high` / `polymath-eu-top` - PolyMath multilingual math reasoning (EU languages, 0-shot, `\boxed{}` answer extraction), one group per difficulty tier
 - `generic-multilingual` - XWinograd, XCOPA, XStoryCloze
+- `bbq` - BBQ social-bias evaluation through Inspect AI (zero-shot)
 - `include` - INCLUDE benchmarks
 - `gpqa-diamond` - GPQA Diamond, generative (0-shot, pass@1, up to 32768 new tokens) for instruct/reasoning checkpoints, in English and Finnish (professionally post-edited `LumiOpen/GPQA-FI`). English reads the gated `Idavidrein/gpqa`, so the HF token must have access. Defined as custom lighteval tasks, see [docs/TASKS.md](docs/TASKS.md#custom-lighteval-tasks). Schedule it separately with a small `BATCH_SIZE`, see [Lighteval Batch Size](#lighteval-batch-size)
 
@@ -137,14 +138,9 @@ Notes:
 
 ## Using Inspect AI
 
-Install Inspect in a separate virtual environment:
+Inspect AI requires a separate environment to avoid dependency conflicts with lm-eval and lighteval. Follow the [environment setup instructions](docs/VENV.md#inspect-ai), then pass its path with `--venv_path` when scheduling evaluations.
 
-```bash
-uv venv --python 3.12 inspect-venv
-uv pip install --python inspect-venv/bin/python -r requirements-venv-inspect.txt
-```
-
-Use `--venv_path /path/to/inspect-venv` when scheduling Inspect tasks through a CSV with `eval_suite` set to `inspect`. Results are native `.eval` logs. Add the environment's `bin` directory to `PATH` when running `oellm-eval collect`.
+For the task BBQ, follow the [BBQ guide](docs/BBQ.md).
 
 ## Running Locally (without SLURM)
 
