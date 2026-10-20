@@ -358,8 +358,9 @@ uv tool install -p 3.12 git+https://github.com/OpenEuroLLM/oellm-eval.git@stable
 ```
 
 `uv tool upgrade oellm-eval` keeps you on the ref you installed from. Include the output
-of `oellm-eval --version` in bug reports. How versions are chosen and releases are cut is
-described in [docs/RELEASING.md](docs/RELEASING.md).
+of `oellm-eval --version` in bug reports. [CHANGELOG.md](CHANGELOG.md) lists what changed in
+each version, with the changes that can affect results in a section of their own. How
+versions are chosen and releases are cut is described in [docs/RELEASING.md](docs/RELEASING.md).
 
 ### JURECA/JSC Specifics
 

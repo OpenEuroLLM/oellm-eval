@@ -24,6 +24,16 @@ Pull requests do not edit the version. `oellm-eval --version` reports the commit
 was installed from, so a per-PR bump would add nothing, and every PR editing the same line
 would conflict.
 
+## Changelog
+
+Every pull request a user could notice adds one line to `CHANGELOG.md` under
+`## [Unreleased]`, under the matching heading. Anything that can change results goes
+under "Changed results", even when it is also a fix. CI, test and refactoring changes need
+no entry. Reviewers check the entry like any other part of the diff.
+
+`.gitattributes` marks the changelog for git's union merge, so two branches that each add
+a line rebase onto each other without a conflict.
+
 ## Cutting a beta
 
 When testers need a fixed point to pin, open a PR that only runs:
@@ -38,9 +48,16 @@ After it merges, tag the merge commit:
 git tag v0.3.0b2 <merge commit> && git push origin v0.3.0b2
 ```
 
+The changelog stays as it is: at the beta's tag, `## [Unreleased]` lists exactly what the
+beta contains.
+
 ## Releasing
 
-1. Open a PR that only runs `uv version --bump stable --frozen` (`0.3.0b2` becomes `0.3.0`).
+1. Open a PR that runs `uv version --bump stable --frozen` (`0.3.0b2` becomes `0.3.0`)
+   and, in `CHANGELOG.md`, renames `## [Unreleased]` to `## [0.3.0] - YYYY-MM-DD`, removes
+   its empty headings, and adds a new `## [Unreleased]` with the empty headings above it.
+   PRs still open at that point will add their line under the old section when they
+   rebase; move it up before merging them.
 2. After it merges, tag it and move `stable`:
 
    ```bash
@@ -49,7 +66,8 @@ git tag v0.3.0b2 <merge commit> && git push origin v0.3.0b2
    git push origin 'v0.3.0^{commit}:refs/heads/stable'
    ```
 
-3. On GitHub, create a release from the tag and use "Generate release notes".
+3. On GitHub, create a release from the tag and paste the version's section of
+   `CHANGELOG.md` as its description.
 4. Open a PR that starts the next beta: `uv version --bump minor --bump beta --frozen`
    (`0.3.0` becomes `0.4.0b1`).
 
