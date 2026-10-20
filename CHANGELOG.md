@@ -18,6 +18,16 @@ it before comparing runs made with different versions.
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.3.0] - 2026-10-20
+
+### Added
+
 - `oellm-eval --version` prints the version, the git commit a `git+` install came from,
   and the versions of the evaluation harnesses and the libraries they depend on.
 - Versioned releases: `main` carries the next release as a beta (starting at 0.3.0b1),
@@ -26,9 +36,3 @@ it before comparing runs made with different versions.
 - Issue forms. A bug report asks for the output of `oellm-eval --version`, the cluster,
   the runtime, the command and the logs. Blank issues are disabled.
 - This changelog, and a pull request template that asks for an entry in it.
-
-### Changed
-
-### Fixed
-
-### Removed

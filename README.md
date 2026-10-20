@@ -18,7 +18,7 @@ A lightweight CLI for scheduling LLM evaluations across multiple HPC clusters us
 
 ```bash
 # Install the package
-uv tool install -p 3.12 git+https://github.com/OpenEuroLLM/oellm-eval.git
+uv tool install -p 3.12 git+https://github.com/OpenEuroLLM/oellm-eval.git@stable
 
 # Run evaluations using a task group (recommended)
 oellm-eval schedule \
@@ -337,7 +337,7 @@ oellm-eval schedule --eval_csv_path custom_evals.csv
 ### General Installation
 
 ```bash
-uv tool install -p 3.12 git+https://github.com/OpenEuroLLM/oellm-eval.git
+uv tool install -p 3.12 git+https://github.com/OpenEuroLLM/oellm-eval.git@stable
 ```
 
 Update to latest:
@@ -355,6 +355,7 @@ evaluation campaign so that every run uses the same tasks, shots and metrics:
 ```bash
 uv tool install -p 3.12 git+https://github.com/OpenEuroLLM/oellm-eval.git@v0.3.0   # pinned
 uv tool install -p 3.12 git+https://github.com/OpenEuroLLM/oellm-eval.git@stable   # latest release
+uv tool install -p 3.12 git+https://github.com/OpenEuroLLM/oellm-eval.git          # main (beta)
 ```
 
 `uv tool upgrade oellm-eval` keeps you on the ref you installed from. Include the output
