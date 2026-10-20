@@ -1,5 +1,5 @@
 "dataset_name": "ell_Grek"
-"fewshot_split": "validation"
+"fewshot_split": "train"
 "include": "_default_template_yaml"
 "task": "sib200_ell_Grek"
 "test_split": "test"
