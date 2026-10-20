@@ -135,6 +135,17 @@ Notes:
   lack certain benchmarks (e.g. Italian/Portuguese have no MGSM), so a super
   group bracket transparently omits the missing ones.
 
+## Using Inspect AI
+
+Install Inspect in a separate virtual environment:
+
+```bash
+uv venv --python 3.12 inspect-venv
+uv pip install --python inspect-venv/bin/python -r requirements-venv-inspect.txt
+```
+
+Use `--venv_path /path/to/inspect-venv` when scheduling Inspect tasks through a CSV with `eval_suite` set to `inspect`. Results are native `.eval` logs. Add the environment's `bin` directory to `PATH` when running `oellm-eval collect`.
+
 ## Running Locally (without SLURM)
 
 The `--local` flag lets you run evaluations directly on your machine without a cluster or Singularity container. It generates the same eval script and executes it with bash, injecting fake SLURM environment variables so all tasks run sequentially in a single process. This is useful for testing that tasks and models are correctly configured before submitting to a cluster.
@@ -293,7 +304,7 @@ If you use custom tasks via `--tasks` that are not in the task groups registry, 
 
 ## Collecting Results
 
-After evaluations complete, collect results into a CSV.  `collect-results` **recursively** searches the given directory for every `jobs.csv` file and every `.json` result file, so you can point it at a top-level output folder that contains many sub-runs:
+After evaluations complete, collect results into a CSV.  `collect-results` **recursively** searches the given directory for every `jobs.csv` file and every `.json` or Inspect `.eval` result file, so you can point it at a top-level output folder that contains many sub-runs:
 
 ```
 output/

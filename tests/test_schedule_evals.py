@@ -75,6 +75,15 @@ def test_schedule_evals_slurm_template_var_overrides(tmp_path):
     assert "#SBATCH --time=02:15:00" in sbatch_content
     assert "#SBATCH --gres=gpu:2" in sbatch_content
 
+    lines = sbatch_content.splitlines()
+    last_directive = max(i for i, line in enumerate(lines) if line.startswith("#SBATCH"))
+    first_command = next(
+        i for i, line in enumerate(lines) if line.strip() and not line.startswith("#")
+    )
+    assert last_directive < first_command, (
+        "SLURM ignores #SBATCH directives after the first executable line"
+    )
+
 
 def test_schedule_evals_nodelist(tmp_path):
     """Verify --nodelist adds an #SBATCH --nodelist directive to the sbatch."""
