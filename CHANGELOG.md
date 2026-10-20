@@ -16,6 +16,8 @@ it before comparing runs made with different versions.
 
 ### Changed results
 
+- SIB-200 (`sib200-eu`) runs 10-shot instead of 0-shot, with few-shot examples taken from the start of the train split. Few-shot runs previously drew them from the label-sorted test split and scored at chance (#137).
+
 ### Added
 
 ### Changed
