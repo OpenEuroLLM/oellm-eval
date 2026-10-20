@@ -1,6 +1,4 @@
 dataset_path: Davlan/sib200
-fewshot_config:
-  sampler: first_n
 output_type: multiple_choice
 should_decontaminate: true
 doc_to_decontamination_query: "{{text}}"
