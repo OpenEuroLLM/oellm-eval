@@ -1,0 +1,15 @@
+name: Feature request or question
+description: A benchmark, cluster or option you need, or a question about using oellm-eval.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: request
+    attributes:
+      label: What do you need?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: oellm-eval version
+      description: The output of `oellm-eval --version`, if you have it installed.
