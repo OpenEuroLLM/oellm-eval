@@ -14,7 +14,7 @@ from sklearn.metrics import f1_score, confusion_matrix
 from lm_eval.api.metrics import mean
 from lm_eval.api.task import ConfigurableTask, eval_logger
 
-import transformers.data.metrics.squad_metrics as squad_metrics  # csqad32 metrics
+import squad_metrics  # csqad32 metrics
 
 ###
 ### F1 metric
