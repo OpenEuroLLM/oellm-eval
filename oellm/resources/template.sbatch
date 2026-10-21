@@ -11,7 +11,7 @@
 #SBATCH --nodes=$NODES
 #SBATCH --nodelist=$NODELIST
 
-# Stop on evaluation failures, including failures in the piped loop below.
+# Stop on setup failures; harness failures are captured and reported below.
 set -e
 
 CSV_PATH="{csv_path}"
@@ -173,10 +173,10 @@ do
 
     suite_normalized=$(echo "$eval_suite" | tr '[:upper:]' '[:lower:]')
 
-    # Run an evaluation command (python, lighteval, inspect, ..._ in appropriate environment.
+    # Run an evaluation command (python, lighteval, inspect, ...) in the appropriate environment.
     run_in_eval_env() {{
         if [ -n "$VENV_PATH" ]; then
-            source "$VENV_PATH/bin/activate"
+            source "$VENV_PATH/bin/activate" || return $?
             "$@"
         else
             singularity exec $SINGULARITY_ARGS \
@@ -213,8 +213,7 @@ do
                 ${{LM_EVAL_INCLUDE_PATH:+--include_path $$LM_EVAL_INCLUDE_PATH}} \
                 --batch_size auto \
                 ${{CACHE_REQUESTS:+--cache_requests $CACHE_REQUESTS}} \
-                ${{LIMIT:+--limit $LIMIT}}
-            EVAL_STATUS=$?
+                ${{LIMIT:+--limit $LIMIT}} || EVAL_STATUS=$?
             echo "----------------------------------------------------"
             ;;
         lighteval|light-eval)
@@ -241,11 +240,12 @@ do
             EVAL_OUT_PAT="*"
 
             run_in_eval_env lighteval accelerate \
-                "model_name=$model_path,trust_remote_code=True,{additional_model_args}" \
+                "model_name=$model_path,trust_remote_code=True,cache_dir=$LIGHTEVAL_CACHE_DIR,{additional_model_args}" \
                 "$LIGHT_TASK_ARG" \
+                --custom-tasks "$LIGHTEVAL_CUSTOM_TASKS" \
                 --load-tasks-multilingual \
                 --output-dir "$RESULTS_SUBDIR" \
-                ${{LIMIT:+--max-samples $LIMIT}}
+                ${{LIMIT:+--max-samples $LIMIT}} || EVAL_STATUS=$?
             ;;
         evalchemy)
             EVALCHEMY_WORK_DIR="{evalchemy_dir}"
@@ -257,7 +257,7 @@ do
                 # subshell: the loop no longer runs in one, so this cd would
                 # otherwise leak into the next evaluation in this job
                 (
-                cd "$EVALCHEMY_WORK_DIR"
+                cd "$EVALCHEMY_WORK_DIR" || exit $?
                 accelerate launch --num-processes "$GPUS_PER_NODE" --num-machines 1 \
                     $MULTI_GPU_FLAG -m eval.eval \
                     --model hf \
@@ -266,8 +266,7 @@ do
                     --batch_size auto \
                     --output_path "$RESULTS_SUBDIR" \
                     ${{LIMIT:+--limit $LIMIT}}
-                )
-                EVAL_STATUS=$?
+                ) || EVAL_STATUS=$?
             else
                 echo "[error] evalchemy suite requires --venv_path (not supported in container mode)."
                 exit 1
@@ -280,35 +279,17 @@ do
             EVAL_OUT_DIR="$RESULTS_SUBDIR"
             EVAL_OUT_PAT="run-metadata.v1.json"
 
-            JUDGEARENA_BIND_PATHS="$BIND_PATHS,$JUDGEARENA_DATA:$JUDGEARENA_DATA"
-
-            if [ -n "$VENV_PATH" ]; then
-                source "$VENV_PATH/bin/activate"
+            BIND_PATHS="$BIND_PATHS,$JUDGEARENA_DATA:$JUDGEARENA_DATA"
+            run_in_eval_env env \
+                JUDGEARENA_DATA="$JUDGEARENA_DATA" \
+                HF_HOME="$HF_HOME" \
+                HF_DATASETS_CACHE="$HF_DATASETS_CACHE" \
                 judgearena \
-                    "${{JUDGEARENA_ARGS[@]}}" \
-                    --task "$task_path" \
-                    --model.name "VLLM/$model_path" \
-                    --run.result_folder "$RESULTS_SUBDIR" \
-                    ${{LIMIT:+--generation.n_instructions $LIMIT}}
-                EVAL_STATUS=$?
-            else
-                singularity exec $SINGULARITY_ARGS \
-                    $SINGULARITY_ENV_ARGS \
-                    $SINGULARITY_HOME_ARG \
-                    --bind "$JUDGEARENA_BIND_PATHS" \
-                    "$EVAL_SIF_PATH" \
-                    env CUDA_VISIBLE_DEVICES=$GPU_DEVICES \
-                        JUDGEARENA_DATA="$JUDGEARENA_DATA" \
-                        HF_HOME="$HF_HOME" \
-                        HF_DATASETS_CACHE="$HF_DATASETS_CACHE" \
-                    judgearena \
-                        "${{JUDGEARENA_ARGS[@]}}" \
-                        --task "$task_path" \
-                        --model.name "VLLM/$model_path" \
-                        --run.result_folder "$RESULTS_SUBDIR" \
-                        ${{LIMIT:+--generation.n_instructions $LIMIT}}
-                EVAL_STATUS=$?
-            fi
+                "${{JUDGEARENA_ARGS[@]}}" \
+                --task "$task_path" \
+                --model.name "VLLM/$model_path" \
+                --run.result_folder "$RESULTS_SUBDIR" \
+                ${{LIMIT:+--generation.n_instructions $LIMIT}} || EVAL_STATUS=$?
             ;;
         inspect)
             RESULTS_SUBDIR="{evals_dir}/$(openssl rand -hex 5)"

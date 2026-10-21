@@ -728,8 +728,6 @@ def collect_results(
             declare no primary metric keep all of theirs.
         verbose: Enable verbose logging
     """
-    import yaml
-
     _setup_logging(verbose)
 
     # ------------------------------------------------------------------

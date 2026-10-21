@@ -188,7 +188,7 @@ def test_collect_mixed_suites_and_group_aggregates(tmp_path):
 
 
 @pytest.mark.parametrize("metric", ["custom_score", "stderr"])
-def test_collect_inspect_without_recognized_metric_is_missing(tmp_path, metric):
+def test_collect_inspect_without_primary_metric_keeps_numeric_metrics(tmp_path, metric):
     import pandas as pd
 
     from oellm.main import collect_results
@@ -209,9 +209,10 @@ def test_collect_inspect_without_recognized_metric_is_missing(tmp_path, metric):
     with patch("oellm.results.subprocess.run", return_value=_completed_process(payload)):
         collect_results(str(tmp_path), str(tmp_path / "out.csv"), check=True)
 
-    assert not (tmp_path / "out.csv").exists()
-    missing = pd.read_csv(tmp_path / "out_missing.csv")
-    assert missing["task_path"].tolist() == ["inspect_evals/custom"]
+    rows = pd.read_csv(tmp_path / "out.csv")
+    assert rows["metric_name"].tolist() == [metric]
+    assert rows["performance"].tolist() == [0.4]
+    assert not (tmp_path / "out_missing.csv").exists()
 
 
 def test_collect_inspect_uses_configured_custom_metric(tmp_path):

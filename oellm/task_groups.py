@@ -372,7 +372,8 @@ def primary_metric_map() -> dict[str, str]:
     carries the group's metric onto every generated task.
     """
     data = _load_task_groups_data()
-    metrics: dict[str, str] = {}
+    # Prefer legacy explicit overrides over group-level defaults.
+    metrics: dict[str, str] = dict(data.get("task_metrics") or {})
     for group_data in (data.get("task_groups") or {}).values():
         default = group_data.get("metric")
         for task_data in group_data.get("tasks") or []:

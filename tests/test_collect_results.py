@@ -254,12 +254,14 @@ def test_plain_tasks_keep_their_own_metrics(tmp_path: Path, fetch_all: bool) -> 
     }
     expected = {("arc_easy", 0, "acc_norm"): 0.60, ("boolq", 5, "acc"): 0.72}
     if fetch_all:
-        expected.update({
-            ("arc_easy", 0, "acc"): 0.50,
-            ("arc_easy", 0, "acc_stderr"): 0.01,
-            ("arc_easy", 0, "acc_norm_stderr"): 0.01,
-            ("boolq", 5, "acc_stderr"): 0.01,
-        })
+        expected.update(
+            {
+                ("arc_easy", 0, "acc"): 0.50,
+                ("arc_easy", 0, "acc_stderr"): 0.01,
+                ("arc_easy", 0, "acc_norm_stderr"): 0.01,
+                ("boolq", 5, "acc_stderr"): 0.01,
+            }
+        )
     assert actual == expected
     assert _missing(case_dir).empty
 
