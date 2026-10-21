@@ -228,3 +228,52 @@ def test_judgearena_metadata_is_collected_without_reading_artifact_json(
         "arena_hard_v20.num_battles": 500,
     }
     assert _missing(case_dir).empty
+
+
+@pytest.mark.parametrize("fetch_all", [False, True])
+def test_plain_tasks_keep_their_own_metrics(tmp_path: Path, fetch_all: bool) -> None:
+    payload = {
+        "model_name": MODEL,
+        "results": {
+            "arc_easy": _metrics(acc=0.50, acc_norm=0.60),
+            "boolq": _metrics(acc=0.72),
+        },
+        "n-shot": {"arc_easy": 0, "boolq": 5},
+    }
+    jobs = [
+        {"model_path": MODEL, "task_path": task, "n_shot": shots}
+        for task, shots in payload["n-shot"].items()
+    ]
+    case_dir = _write_case(tmp_path, "plain_tasks", payload, jobs)
+    out = case_dir / "eval_results.csv"
+    collect_results(str(case_dir), str(out), check=True, fetch_all_metrics=fetch_all)
+    df = pd.read_csv(out)
+    actual = {
+        (row.task, row.n_shot, row.metric_name): row.performance
+        for row in df.itertuples()
+    }
+    expected = {("arc_easy", 0, "acc_norm"): 0.60, ("boolq", 5, "acc"): 0.72}
+    if fetch_all:
+        expected.update({
+            ("arc_easy", 0, "acc"): 0.50,
+            ("arc_easy", 0, "acc_stderr"): 0.01,
+            ("arc_easy", 0, "acc_norm_stderr"): 0.01,
+            ("boolq", 5, "acc_stderr"): 0.01,
+        })
+    assert actual == expected
+    assert _missing(case_dir).empty
+
+
+def test_report_all_metrics_preserves_undefined_values(tmp_path: Path) -> None:
+    payload = {
+        "model_name": MODEL,
+        "report_all_metrics": True,
+        "results": {"inspect_evals/bbq": {"bias_score": None, "alias": "BBQ"}},
+        "n-shot": {"inspect_evals/bbq": 0},
+    }
+    jobs = [{"model_path": MODEL, "task_path": "inspect_evals/bbq", "n_shot": 0}]
+    case_dir = _write_case(tmp_path, "undefined_bbq", payload, jobs)
+    df = _collect(case_dir)
+    assert list(df["metric_name"]) == ["bias_score"]
+    assert pd.isna(df.loc[0, "performance"])
+    assert _missing(case_dir).empty

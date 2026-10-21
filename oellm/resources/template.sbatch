@@ -173,7 +173,7 @@ do
 
     suite_normalized=$(echo "$eval_suite" | tr '[:upper:]' '[:lower:]')
 
-    # Run an evaluation command in the selected virtual environment or container.
+    # Run an evaluation command (python, lighteval, inspect, ..._ in appropriate environment.
     run_in_eval_env() {{
         if [ -n "$VENV_PATH" ]; then
             source "$VENV_PATH/bin/activate"
@@ -310,9 +310,6 @@ do
                 EVAL_STATUS=$?
             fi
             ;;
-        *)
-            echo "[warning] Unknown evaluation suite '$eval_suite'. Skipping."
-            EVAL_STATUS=1
         inspect)
             RESULTS_SUBDIR="{evals_dir}/$(openssl rand -hex 5)"
             mkdir -p "$RESULTS_SUBDIR"

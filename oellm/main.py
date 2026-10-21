@@ -1030,36 +1030,33 @@ def collect_results(
                 if n_shot == "unknown" and global_n_shot is not None:
                     n_shot = global_n_shot
 
-            # Extract all available metrics for this task
-            task_metric_pairs = _extract_all_metrics(task_results)
-            if not fetch_all_metrics:
-                task_metric_pairs = _resolve_primary_metric(
-                    task_name_clean, task_metric_pairs
-                )
+            if data.get("report_all_metrics"):
+                # BBQ needs all fairness metrics, including undefined (None) values.
+                task_metric_pairs = [
+                    (name, value)
+                    for name, value in task_results.items()
+                    if value is None or isinstance(value, (int, float))
+                ]
+            else:
+                task_metric_pairs = _extract_all_metrics(task_results)
+                if not fetch_all_metrics:
+                    task_metric_pairs = _resolve_primary_metric(
+                        task_name_clean, task_metric_pairs
+                    )
 
             if task_metric_pairs:
                 # Track completed job for check mode (once per task, not per metric)
                 if check:
                     completed_jobs.add((model_name, task_name_clean, n_shot))
 
-                # BBQ fairness needs bias, context accuracy, and coverage together.
-                metric_values = (
-                    task_results.items()
-                    if data.get("report_all_metrics")
-                    else [(metric_name, performance)]
-                )
-                for reported_metric, reported_value in metric_values:
-                    if reported_value is not None and not isinstance(
-                        reported_value, (int, float)
-                    ):
-                        continue
+                for metric_name, performance in task_metric_pairs:
                     rows.append(
                         {
                             "model_name": model_name,
                             "task": task_name_clean,
                             "n_shot": n_shot,
-                            "metric_name": reported_metric or "",
-                            "performance": reported_value,
+                            "metric_name": metric_name,
+                            "performance": performance,
                         }
                     )
             else:
