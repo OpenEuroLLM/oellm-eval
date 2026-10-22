@@ -8,7 +8,7 @@ A lightweight CLI for scheduling LLM evaluations across multiple HPC clusters us
 - **Collect results** and check for missing evaluations: `oellm-eval collect`
 - **Task groups** for pre-defined evaluation suites with automatic dataset pre-downloading
 - **Multi-cluster support** with auto-detection (Leonardo, LUMI, JURECA, Snellius)
-- **Automatic building and deployment of containers** 
+- **Automatic building and deployment of containers**
 
 ## Quick Start
 
@@ -16,7 +16,7 @@ For a new JUPITER installation, follow the [complete from-scratch guide](docs/ma
 
 **Prerequisites:**
 - Install [uv](https://docs.astral.sh/uv/#installation)
-- Set the `HF_HOME` environment variable to point to your HuggingFace cache directory (e.g. `export HF_HOME="/path/to/your/hf_home"`, on LUMI use the path `/scratch/project_462000963/cache/huggingface`). This is where models and datasets will be cached. Compute nodes typically have no internet access, so all assets must be pre-downloaded into this directory.
+- Set the `HF_HOME` environment variable to point to your HuggingFace cache directory (e.g. `export HF_HOME="/path/to/your/hf_home"`, on LUMI use the shared project cache `/scratch/project_465002530/cache`). This is where models and datasets will be cached. Compute nodes typically have no internet access, so all assets must be pre-downloaded into this directory.
 
 ```bash
 # Install the package
@@ -47,6 +47,7 @@ In case you do not want to rely on the containers provided on a given cluster or
 Task groups are pre-defined evaluation suites in [`task-groups.yaml`](oellm/resources/task-groups.yaml). Each group specifies tasks, their n-shot settings, and HuggingFace dataset mappings.
 
 Available task groups:
+- `crows-pairs` - CrowS-Pairs social bias benchmark (English, 0-shot, `pct_stereotype`)
 - `open-sci-0.01` - Standard benchmarks (COPA, MMLU, HellaSwag, ARC, etc.)
 - `belebele-eu-5-shot` - Belebele European language tasks
 - `flores-200-eu-to-eng` / `flores-200-eng-to-eu` - Translation tasks
@@ -55,9 +56,22 @@ Available task groups:
 - `polymath-eu-low` / `polymath-eu-medium` / `polymath-eu-high` / `polymath-eu-top` - PolyMath multilingual math reasoning (EU languages, 0-shot, `\boxed{}` answer extraction), one group per difficulty tier
 - `generic-multilingual` - XWinograd, XCOPA, XStoryCloze
 - `include` - INCLUDE benchmarks
+- `gpqa-diamond` - GPQA Diamond, generative (0-shot, pass@1, up to 32768 new tokens) for instruct/reasoning checkpoints, in English and Finnish (professionally post-edited `LumiOpen/GPQA-FI`). English reads the gated `Idavidrein/gpqa`, so the HF token must have access. Defined as custom lighteval tasks, see [docs/TASKS.md](docs/TASKS.md#custom-lighteval-tasks). Schedule it separately with a small `BATCH_SIZE`, see [Lighteval Batch Size](#lighteval-batch-size)
 
 Super groups combine multiple task groups:
 - `oellm-multilingual` - All multilingual benchmarks combined
+- `multilingual-oellm-eu` - Every multilingual benchmark, in the 36 prioritised
+  OpenEuroLLM target languages (24 official EU languages,
+  Catalan/Basque/Galician, candidate members, Icelandic/Norwegian). 401 eval
+  units across all 15 multilingual benchmarks and both eval suites:
+
+  ```bash
+  oellm-eval schedule --models "my-model" --task_groups "multilingual-oellm-eu"
+  ```
+
+  Russian, Hebrew, Armenian, Azerbaijani and Belarusian were dropped from
+  `global-mmlu-eu` and `include` to make this possible, so they are no longer
+  reachable through any task group.
 
 ```bash
 # Use a task group
@@ -169,6 +183,42 @@ oellm-eval schedule --models "model-name" --task_groups "open-sci-0.01" \
 
 Use exact env var names: `PARTITION`, `ACCOUNT`, `GPUS_PER_NODE`, `SLURM_MEM`. `TIME` (HH:MM:SS) overrides the time limit.
 
+## LLM Judge benchmarks (JudgeArena)
+
+LLM judge benchmarks are available through JudgeArena. Packaged tasks are
+registered in `task-groups.yaml`, so they use the JudgeArena runner
+automatically:
+
+```bash
+oellm-eval schedule \
+  --models /path/to/model \
+  --tasks arena-hard-v2.0 \
+  --n_shot 0 \
+  --judgearena_kwargs '{"judge.model":"OpenRouter/google/gemma-4-31b-it"}'
+```
+
+Use `--task_groups elo-en`, `elo-eu`, or `elo-multilingual` to schedule the
+language-specific ELO tasks. The standalone `-ja` task variants are not
+registered.
+
+Pass JudgeArena runtime settings such as the judge model through
+`--judgearena_kwargs`. Use `--limit` to set the number of instructions. Local
+task files, prompt overrides, and `meta-eval-*` tasks are not supported.
+
+The selected venv or container must include the `judgearena` command. Use
+`--download_only` to download each selected task into the shared
+`JUDGEARENA_DATA` and `HF_HOME` directories before an offline cluster run:
+
+```bash
+oellm-eval schedule \
+  --models /path/to/model \
+  --task_groups judgearena \
+  --download_only
+```
+
+`oellm-eval collect` reads `run-metadata.v1.json` and adds its numeric metrics to
+the result CSV. It leaves JudgeArena's reports and annotations unchanged.
+
 ## Lighteval Batch Size
 
 For lighteval runs, generated jobs default to `batch_size=1` for local runs and
@@ -192,6 +242,28 @@ for example:
 MODEL_ARGS='batch_size=8' oellm-eval schedule \
   --models "model-name" --task_groups "belebele-eu-cf" --venv_path .venv
 ```
+
+### Long generations (`gpqa-diamond`)
+
+These tasks generate up to 32768 tokens per sample, and `lighteval accelerate`
+keeps a float32 score vector the size of the vocabulary for every generated
+token of every sequence in the batch. At 32k tokens that is ~20 GB per
+sequence for a 150k-token vocabulary (Qwen, Llama 3), plus ~5 GB of KV cache
+for a 7-8B model, on top of the weights. Reasoning models write that much: with
+Qwen3-8B, `batch_size=8` ran out of memory on a 256 GB MI325X, so the default
+`batch_size=32` does not fit either. Schedule the group on its own with a batch
+size that fits, for example:
+
+```bash
+# 64 GB GPU (one LUMI MI250X GCD): Qwen2.5-7B-Instruct completed both languages
+BATCH_SIZE=1 oellm-eval schedule --models "model-name" --task_groups "gpqa-diamond"
+# 256 GB GPU (MI325X): Qwen3-8B completed 40 Finnish questions
+BATCH_SIZE=4 oellm-eval schedule --models "model-name" --task_groups "gpqa-diamond"
+```
+
+Expect hours per language: a batch runs until its longest sample stops, so one
+long answer holds up the whole batch. With `BATCH_SIZE=1` on one MI250X GCD,
+Qwen2.5-7B-Instruct took 1.5 h for English and 2.8 h for Finnish.
 
 ### Workaround for `acc_norm` tasks
 

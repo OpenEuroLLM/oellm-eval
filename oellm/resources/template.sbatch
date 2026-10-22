@@ -19,6 +19,10 @@ TOTAL_EVALS={total_evals}
 LIMIT="{limit}"
 VENV_PATH="{venv_path}"
 LM_EVAL_INCLUDE_PATH="{lm_eval_include_path}"
+LIGHTEVAL_CUSTOM_TASKS="{lighteval_custom_tasks}"
+TASKS_PER_JOB={tasks_per_job}
+JUDGEARENA_ARGS=({judgearena_args})
+export JUDGEARENA_DATA={judgearena_data}
 MODEL_BACKEND="{model_backend}"
 IFEVAL_STOPPING_POLICY="{ifeval_stopping_policy}"
 EVAL_VERSION="{eval_version}"
@@ -43,6 +47,23 @@ export HF_DATASETS_CACHE="$HF_HOME/datasets"
 # $HF_HOME/metrics crash each other (FileNotFoundError). Give every array task its own.
 export HF_METRICS_CACHE="$HF_HOME/metrics/job_${{SLURM_JOB_ID:-local}}"
 export HF_HUB_OFFLINE={hf_hub_offline}
+
+# Neither harness caches under HF_HOME on its own. lighteval hardcodes
+# ~/.cache/huggingface/lighteval and never reads HF_HOME, which fills the user's
+# home directory and fails mid-run on clusters with a small home quota
+# ("OSError: [Errno 122] Disk quota exceeded"). lm-eval keeps request caches
+# inside its own install directory, which is read-only in the container. Point
+# both at the shared cache instead.
+export LIGHTEVAL_CACHE_DIR="$HF_HOME/lighteval"
+export LM_HARNESS_CACHE_PATH="$HF_HOME/lm_eval"
+mkdir -p "$LIGHTEVAL_CACHE_DIR" "$LM_HARNESS_CACHE_PATH"
+
+# lighteval caches unconditionally, so it always uses LIGHTEVAL_CACHE_DIR.
+# lm-eval only caches with --cache_requests, which stays opt-in: set
+# CACHE_REQUESTS=true to enable it, or =refresh to rebuild entries after editing
+# a task YAML (the cache key covers task, shots and tokenizer, but not the task
+# definition). Leaving it off keeps --limit runs fast -- lm-eval ignores --limit
+# while building contexts whenever caching is on.
 
 # Path to the shared Singularity image that contains all runtime deps (container mode)
 export EVAL_SIF_PATH="$EVAL_CONTAINER_IMAGE"
@@ -83,12 +104,42 @@ if [ "$START_INDEX" -gt "$END_INDEX" ]; then
     exit 0
 fi
 
+# Evaluations in this job that produced no result. Becomes the job's exit
+# status so a failed eval cannot be mistaken for a completed one.
+FAILED_EVALS=0
+
 # Use `tail` and `head` to slice the CSV file for the tasks assigned to this job.
 # The +1 on START_INDEX accounts for the header row.
-# A failed evaluation does not skip the remaining ones of this array task; the task
-# exits with the status of the last failure.
-FAILED_STATUS=0
-while IFS=, read -r model_path task_path n_shot eval_suite
+# Collapse adjacent rows that share a model, shot count and lm_eval suite into
+# a single row whose task field is a comma-separated list. lm_eval loads the
+# model once per invocation, so evaluating N tasks in one call replaces N model
+# loads with one. TASKS_PER_JOB caps how many tasks share a call: lm_eval aborts
+# the whole invocation if one task raises, so the cap bounds what a single
+# failure takes down. Suites other than lm_eval pass through one row at a time.
+# A failed evaluation does not skip the remaining ones of this array task.
+# The output is tab-separated because a joined task list contains commas.
+BATCH_ROWS_AWK='
+    function flush() {{ if (tasks != "") print model, tasks, shots, suite }}
+    {{
+        gsub(/\r/, "")
+        if ($1 == "") next
+        row_suite = ($4 == "" ? "lm_eval" : $4)
+        lowered = tolower(row_suite)
+        batchable = (lowered == "lm_eval" || lowered == "lm-eval" || lowered == "lm-eval-harness")
+        row_key = batchable ? ($1 SUBSEP $3 SUBSEP lowered) : ("unbatched" SUBSEP NR)
+        if (row_key != key || count >= max_tasks) {{
+            flush()
+            key = row_key; model = $1; shots = $3; suite = row_suite; tasks = $2; count = 1
+        }} else {{
+            tasks = tasks "," $2; count++
+        }}
+    }}
+    END {{ flush() }}
+'
+
+# Redirected rather than piped into the loop: a pipeline runs the loop body in a
+# subshell, and FAILED_EVALS would be discarded when it exits.
+while IFS=$'\t' read -r model_path task_path n_shot eval_suite
 do
     # Remove trailing carriage returns if script is edited on Windows
     model_path=$(echo "$model_path" | tr -d '\r')
@@ -111,7 +162,7 @@ do
 
     # Build bind paths: always mount the shared eval directory, and additionally
     # bind the directory that contains the model checkpoint when the path exists
-    BIND_PATHS="$EVAL_BASE_DIR:$EVAL_BASE_DIR,$HF_HOME:$HF_HOME,$HF_DATASETS_CACHE:$HF_DATASETS_CACHE${{LM_EVAL_INCLUDE_PATH:+,$$LM_EVAL_INCLUDE_PATH:$$LM_EVAL_INCLUDE_PATH}}"
+    BIND_PATHS="$EVAL_BASE_DIR:$EVAL_BASE_DIR,$HF_HOME:$HF_HOME,$HF_DATASETS_CACHE:$HF_DATASETS_CACHE${{LM_EVAL_INCLUDE_PATH:+,$$LM_EVAL_INCLUDE_PATH:$$LM_EVAL_INCLUDE_PATH}}${{LIGHTEVAL_CUSTOM_TASKS:+,$$LIGHTEVAL_CUSTOM_TASKS:$$LIGHTEVAL_CUSTOM_TASKS}}"
 
     if [[ "$EVAL_VERSION" == v0.02 ]]; then
         BIND_PATHS="$BIND_PATHS,$PROTOCOL_ROOT:$PROTOCOL_ROOT:ro"
@@ -148,7 +199,7 @@ do
         BIND_PATHS="$BIND_PATHS,$JOB_TMP:/tmp,$JOB_TMP:/var/tmp"
         echo "Evaluation temporary storage: $JOB_TMP -> /tmp and /var/tmp"
         df -Pk "$JOB_TMP"
-        SINGULARITY_ENV_ARGS="--env TMPDIR=/tmp --env TMP=/tmp --env TEMP=/tmp --env HF_HOME=$HF_HOME --env HF_DATASETS_CACHE=$HF_DATASETS_CACHE --env HF_HUB_OFFLINE=$HF_HUB_OFFLINE --env TRANSFORMERS_OFFLINE=$TRANSFORMERS_OFFLINE --env NLTK_DATA=$NLTK_DATA --env HF_METRICS_CACHE=$${{HF_METRICS_CACHE}}"
+        SINGULARITY_ENV_ARGS="--env TMPDIR=/tmp --env TMP=/tmp --env TEMP=/tmp --env HF_HOME=$HF_HOME --env HF_DATASETS_CACHE=$HF_DATASETS_CACHE --env HF_HUB_OFFLINE=$HF_HUB_OFFLINE --env TRANSFORMERS_OFFLINE=$TRANSFORMERS_OFFLINE --env NLTK_DATA=$NLTK_DATA --env HF_METRICS_CACHE=$${{HF_METRICS_CACHE}} --env LM_HARNESS_CACHE_PATH=$LM_HARNESS_CACHE_PATH"
     fi
 
     GPU_DEVICES=$(seq -s, 0 $(($GPUS_PER_NODE - 1)))
@@ -176,7 +227,7 @@ do
             singularity exec $SINGULARITY_ARGS \
                 $SINGULARITY_ENV_ARGS \
                 $SINGULARITY_HOME_ARG \
-                --bind $BIND_PATHS \
+                --bind "$BIND_PATHS" \
                 "${{CONTAINER_CWD_ARGS[@]}}" \
                 $EVAL_SIF_PATH \
                 env CUDA_VISIBLE_DEVICES="$CUDA_VISIBLE_DEVICES" \
@@ -184,16 +235,24 @@ do
         fi
     }}
 
-    # Run the evaluation in its own errexit subshell so a failure ends only this evaluation;
-    # stdin is closed so nothing it starts can consume the remaining CSV rows.
+    # Set by every branch below: the harness exit status, and where to look for
+    # what it wrote. lm_eval appends a timestamp to --output_path, so the result
+    # is a directory plus a filename pattern rather than an exact path.
+    EVAL_STATUS=0
+    EVAL_OUT_DIR=""
+    EVAL_OUT_PAT=""
+
+    # A failure ends only this evaluation (errexit is off for it), and stdin is
+    # closed (`esac < /dev/null`) so nothing it starts can consume the remaining rows.
     set +e
-    (
-    set -e
     case "$suite_normalized" in
         lm_eval|lm-eval|lm-eval-harness)
             echo
             echo "----------------------------------------------------"
             echo "lm_eval Execution"
+            RUN_ID=$(openssl rand -hex 5)
+            EVAL_OUT_DIR="{evals_dir}"
+            EVAL_OUT_PAT="$RUN_ID*.json"
             HARNESS_MODULE=lm_eval
             if [[ "$task_path" == ifeval ]]; then
                 echo "IFEval stopping policy: $IFEVAL_STOPPING_POLICY"
@@ -209,13 +268,15 @@ do
                 --model_args "$RESOLVED_MODEL_ARGS" \
                 --tasks "$task_path" \
                 --num_fewshot "$n_shot" \
-                --output_path "{evals_dir}/$(openssl rand -hex 5).json" \
+                --output_path "$EVAL_OUT_DIR/$RUN_ID.json" \
                 --trust_remote_code \
                 ${{LM_EVAL_INCLUDE_PATH:+--include_path $$LM_EVAL_INCLUDE_PATH}} \
                 --batch_size auto \
                 {log_samples} \
                 {confirm_run_unsafe_code} \
+                ${{CACHE_REQUESTS:+--cache_requests $CACHE_REQUESTS}} \
                 ${{LIMIT:+--limit $LIMIT}}
+            EVAL_STATUS=$?
             echo "----------------------------------------------------"
             ;;
         lighteval|light-eval)
@@ -238,32 +299,40 @@ do
 
             RESULTS_SUBDIR="{evals_dir}/$(openssl rand -hex 5)"
             mkdir -p "$RESULTS_SUBDIR"
+            EVAL_OUT_DIR="$RESULTS_SUBDIR"
+            EVAL_OUT_PAT="*"
 
             if [ -n "$VENV_PATH" ]; then
                 source "$VENV_PATH/bin/activate"
                 lighteval accelerate \
-                    "model_name=$model_path,trust_remote_code=True,{additional_model_args}" \
+                    "model_name=$model_path,trust_remote_code=True,cache_dir=$LIGHTEVAL_CACHE_DIR,{additional_model_args}" \
                     "$LIGHT_TASK_ARG" \
                     --load-tasks-multilingual \
+                    --custom-tasks "$$LIGHTEVAL_CUSTOM_TASKS" \
                     --output-dir "$RESULTS_SUBDIR" \
                     ${{LIMIT:+--max-samples $LIMIT}}
+                EVAL_STATUS=$?
             else
                 singularity exec $SINGULARITY_ARGS \
                     $SINGULARITY_ENV_ARGS \
                     $SINGULARITY_HOME_ARG \
-                    --bind $BIND_PATHS \
+                    --bind "$BIND_PATHS" \
                     $EVAL_SIF_PATH \
                     env CUDA_VISIBLE_DEVICES=$GPU_DEVICES \
                     lighteval accelerate \
-                        "model_name=$model_path,{additional_model_args}" \
+                        "model_name=$model_path,cache_dir=$LIGHTEVAL_CACHE_DIR,{additional_model_args}" \
                         "$LIGHT_TASK_ARG" \
                         --load-tasks-multilingual \
+                        --custom-tasks "$$LIGHTEVAL_CUSTOM_TASKS" \
                         --output-dir "$RESULTS_SUBDIR" \
                         ${{LIMIT:+--max-samples $LIMIT}}
+                EVAL_STATUS=$?
             fi
             ;;
         evalchemy)
             RESULTS_SUBDIR="{evals_dir}/$(openssl rand -hex 5)"
+            EVAL_OUT_DIR="$RESULTS_SUBDIR"
+            EVAL_OUT_PAT="*"
             if [ "$MODEL_BACKEND" = vllm ]; then
                 # A container may carry Evalchemy internally at /opt/evalchemy.
                 # A host checkout remains supported via an explicit bind.
@@ -291,8 +360,12 @@ do
                         --output_path "$RESULTS_SUBDIR" \
                         ${{LIMIT:+--limit $LIMIT}}
                 )
+                EVAL_STATUS=$?
             elif [ -n "$VENV_PATH" ]; then
                 source "$VENV_PATH/bin/activate"
+                # subshell: the loop no longer runs in one, so this cd would
+                # otherwise leak into the next evaluation in this job
+                (
                 cd "$EVALCHEMY_WORK_DIR"
                 accelerate launch --num-processes "$GPUS_PER_NODE" --num-machines 1 \
                     $MULTI_GPU_FLAG -m eval.eval \
@@ -302,6 +375,8 @@ do
                     --batch_size auto \
                     --output_path "$RESULTS_SUBDIR" \
                     ${{LIMIT:+--limit $LIMIT}}
+                )
+                EVAL_STATUS=$?
             else
                 # The complete image also carries the HF adapter and Accelerate.
                 # Preserve the HF process-per-GPU recipe inside that image.
@@ -320,21 +395,67 @@ do
                         --output_path "$RESULTS_SUBDIR" \
                         ${{LIMIT:+--limit $LIMIT}}
                 )
+                EVAL_STATUS=$?
+            fi
+            ;;
+        judgearena)
+            mkdir -p "$JUDGEARENA_DATA"
+            RESULTS_SUBDIR="{evals_dir}/$(openssl rand -hex 5)"
+            mkdir -p "$RESULTS_SUBDIR"
+            EVAL_OUT_DIR="$RESULTS_SUBDIR"
+            EVAL_OUT_PAT="run-metadata.v1.json"
+
+            JUDGEARENA_BIND_PATHS="$BIND_PATHS,$JUDGEARENA_DATA:$JUDGEARENA_DATA"
+
+            if [ -n "$VENV_PATH" ]; then
+                source "$VENV_PATH/bin/activate"
+                judgearena \
+                    "${{JUDGEARENA_ARGS[@]}}" \
+                    --task "$task_path" \
+                    --model.name "VLLM/$model_path" \
+                    --run.result_folder "$RESULTS_SUBDIR" \
+                    ${{LIMIT:+--generation.n_instructions $LIMIT}}
+                EVAL_STATUS=$?
+            else
+                singularity exec $SINGULARITY_ARGS \
+                    $SINGULARITY_ENV_ARGS \
+                    $SINGULARITY_HOME_ARG \
+                    --bind "$JUDGEARENA_BIND_PATHS" \
+                    "$EVAL_SIF_PATH" \
+                    env CUDA_VISIBLE_DEVICES=$GPU_DEVICES \
+                        JUDGEARENA_DATA="$JUDGEARENA_DATA" \
+                        HF_HOME="$HF_HOME" \
+                        HF_DATASETS_CACHE="$HF_DATASETS_CACHE" \
+                    judgearena \
+                        "${{JUDGEARENA_ARGS[@]}}" \
+                        --task "$task_path" \
+                        --model.name "VLLM/$model_path" \
+                        --run.result_folder "$RESULTS_SUBDIR" \
+                        ${{LIMIT:+--generation.n_instructions $LIMIT}}
+                EVAL_STATUS=$?
             fi
             ;;
         *)
             echo "[warning] Unknown evaluation suite '$eval_suite'. Skipping."
+            EVAL_STATUS=1
             ;;
-    esac
-    ) < /dev/null
-    eval_status=$?
+    esac < /dev/null
     set -e
 
-    echo "----------------------------------------------------"
-    if [ "$eval_status" -ne 0 ]; then
-        echo "[error] Evaluation failed (exit $eval_status) for model: $model_path, task: $task_path" >&2
-        FAILED_STATUS=$eval_status
+    # An evaluation counts as done only if the harness exited 0 and wrote
+    # something. Both halves matter: a container that fails to start and a
+    # missing venv both exit 0 while producing no result.
+    # A batched lm_eval call covers every task in its list, so a failure leaves
+    # all of them without a result.
+    EVAL_TASKS=$(( $(echo "$task_path" | tr -cd ',' | wc -c) + 1 ))
+    if [ "$EVAL_STATUS" -ne 0 ]; then
+        echo "[error] $task_path ($eval_suite) exited with status $EVAL_STATUS"
+        FAILED_EVALS=$((FAILED_EVALS + EVAL_TASKS))
+    elif [ -n "$EVAL_OUT_DIR" ] && [ -z "$(find "$EVAL_OUT_DIR" -type f -name "$EVAL_OUT_PAT" 2>/dev/null | head -n 1)" ]; then
+        echo "[error] $task_path ($eval_suite) exited 0 but wrote no result to $EVAL_OUT_DIR/$EVAL_OUT_PAT"
+        FAILED_EVALS=$((FAILED_EVALS + EVAL_TASKS))
     else
+        echo "----------------------------------------------------"
         echo "Evaluation finished for model: $model_path"
     fi
 
@@ -343,10 +464,11 @@ do
         trap - EXIT ERR
     fi
 
-done < <(tail -n +$((START_INDEX + 1)) "$CSV_PATH" | head -n $((END_INDEX - START_INDEX + 1)))
+done < <(tail -n +$((START_INDEX + 1)) "$CSV_PATH" | head -n $((END_INDEX - START_INDEX + 1)) | \
+    awk -F, -v max_tasks="$TASKS_PER_JOB" -v OFS='\t' "$BATCH_ROWS_AWK")
 
-if [ "$FAILED_STATUS" -ne 0 ]; then
-    echo "Job $SLURM_ARRAY_TASK_ID finished with failed evaluations." >&2
-    exit "$FAILED_STATUS"
+if [ "$FAILED_EVALS" -gt 0 ]; then
+    echo "Job $SLURM_ARRAY_TASK_ID finished with $FAILED_EVALS failed evaluation(s)."
+    exit 1
 fi
 echo "Job $SLURM_ARRAY_TASK_ID finished."

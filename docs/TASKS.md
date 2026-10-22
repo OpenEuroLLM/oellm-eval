@@ -49,11 +49,12 @@ oellm-eval schedule --models "model-name" --task_groups "my-benchmark"
 | Field | Required | Level | Description |
 |-------|----------|-------|-------------|
 | `description` | Yes | group | Short description of the task group |
-| `suite` | Yes | group | Evaluation suite: `lm-eval-harness` or `lighteval` |
+| `suite` | Yes | group | Evaluation suite: `lm-eval-harness`, `lighteval`, or `judgearena` |
 | `n_shots` | Yes | group or task | List of shot counts; must be set at group or task level |
 | `dataset` | Yes | group or task | HuggingFace dataset repo ID (required for pre-download and testing) |
 | `task` | Yes | task | Task name as recognized by the evaluation suite |
 | `subset` | No | task | HuggingFace dataset config/subset name |
+| `metric` | No | group or task | Primary metric kept by `oellm-eval collect`; without it every metric is kept |
 
 ## Language filtering (`group[lang]` brackets)
 
@@ -88,7 +89,10 @@ code (e.g. `deu_Latn`) from, in order:
    for new multilingual groups — see the template expansion above).
 3. **The task's `subset`** (e.g. `de`, `german`, `deu_Latn` all fold to
    `deu_Latn`).
-4. A **trailing language code in the task name** (e.g. `arc_challenge_mt_de`),
+4. A **lighteval-style `:lang` name suffix** (e.g. `gpqa_diamond:fi`), used when
+   the `subset` is an HF config name that is not a language (`gpqa_diamond`,
+   `default`).
+5. A **trailing language code in the task name** (e.g. `arc_challenge_mt_de`),
    used only when no `subset` is given.
 
 The normaliser (`oellm/task_groups.py`) folds the many spellings benchmarks use
@@ -106,10 +110,31 @@ bracket that matches no task in its group errors; when a bracket lists several
 languages and only some are present, the matches are kept and the rest warned
 about (some languages simply lack certain benchmarks).
 
+## Custom lighteval tasks
+
+lighteval tasks that are not built into lighteval live in
+`oellm/resources/custom_lighteval_tasks/reasoning/reasoning.py` and are passed to every
+lighteval run as `--custom-tasks` (override with `--lighteval_custom_tasks` or
+`LIGHTEVAL_CUSTOM_TASKS`). The file must expose a `TASKS_TABLE`; lighteval
+rejects names that collide with its built-in tasks. Each registry entry's
+`dataset`/`subset` must equal the task's `hf_repo`/`hf_subset`, because compute
+nodes can only read what was pre-downloaded.
+`tests/test_custom_lighteval_tasks.py` checks this and the prompts and metrics;
+it needs lighteval installed, which CI's `eval-base` environment does not have,
+so run it locally after changing the file.
+
+The `gpqa-diamond` group is separate from the English-only evalchemy
+`GPQADiamond` in the `reasoning` group (sampled, three repeats, its own prompt)
+and from lighteval's built-in `gpqa:diamond`. Its English task keeps the
+built-in's prompt and answer extraction, its Finnish task those of the LumiOpen
+lighteval fork, so the two languages are scored the same way. Both fix the
+answer order per question from a hash of the question; the built-in draws it
+from the process-global RNG, so it depends on the other tasks in the same run.
+
 ## Important: Dataset Requirement
 
-**You must provide the `dataset` field** (at group or task level) for:
+**Except for JudgeArena, you must provide the `dataset` field** (at group or task level) for:
 1. **Automatic pre-download** - Compute nodes often lack network access; datasets are cached beforehand
 2. **CI testing** - The test suite validates that all datasets in `task-groups.yaml` are accessible
 
-Tasks without a `dataset` field will not have their data pre-downloaded and are not covered by CI validation.
+For other suites, tasks without a `dataset` field will not have their data pre-downloaded and are not covered by CI validation. JudgeArena uses `judgearena tasks download` for its task data and scoring files.

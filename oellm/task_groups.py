@@ -34,6 +34,15 @@ _LANG_ALIAS = {
     "uk": "ukr_Cyrl",
     "he": "heb_Hebr",
     "en": "eng_Latn",
+    # JudgeArena language selectors
+    "ar": "arb_Arab",
+    "fa": "pes_Arab",
+    "hi": "hin_Deva",
+    "id": "ind_Latn",
+    "ja": "jpn_Jpan",
+    "ko": "kor_Hang",
+    "vi": "vie_Latn",
+    "zh": "zho_Hans",
     "bg": "bul_Cyrl",
     "da": "dan_Latn",
     "et": "est_Latn",
@@ -57,6 +66,28 @@ _LANG_ALIAS = {
     "pt_br": "por_Latn",
     # full English names (include)
     "albanian": "als_Latn",
+    "bengali": "ben_Beng",
+    "bosnian": "bos_Latn",
+    "catalan": "cat_Latn",
+    "czech": "ces_Latn",
+    "danish": "dan_Latn",
+    "english": "eng_Latn",
+    "galician": "glg_Latn",
+    "hindi": "hin_Deva",
+    "icelandic": "isl_Latn",
+    "indonesian": "ind_Latn",
+    "irish": "gle_Latn",
+    "japanese": "jpn_Jpan",
+    "latvian": "lvs_Latn",
+    "macedonian": "mkd_Cyrl",
+    "maltese": "mlt_Latn",
+    "mandarin-chinese": "zho_Hans",
+    "norwegian": "nob_Latn",
+    "romanian": "ron_Latn",
+    "slovak": "slk_Latn",
+    "slovene": "slv_Latn",
+    "standard-arabic": "arb_Arab",
+    "swedish": "swe_Latn",
     "armenian": "hye_Armn",
     "azerbaijani": "aze_Latn",
     "basque": "eus_Latn",
@@ -153,8 +184,9 @@ def _resolve_task_languages(name: str, subset: str | None) -> list[str]:
 
     Translation pairs (``flores200:src-tgt`` and
     ``opensubtitles_multi40_src_to_tgt``) resolve to their non-English side;
-    every other task resolves via its ``subset``. Tasks with no recognisable
-    language (e.g. English-only standard benchmarks) return [].
+    every other task resolves via its ``subset``, then via a lighteval-style
+    ``benchmark:lang`` name suffix. Tasks with no recognisable language (e.g.
+    English-only standard benchmarks) return [].
     """
     if name.startswith("flores200:"):
         pair = name.split(":", 1)[1]
@@ -169,6 +201,13 @@ def _resolve_task_languages(name: str, subset: str | None) -> list[str]:
     lang = _canonical_language(subset)
     if lang:
         return [lang]
+    # lighteval-style ``benchmark:lang`` names (e.g. ``gpqa_diamond:fi``), whose
+    # subset is an HF config name such as ``gpqa_diamond`` or ``default``.
+    m = re.search(r":([a-z]{2,3})$", name)
+    if m:
+        lang = _canonical_language(m.group(1))
+        if lang:
+            return [lang]
     # Some explicitly-listed tasks omit `subset` and encode the language as a
     # trailing code in the task name (e.g. ``arc_challenge_mt_is``).
     if subset is None:
@@ -223,7 +262,7 @@ class TaskGroup:
             task_name = task_data["task"]
             task_n_shots = task_data.get("n_shots")
             task_dataset = task_data.get("dataset")
-            task_subset = task_data.get("subset")
+            task_subset = task_data.get("subset", data.get("subset"))
             tasks.append(
                 _Task(
                     name=task_name,

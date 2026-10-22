@@ -53,6 +53,49 @@ def _resolve_hf_hub_offline(local: bool) -> int:
     return 0 if local else 1
 
 
+def _download_judgearena_tasks(
+    tasks: list[str], *, venv_path: str | None, data_dir: Path
+) -> None:
+    """Download JudgeArena-owned inputs through the selected runtime."""
+    if not tasks:
+        return
+
+    data_dir.mkdir(parents=True, exist_ok=True)
+    env = os.environ.copy()
+    env["JUDGEARENA_DATA"] = str(data_dir)
+    if hf_home := env.get("HF_HOME"):
+        env["HF_DATASETS_CACHE"] = str(Path(hf_home) / "datasets")
+    command = ["judgearena", "tasks", "download", *sorted(set(tasks))]
+
+    if venv_path:
+        executable = Path(venv_path) / "bin" / "judgearena"
+        if not executable.exists():
+            raise RuntimeError(
+                f"JudgeArena is not installed in the selected environment: {executable}"
+            )
+        command[0] = str(executable)
+    else:
+        eval_base = Path(os.environ["EVAL_BASE_DIR"])
+        hf_home = Path(os.environ["HF_HOME"])
+        image = eval_base / os.environ["EVAL_CONTAINER_IMAGE"]
+        binds = [eval_base, hf_home, data_dir]
+        command = [
+            "singularity",
+            "exec",
+            *shlex.split(os.environ.get("SINGULARITY_ARGS", "")),
+            "--bind",
+            ",".join(f"{path}:{path}" for path in binds),
+            str(image),
+            "env",
+            f"JUDGEARENA_DATA={data_dir}",
+            f"HF_HOME={hf_home}",
+            f"HF_DATASETS_CACHE={hf_home / 'datasets'}",
+            *command,
+        ]
+
+    subprocess.run(command, check=True, env=env)
+
+
 def _resolve_slurm_mem() -> str:
     """Return the host-memory request for the generated SLURM job."""
     explicit_mem = os.environ.get("SLURM_MEM")
@@ -113,7 +156,9 @@ def schedule_evals(
     n_shot: int | list[int] | None = None,
     eval_csv_path: str | None = None,
     *,
+    judgearena_kwargs: dict[str, object] | None = None,
     max_array_len: int = 128,
+    tasks_per_job: int = 8,
     limit: int | None = None,
     verbose: bool = False,
     download_only: bool = False,
@@ -122,6 +167,7 @@ def schedule_evals(
     trust_remote_code: bool = True,
     venv_path: str | None = None,
     lm_eval_include_path: str | None = None,
+    lighteval_custom_tasks: str | None = None,
     local: bool = False,
     slurm_template_var: str | None = None,
     nodelist: str | None = None,
@@ -149,8 +195,9 @@ def schedule_evals(
               all models in subdirectories will be automatically discovered
             - For each model directory, if it has an `hf/iter_XXXXX` structure, all checkpoints will be expanded
             - This allows passing a single directory containing multiple models to evaluate them all
-        tasks: A string of comma-separated task names (lm_eval) or paths.
-            Requires `n_shot` to be provided. Tasks here are assumed to be lm_eval unless otherwise handled via CSV.
+        tasks: A string of comma-separated task names or paths. The suite is
+            taken from `task-groups.yaml`; unregistered tasks default to lm_eval.
+            Requires `n_shot` to be provided.
         task_groups: A string of comma-separated task group names defined in `task-groups.yaml`.
             Each group expands into concrete (task, n_shots, suite) entries; `n_shot` is ignored for groups.
             A group (or super_group) may be scoped to one or more languages with a bracket, e.g.
@@ -161,10 +208,19 @@ def schedule_evals(
         n_shot: An integer or list of integers specifying the number of shots applied to `tasks`.
         eval_csv_path: A path to a CSV file containing evaluation data.
             Warning: exclusive argument. Cannot specify `models`, `tasks`, `task_groups`, or `n_shot` when `eval_csv_path` is provided.
+        judgearena_kwargs: Extra JudgeArena CLI arguments as a JSON object.
+            Use names such as `judge.model`. oellm-eval controls the task,
+            candidate model, result folder, and optional sample limit.
         max_array_len: The maximum number of jobs to schedule to run concurrently.
             Warning: this is not the number of jobs in the array job. This is determined by the environment variable `QUEUE_LIMIT`.
+        tasks_per_job: The maximum number of lm-eval-harness tasks evaluated by a single
+            `lm_eval` invocation. Tasks that share a model and shot count are evaluated
+            together so the model is loaded once instead of once per task. `lm_eval`
+            fails the whole invocation if one task raises, so this caps how many tasks
+            a single failure takes down; 1 restores one invocation per task.
         limit: If set, limit the number of samples per task (useful for quick testing).
-            Passes --limit to lm_eval and --max_samples to lighteval.
+            Passes --limit to lm_eval, --max_samples to lighteval, and
+            --generation.n_instructions to JudgeArena.
         download_only: If True, only download the datasets and models and exit.
         dry_run: If True, generate the SLURM script but don't submit it to the scheduler.
         skip_checks: If True, skip container image, model validation, and dataset pre-download checks for faster execution.
@@ -175,6 +231,9 @@ def schedule_evals(
             Passed as --include_path to lm_eval. Defaults to the bundled custom_lm_eval_tasks
             directory shipped with the package, which overrides broken upstream tasks
             (e.g. mgsm_native_cot_fr/de/es). Override to point at additional task YAMLs.
+        lighteval_custom_tasks: Path to a Python file of custom lighteval task definitions.
+            Passed as --custom-tasks to lighteval. Defaults to the bundled
+            custom_lighteval_tasks/reasoning/reasoning.py (multilingual GPQA Diamond).
         local: If True, run evaluations directly on the local machine using bash instead of
             submitting to SLURM. Requires --venv_path. Skips cluster environment detection and
             runs all evaluations sequentially in a single process.
@@ -244,6 +303,16 @@ def schedule_evals(
         os.environ.setdefault("HF_HOME", str(Path.home() / ".cache" / "huggingface"))
     else:
         _load_cluster_env()
+        # The generated script bakes HF_HOME in and binds it into the container.
+        # Unset, it becomes an empty bind path and every array element dies
+        # inside singularity, so fail here with something actionable instead.
+        if not os.environ.get("HF_HOME"):
+            raise ValueError(
+                "HF_HOME is not set. Models and datasets are cached there and "
+                "compute nodes have no internet access, so it must point at a "
+                "directory on a shared filesystem, e.g.\n\n"
+                '    export HF_HOME="/path/to/your/hf_home"'
+            )
 
     use_venv = venv_path is not None
 
@@ -367,6 +436,45 @@ def schedule_evals(
     original_jobs = df.to_dict("records")
     df = pd.DataFrame([resolve_job(job, eval_version) for job in original_jobs])
     df["eval_suite"] = df["eval_suite"].str.lower()
+    judgearena_rows = df["eval_suite"].eq("judgearena")
+    df.loc[judgearena_rows, "n_shot"] = 0
+
+    judgearena_values = judgearena_kwargs or {}
+    owned_args = {
+        "config_path",
+        "generation.n_instructions",
+        "model.name",
+        "run.result_folder",
+        "task",
+        "task_file",
+    }
+    conflicts = owned_args.intersection(judgearena_values)
+    if conflicts:
+        raise ValueError(
+            "oellm-eval controls these JudgeArena arguments: "
+            + ", ".join(sorted(conflicts))
+        )
+
+    if not skip_checks and judgearena_rows.any():
+        local_models = set()
+        for key in ("judge.model", "model.baseline"):
+            model = judgearena_values.get(key)
+            if isinstance(model, str) and model.startswith("VLLM/"):
+                local_models.add(model.removeprefix("VLLM/"))
+        if local_models:
+            _process_model_paths(local_models)
+
+    judgearena_cli_args: list[str] = []
+    for key, value in judgearena_values.items():
+        serialized = value if isinstance(value, str) else json.dumps(value)
+        judgearena_cli_args.extend([f"--{key}", serialized])
+    judgearena_args = shlex.join(judgearena_cli_args).replace("$", "$$")
+
+    eval_base_dir = Path(os.environ.get("EVAL_BASE_DIR", os.environ["EVAL_OUTPUT_DIR"]))
+    judgearena_data_path = Path(
+        os.environ.get("JUDGEARENA_DATA", eval_base_dir / "judgearena-data")
+    )
+    judgearena_data = shlex.quote(str(judgearena_data_path)).replace("$", "$$")
 
     # Ensure that all datasets required by the tasks are cached locally to avoid
     # network access on compute nodes.
@@ -387,6 +495,12 @@ def schedule_evals(
         if dataset_specs:
             _pre_download_datasets_from_specs(
                 dataset_specs, trust_remote_code=trust_remote_code
+            )
+        if judgearena_rows.any():
+            _download_judgearena_tasks(
+                df.loc[judgearena_rows, "task_path"].unique().tolist(),
+                venv_path=venv_path,
+                data_dir=judgearena_data_path,
             )
     else:
         logging.info("Skipping dataset pre-download (--skip-checks enabled)")
@@ -417,8 +531,26 @@ def schedule_evals(
     slurm_logs_dir.mkdir(parents=True, exist_ok=True)
     csv_path = evals_dir / "jobs.csv"
 
-    # Shuffle the dataframe to distribute fast/slow evaluations evenly across array jobs
-    df = df.sample(frac=1, random_state=42).reset_index(drop=True)
+    # Shuffle to distribute fast/slow evaluations evenly across array jobs, but
+    # shuffle *groups* of evaluations that share a model, shot count and suite
+    # rather than individual rows. The sbatch template collapses each such run
+    # of adjacent rows into a single lm_eval invocation, so keeping them
+    # adjacent is what lets the model be loaded once instead of once per task.
+    batch_key = ["model_path", "n_shot", "eval_suite"]
+    group_order = (
+        df[batch_key]
+        .drop_duplicates()
+        .sample(frac=1, random_state=42)
+        .reset_index(drop=True)
+        .reset_index()
+        .rename(columns={"index": "_group_rank"})
+    )
+    df = (
+        df.merge(group_order, on=batch_key, how="left")
+        .sort_values("_group_rank", kind="stable")
+        .drop(columns="_group_rank")
+        .reset_index(drop=True)
+    )
     logging.info(
         "Shuffled evaluation jobs for even load distribution across array workers"
     )
@@ -526,6 +658,7 @@ def schedule_evals(
         launcher_resources=launcher_resources,
         csv_path=csv_path,
         max_array_len=max_array_len,
+        tasks_per_job=max(1, tasks_per_job),
         array_limit=actual_array_size - 1,  # Array is 0-indexed
         num_jobs=actual_array_size,  # This is the number of array jobs, not total evals
         total_evals=len(df),  # Pass the total number of evaluations
@@ -542,6 +675,18 @@ def schedule_evals(
                 or str(files("oellm.resources") / "custom_lm_eval_tasks")
             ).resolve()
         ),
+        lighteval_custom_tasks=str(
+            Path(
+                lighteval_custom_tasks
+                or os.environ.get("LIGHTEVAL_CUSTOM_TASKS")
+                or str(
+                    files("oellm.resources")
+                    / "custom_lighteval_tasks"
+                    / "reasoning"
+                    / "reasoning.py"
+                )
+            ).resolve()
+        ),
         hf_hub_offline=_resolve_hf_hub_offline(local),
         additional_model_args=_resolve_additional_model_args(local),  # Batch size
         evalchemy_dir=os.environ.get("EVALCHEMY_DIR", "/opt/evalchemy"),
@@ -553,6 +698,8 @@ def schedule_evals(
         confirm_run_unsafe_code="--confirm_run_unsafe_code" if confirm_run_unsafe_code else "",
         backend_model_args=shlex.quote(backend_args),
         log_samples="--log_samples" if log_samples else "",
+        judgearena_args=judgearena_args,
+        judgearena_data=judgearena_data,
     )
 
     if not os.environ.get("ACCOUNT"):
@@ -632,10 +779,12 @@ def schedule_evals(
     except subprocess.CalledProcessError as e:
         logging.error(f"Failed to submit job: {e}")
         logging.error(f"sbatch stderr: {e.stderr}")
-    except FileNotFoundError:
+        raise SystemExit(1) from e
+    except FileNotFoundError as e:
         logging.error(
             "sbatch command not found. Please make sure you are on a system with SLURM installed."
         )
+        raise SystemExit(1) from e
 
 
 def collect_results(
@@ -731,6 +880,22 @@ def collect_results(
             metrics.append((metric_name, float(value)))
         return metrics
 
+    def _flatten_numeric_metrics(
+        value: object, prefix: str = ""
+    ) -> list[tuple[str, float]]:
+        """Flatten numeric dictionary leaves while leaving large arrays untouched."""
+        if isinstance(value, bool):
+            return []
+        if isinstance(value, (int, float)):
+            return [(prefix, float(value))] if prefix else []
+        if not isinstance(value, dict):
+            return []
+        metrics: list[tuple[str, float]] = []
+        for key, child in value.items():
+            name = f"{prefix}.{key}" if prefix else str(key)
+            metrics.extend(_flatten_numeric_metrics(child, name))
+        return metrics
+
     def _split_task_and_nshot(name: str) -> tuple[str, int | None]:
         """Split task names of the form 'task|N' returning (task, N) or (task, None)."""
         if not isinstance(name, str):
@@ -799,6 +964,30 @@ def collect_results(
         with open(json_file) as f:
             data = json.load(f)
 
+        if data.get("schema_version") == "judgearena-run-metadata/v1":
+            run_config = data["run"]
+            report = data["results"]
+            task_name = run_config["task"]
+            model_name = run_config["model"]["name"].removeprefix("VLLM/")
+
+            metric_pairs = _flatten_numeric_metrics(report.get("metrics", {}))
+            if metric_pairs:
+                if check:
+                    completed_jobs.add((model_name, task_name, 0, eval_version, protocol_variant))
+                rows.extend(
+                    {
+                        "model_name": model_name,
+                        "task": task_name,
+                        "n_shot": 0,
+                        "metric_name": metric_name,
+                        "performance": performance,
+                        "eval_version": eval_version,
+                        "protocol_variant": protocol_variant,
+                    }
+                    for metric_name, performance in metric_pairs
+                )
+            continue
+
         # Extract model name/path from a few common locations used in different
         # versions of the result JSON schema.
         model_name = (
@@ -839,12 +1028,15 @@ def collect_results(
             for _s in _subs:
                 group_subtask_names.add(_s)
 
-        # Prefer only the first aggregate metric from groups (simplified)
-        if groups_map:
-            group_name, group_results = next(iter(groups_map.items()))
+        # Record every top-level aggregate. A group listed as another group's
+        # subtask (e.g. `mmlu_humanities` under `mmlu`) is an intermediate
+        # aggregate and is left to its parent, so a grouped run reports the
+        # aggregate the job actually asked for.
+        for orig_group_name, group_results in groups_map.items():
+            if orig_group_name in group_subtask_names:
+                continue
             # Prefer original extraction from n_shot_data and subtasks, then
             # global_n_shot; only fall back to parsing the group name.
-            orig_group_name = group_name
             n_shot = n_shot_data.get(orig_group_name, "unknown")
             if n_shot == "unknown":
                 for subtask_name in group_subtasks_map.get(orig_group_name, []):
@@ -875,8 +1067,6 @@ def collect_results(
                             "protocol_variant": protocol_variant,
                         }
                     )
-                # Skip per-task iteration when groups are present
-                continue
 
         for task_name, task_results in results.items():
             # Skip entries already added from groups

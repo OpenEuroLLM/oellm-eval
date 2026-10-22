@@ -34,10 +34,15 @@ def render(tmp_path, monkeypatch, *, suite="lm_eval", container=False, internal_
     bindir = tmp_path / "bin"
     bindir.mkdir()
     # FAIL_TASK fails only the evaluation of that task; READ_STDIN reads stdin to EOF.
+    # On success it writes a result to --output_path (a .json file or a directory),
+    # since the template counts an evaluation without a result as failed.
     recorder = ('#!/bin/bash\nprintf "%s\\n" "$CUDA_VISIBLE_DEVICES" "$@" >> "$RECORD"\n'
                 '[ -z "${READ_STDIN:-}" ] || cat > /dev/null\n'
                 'if [ -n "${FAIL_TASK:-}" ]; then for a in "$@"; do [ "$a" != "$FAIL_TASK" ] || exit 7; done; fi\n'
-                'exit "${FAIL:-0}"\n')
+                '[ "${FAIL:-0}" = 0 ] || exit "$FAIL"\n'
+                'out=""; prev=""; for a in "$@"; do [ "$prev" != --output_path ] || out="$a"; prev="$a"; done\n'
+                'case "$out" in "") ;; *.json) mkdir -p "$(dirname "$out")"; echo "{}" > "$out" ;;\n'
+                '    *) mkdir -p "$out"; echo "{}" > "$out/results.json" ;; esac\n')
     for name in ("python", "accelerate", "singularity"):
         p = bindir / name
         p.write_text(recorder)
@@ -91,7 +96,7 @@ def test_native_launch(tmp_path, monkeypatch, suite, container, dp, tp, dp_backe
 def test_backend_failure_is_job_failure(tmp_path, monkeypatch, suite):
     script = render(tmp_path, monkeypatch, suite=suite, model_backend="vllm")
     monkeypatch.setenv("FAIL", "42")
-    assert subprocess.run(["bash", str(script)], capture_output=True).returncode == 42
+    assert subprocess.run(["bash", str(script)], capture_output=True).returncode != 0
 
 
 @pytest.mark.parametrize("variable", ["WORLD_SIZE", "LMEVAL_DP"])
