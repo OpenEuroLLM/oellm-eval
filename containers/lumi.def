@@ -17,10 +17,13 @@ From: rocm/pytorch:rocm7.2.1_ubuntu24.04_py3.12_pytorch_release_2.9.1
     export UV_TOOL_DIR=/opt/uv-tools
 
     # lm-eval and dependencies in the ROCm/PyTorch base venv.
+    # transformers<5.20: 5.20 removed transformers.data.metrics, which lm-eval
+    # tasks still import (coqa, xquad, record, scrolls, ...); a failing import
+    # takes down every task batched with it (e.g. part of dclm-core-22).
     uv pip install --python /opt/venv/bin/python \
         "lm-eval[api,tasks]" \
         word2number \
-        transformers \
+        "transformers<5.20" \
         "datasets>=4.0" \
         wandb \
         sentencepiece \
@@ -68,6 +71,10 @@ for rel, reps in patches.items():
     open(path, "w").write(src)
     print("patched", rel)
 PY
+
+    # Fail the build if any lm-eval task module that dclm-core-22 needs cannot
+    # import (see the transformers pin above).
+    /opt/venv/bin/python -c "import transformers.data.metrics.squad_metrics, lm_eval.tasks.coqa.utils"
 
     # lighteval as isolated tool (avoids dependency conflicts).
     #
