@@ -61,7 +61,7 @@ def test_groups_without_a_metric_declare_nothing():
 def _write_result(tmp_path, task, metrics):
     run = tmp_path / "run"
     run.mkdir()
-    (run / "jobs.csv").write_text(
+    (run / "jobs.tsv").write_text(
         f"model_path,task_path,n_shot,eval_suite\nm,{task},0,lm-eval-harness\n"
     )
     (run / "r.json").write_text(
@@ -88,9 +88,9 @@ def test_fetch_all_metrics_flag(tmp_path, fetch_all, expected):
         "arc_easy",
         {"acc,none": 0.5, "acc_norm,none": 0.6, "acc_norm_stderr,none": 0.01},
     )
-    out = tmp_path / "out.csv"
+    out = tmp_path / "out.tsv"
     collect_results(str(run), str(out), fetch_all_metrics=fetch_all)
-    df = pd.read_csv(out)
+    df = pd.read_csv(out, sep="\t")
     assert set(df["metric_name"]) == expected
 
 
@@ -98,7 +98,7 @@ def test_unknown_metric_does_not_drop_the_task(tmp_path):
     """If the declared metric is missing from a result, keep what is there
     rather than emitting nothing for that task."""
     run = _write_result(tmp_path, "arc_easy", {"acc,none": 0.5})
-    out = tmp_path / "out.csv"
+    out = tmp_path / "out.tsv"
     collect_results(str(run), str(out), fetch_all_metrics=False)
-    df = pd.read_csv(out)
+    df = pd.read_csv(out, sep="\t")
     assert set(df["metric_name"]) == {"acc"}

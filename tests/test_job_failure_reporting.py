@@ -117,7 +117,7 @@ def test_successful_evaluation_passes(tmp_path):
 def test_failure_count_survives_the_read_loop(tmp_path):
     """Both rows of a two-eval job are counted.
 
-    The loop reads the CSV by redirection rather than a pipe; a pipeline would
+    The loop reads the TSV by redirection rather than a pipe; a pipeline would
     run the body in a subshell and lose the counter at `done`.
     """
     venv = _fake_venv(tmp_path, HARNESS_CRASHES)

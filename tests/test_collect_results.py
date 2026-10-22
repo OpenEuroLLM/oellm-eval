@@ -12,7 +12,7 @@ to come first, publishing a subcategory score under the wrong task name,
 and discarded every other group and task in the same file.
 
 The loss is silent twice over: the aggregate the job asked for never reaches
-the CSV, and ``--check`` then reports that evaluation as missing and invites
+the TSV, and ``--check`` then reports that evaluation as missing and invites
 the user to re-run it, spending cluster time on work that already finished.
 """
 
@@ -58,24 +58,24 @@ def _metrics(**values: float) -> dict:
 def _write_case(tmp_path: Path, name: str, payload: dict, jobs: list[dict]) -> Path:
     case_dir = tmp_path / name
     (case_dir / "results").mkdir(parents=True)
-    pd.DataFrame(jobs).to_csv(case_dir / "jobs.csv", index=False)
+    pd.DataFrame(jobs).to_csv(case_dir / "jobs.tsv", index=False, sep="\t")
     (case_dir / "results" / "a1b2c3d4e5.json").write_text(json.dumps(payload))
     return case_dir
 
 
 def _collect(case_dir: Path) -> pd.DataFrame:
-    output_csv = case_dir / "eval_results.csv"
-    collect_results(str(case_dir), str(output_csv), check=True)
-    if not output_csv.exists():
+    output_tsv = case_dir / "eval_results.tsv"
+    collect_results(str(case_dir), str(output_tsv), check=True)
+    if not output_tsv.exists():
         return pd.DataFrame(columns=["model_name", "task", "n_shot", "performance"])
-    return pd.read_csv(output_csv)
+    return pd.read_csv(output_tsv, sep="\t")
 
 
 def _missing(case_dir: Path) -> pd.DataFrame:
-    missing_csv = case_dir / "eval_results_missing.csv"
-    if not missing_csv.exists():
+    missing_tsv = case_dir / "eval_results_missing.tsv"
+    if not missing_tsv.exists():
         return pd.DataFrame(columns=["model_path", "task_path", "n_shot"])
-    return pd.read_csv(missing_csv)
+    return pd.read_csv(missing_tsv, sep="\t")
 
 
 def _mmlu_case(tmp_path: Path) -> Path:

@@ -1,10 +1,10 @@
 """Tests for batching lm-eval-harness tasks into one `lm_eval` invocation.
 
-The sbatch template used to run one `lm_eval` per row of ``jobs.csv``, so a
+The sbatch template used to run one `lm_eval` per row of ``jobs.tsv``, so a
 model evaluated on N tasks was loaded from disk and onto the GPU N times. The
 template now collapses adjacent rows that share a model, shot count and
 lm_eval suite into a single invocation with a comma-separated ``--tasks``
-list, and ``schedule_evals`` orders the CSV so those rows sit together.
+list, and ``schedule_evals`` orders the TSV so those rows sit together.
 
 Two properties matter and are checked here: the ordering has to keep a group
 adjacent for the collapse to fire at all, and the collapse must not merge rows
@@ -39,7 +39,7 @@ SAMPLE_ROWS = [
 ]
 
 TEMPLATE_FIELDS = {
-    "csv_path": "/tmp/jobs.csv",
+    "tsv_path": "/tmp/jobs.tsv",
     "max_array_len": 128,
     "array_limit": 0,
     "num_jobs": 1,
@@ -73,7 +73,7 @@ def _awk_program() -> str:
 
 
 def _batches(rows: list[str], tasks_per_job: int = 8) -> list[dict[str, str]]:
-    """Run the template's batching step over CSV rows, as the job would."""
+    """Run the template's batching step over TSV rows, as the job would."""
     result = subprocess.run(
         [
             "awk",
@@ -154,7 +154,7 @@ def test_cap_of_one_keeps_an_invocation_per_task() -> None:
     assert len(batches) == len(SAMPLE_ROWS)
 
 
-def test_scheduled_csv_keeps_a_batch_adjacent(tmp_path: Path) -> None:
+def test_scheduled_tsv_keeps_a_batch_adjacent(tmp_path: Path) -> None:
     """The collapse only fires on adjacent rows, so ordering has to preserve groups."""
     with (
         patch("oellm.main._load_cluster_env"),
@@ -170,8 +170,8 @@ def test_scheduled_csv_keeps_a_batch_adjacent(tmp_path: Path) -> None:
             dry_run=True,
         )
 
-    jobs_csv = next(iter(tmp_path.glob("**/jobs.csv")))
-    df = pd.read_csv(jobs_csv)
+    jobs_tsv = next(iter(tmp_path.glob("**/jobs.tsv")))
+    df = pd.read_csv(jobs_tsv, sep="\t")
     assert df["model_path"].nunique() > 1
 
     keys = list(zip(df["model_path"], df["n_shot"], df["eval_suite"], strict=True))
