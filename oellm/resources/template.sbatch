@@ -115,7 +115,8 @@ FAILED_EVALS=0
 # model once per invocation, so evaluating N tasks in one call replaces N model
 # loads with one. TASKS_PER_JOB caps how many tasks share a call: lm_eval aborts
 # the whole invocation if one task raises, so the cap bounds what a single
-# failure takes down. Suites other than lm_eval pass through one row at a time.
+# failure takes down. Suites other than lm_eval pass through one row at a time,
+# and so does ifeval: its stopping policy is chosen per call by its task name.
 # A failed evaluation does not skip the remaining ones of this array task.
 # The output is tab-separated because a joined task list contains commas.
 BATCH_ROWS_AWK='
@@ -125,7 +126,7 @@ BATCH_ROWS_AWK='
         if ($1 == "") next
         row_suite = ($4 == "" ? "lm_eval" : $4)
         lowered = tolower(row_suite)
-        batchable = (lowered == "lm_eval" || lowered == "lm-eval" || lowered == "lm-eval-harness")
+        batchable = (lowered == "lm_eval" || lowered == "lm-eval" || lowered == "lm-eval-harness") && $2 != "ifeval"
         row_key = batchable ? ($1 SUBSEP $3 SUBSEP lowered) : ("unbatched" SUBSEP NR)
         if (row_key != key || count >= max_tasks) {{
             flush()

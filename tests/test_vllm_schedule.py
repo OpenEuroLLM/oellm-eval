@@ -179,6 +179,16 @@ def test_ifeval_policy_is_not_applied_to_other_tasks(tmp_path, monkeypatch):
     assert 'lm_eval' in argv and 'oellm_ifeval' not in argv
 
 
+def test_ifeval_is_never_batched(tmp_path, monkeypatch):
+    """The policy is chosen per call by an exact task-name match, so ifeval needs a call of its own."""
+    script=render(tmp_path,monkeypatch,model_backend='vllm',ifeval_stopping_policy='continue',
+                  tasks=('piqa','ifeval','hellaswag'),queue_limit=1)
+    subprocess.run(['bash', str(script)], check=True, capture_output=True)
+    argv=(tmp_path/'argv').read_text().splitlines()
+    assert [argv[i+1] for i, a in enumerate(argv) if a == '--tasks'] == ['piqa', 'ifeval', 'hellaswag']
+    assert argv.count('oellm_ifeval') == 1 and argv.count('lm_eval') == 2
+
+
 def test_unknown_ifeval_policy_is_rejected(tmp_path,monkeypatch):
     with pytest.raises(ValueError,match='ifeval_stopping_policy'):
         render(tmp_path,monkeypatch,ifeval_stopping_policy='pick-best')
