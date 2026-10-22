@@ -749,11 +749,8 @@ def collect_results(
 
         # Get model revision
         config = data.get("config", None)
-        revision = None
         if config is not None:
-            revision = config.get("model_revision", None)
-            if revision is not None and revision == "main":
-                revision = None
+            revision = config.get("model_revision", "main")
 
         # Extract results for each task
         results = data.get("results", {})
