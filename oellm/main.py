@@ -14,6 +14,7 @@ from string import Template
 import pandas as pd
 from jsonargparse import auto_cli
 
+from oellm.results import read_result
 from oellm.task_groups import (
     _build_task_suite_map,
     _collect_dataset_specs,
@@ -208,7 +209,7 @@ def schedule_evals(
             fails the whole invocation if one task raises, so this caps how many tasks
             a single failure takes down; 1 restores one invocation per task.
         limit: If set, limit the number of samples per task (useful for quick testing).
-            Passes --limit to lm_eval, --max_samples to lighteval, and
+            Passes --limit to lm_eval and Inspect, --max_samples to lighteval, and
             --generation.n_instructions to JudgeArena.
         download_only: If True, only download the datasets and models and exit.
         dry_run: If True, generate the SLURM script but don't submit it to the scheduler.
@@ -662,6 +663,7 @@ def schedule_evals(
             logging.info("Local evaluation completed.")
         except subprocess.CalledProcessError as e:
             logging.error(f"Evaluation failed with exit code {e.returncode}")
+            raise
         return
 
     try:
@@ -704,12 +706,12 @@ def collect_results(
     verbose: bool = False,
 ) -> None:
     """
-    Collect evaluation results from JSON files and export to CSV.
+    Collect evaluation results from JSON and Inspect .eval files and export to CSV.
 
     Recursively searches ``results_dir`` for every sub-directory that contains
     a ``jobs.csv`` file, merges all those CSV files into one (later directories
-    override duplicate rows), then recursively finds every ``.json`` result
-    file under ``results_dir``.
+    override duplicate rows), then recursively finds every ``.json`` and
+    Inspect ``.eval`` result file under ``results_dir``.
 
     With ``--check`` the merged jobs are compared against the extracted results
     and any missing evaluations are written to a ``*_missing.csv`` file.
@@ -717,7 +719,7 @@ def collect_results(
     ``output_csv``.
 
     Args:
-        results_dir: Root directory to search for jobs.csv files and JSON results
+        results_dir: Root directory to search for jobs.csv and result files
         output_csv: Output CSV filename (default: eval_results.csv)
         check: Check for missing evaluations and create a missing jobs CSV
         fetch_all_metrics: If True, include every computed metric for each task.
@@ -727,8 +729,6 @@ def collect_results(
             declare no primary metric keep all of theirs.
         verbose: Enable verbose logging
     """
-    import json
-
     _setup_logging(verbose)
 
     # ------------------------------------------------------------------
@@ -846,24 +846,28 @@ def collect_results(
             check = False
 
     # ------------------------------------------------------------------
-    # 2. Recursively find all JSON result files.
+    # 2. Recursively find JSON and native Inspect result files.
     # ------------------------------------------------------------------
     json_files = sorted(results_path.rglob("*.json"))
+    inspect_files = sorted(results_path.rglob("*.eval"))
 
-    if not json_files:
-        logging.warning(f"No JSON files found under {results_dir}")
+    if not json_files and not inspect_files:
+        logging.warning(f"No result files found under {results_dir}")
         if not check:
             return
 
-    logging.info(f"Found {len(json_files)} result file(s)")
+    logging.info(
+        f"Found {len(json_files)} JSON and {len(inspect_files)} Inspect result file(s)"
+    )
 
     # Collect results
     rows = []
     completed_jobs = set()  # Track (model, task, n_shot) tuples
 
-    for json_file in json_files:
-        with open(json_file) as f:
-            data = json.load(f)
+    for result_file in inspect_files + json_files:
+        data = read_result(result_file)
+        if data is None:
+            continue
 
         if data.get("schema_version") == "judgearena-run-metadata/v1":
             run_config = data["run"]
@@ -1025,12 +1029,19 @@ def collect_results(
                 if n_shot == "unknown" and global_n_shot is not None:
                     n_shot = global_n_shot
 
-            # Extract all available metrics for this task
-            task_metric_pairs = _extract_all_metrics(task_results)
-            if not fetch_all_metrics:
-                task_metric_pairs = _resolve_primary_metric(
-                    task_name_clean, task_metric_pairs
-                )
+            if data.get("report_all_metrics"):
+                # BBQ needs all fairness metrics, including undefined (None) values.
+                task_metric_pairs = [
+                    (name, value)
+                    for name, value in task_results.items()
+                    if value is None or isinstance(value, (int, float))
+                ]
+            else:
+                task_metric_pairs = _extract_all_metrics(task_results)
+                if not fetch_all_metrics:
+                    task_metric_pairs = _resolve_primary_metric(
+                        task_name_clean, task_metric_pairs
+                    )
 
             if task_metric_pairs:
                 # Track completed job for check mode (once per task, not per metric)
@@ -1051,11 +1062,11 @@ def collect_results(
                 # Debug: log cases where we have a task but no performance metric
                 if verbose:
                     logging.debug(
-                        f"No performance metric found for {model_name} | {task_name} | n_shot={n_shot} in {json_file.name}"
+                        f"No performance metric found for {model_name} | {task_name} | n_shot={n_shot} in {result_file.name}"
                     )
 
     if not rows and not check:
-        logging.warning("No results extracted from JSON files")
+        logging.warning("No results extracted from result files")
         return
 
     # Create DataFrame and save to CSV (if we have results)

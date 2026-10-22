@@ -1,0 +1,7 @@
+# Dependencies for Inspect AI evaluations (install in a dedicated venv)
+# Install with: uv pip install -r requirements-venv-inspect.txt
+inspect-ai==0.3.248
+inspect-evals==0.15.0
+torch
+transformers
+accelerate

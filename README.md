@@ -53,6 +53,7 @@ Available task groups:
 - `mgsm-eu` - Multilingual GSM benchmarks
 - `polymath-eu-low` / `polymath-eu-medium` / `polymath-eu-high` / `polymath-eu-top` - PolyMath multilingual math reasoning (EU languages, 0-shot, `\boxed{}` answer extraction), one group per difficulty tier
 - `generic-multilingual` - XWinograd, XCOPA, XStoryCloze
+- `bbq` - BBQ social-bias evaluation through Inspect AI (zero-shot)
 - `include` - INCLUDE benchmarks
 - `gpqa-diamond` - GPQA Diamond, generative (0-shot, pass@1, up to 32768 new tokens) for instruct/reasoning checkpoints, in English and Finnish (professionally post-edited `LumiOpen/GPQA-FI`). English reads the gated `Idavidrein/gpqa`, so the HF token must have access. Defined as custom lighteval tasks, see [docs/TASKS.md](docs/TASKS.md#custom-lighteval-tasks). Schedule it separately with a small `BATCH_SIZE`, see [Lighteval Batch Size](#lighteval-batch-size)
 
@@ -134,6 +135,12 @@ Notes:
   group, it keeps the matches and warns about the rest. Some languages simply
   lack certain benchmarks (e.g. Italian/Portuguese have no MGSM), so a super
   group bracket transparently omits the missing ones.
+
+## Using Inspect AI
+
+Inspect AI requires a separate environment to avoid dependency conflicts with lm-eval and lighteval. Follow the [environment setup instructions](docs/VENV.md#inspect-ai), then pass its path with `--venv_path` when scheduling evaluations.
+
+For the task BBQ, follow the [BBQ guide](docs/BBQ.md).
 
 ## Running Locally (without SLURM)
 
@@ -293,7 +300,7 @@ If you use custom tasks via `--tasks` that are not in the task groups registry, 
 
 ## Collecting Results
 
-After evaluations complete, collect results into a CSV.  `collect-results` **recursively** searches the given directory for every `jobs.csv` file and every `.json` result file, so you can point it at a top-level output folder that contains many sub-runs:
+After evaluations complete, collect results into a CSV.  `collect-results` **recursively** searches the given directory for every `jobs.csv` file and every `.json` or Inspect `.eval` result file, so you can point it at a top-level output folder that contains many sub-runs:
 
 ```
 output/

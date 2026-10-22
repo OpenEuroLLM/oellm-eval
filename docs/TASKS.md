@@ -10,7 +10,7 @@ Tasks are defined in `oellm/resources/task-groups.yaml`. Only tasks in this file
 task_groups:
   my-group:
     description: "Short description"
-    suite: lm-eval-harness  # or lighteval
+    suite: lm-eval-harness  # or lighteval, evalchemy, inspect
     n_shots: [5]            # default for all tasks in group
     dataset: org/dataset    # default HF dataset for pre-download
     tasks:
@@ -49,7 +49,7 @@ oellm-eval schedule --models "model-name" --task_groups "my-benchmark"
 | Field | Required | Level | Description |
 |-------|----------|-------|-------------|
 | `description` | Yes | group | Short description of the task group |
-| `suite` | Yes | group | Evaluation suite: `lm-eval-harness`, `lighteval`, or `judgearena` |
+| `suite` | Yes | group | Evaluation suite: `lm-eval-harness`, `lighteval`, `evalchemy`, `inspect`, or `judgearena` |
 | `n_shots` | Yes | group or task | List of shot counts; must be set at group or task level |
 | `dataset` | Yes | group or task | HuggingFace dataset repo ID (required for pre-download and testing) |
 | `task` | Yes | task | Task name as recognized by the evaluation suite |
