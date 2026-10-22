@@ -93,7 +93,7 @@ task_groups:
     description: "XCSQA EU commonsense QA (0-shot MCQ, acc_norm)"
     suite: lm-eval-harness
     metric: acc_norm
-    n_shots: [0]
+    n_shots: [10]
     dataset: INK-USC/xcsr
     tasks:
       - task: xcsqa_deu_Latn
