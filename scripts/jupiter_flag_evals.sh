@@ -256,7 +256,14 @@ run-one)
     got=$(awk -F, -v n=$((row + 2)) 'NR == n { print $2 }' "$(dirname "$script")/jobs.csv")
     [ "$got" = "$task" ] || { echo "row $row of $script is '$got', expected '$task'" >&2; exit 1; }
     done_dir="$FLAG_WORK/runs/$name/$half/done"; mkdir -p "$done_dir"
-    if [ -f "$done_dir/$row.ok" ]; then echo "row $row ($task) already succeeded: $done_dir/$row.ok"; exit 0; fi
+    # The marker is "<date> <job id> <task>". Row numbers change when the launcher is
+    # re-rendered with a different row order, so a marker counts only for the same task.
+    if [ -f "$done_dir/$row.ok" ]; then
+        if [ "$(cut -d' ' -f3- "$done_dir/$row.ok")" = "$task" ]; then
+            echo "row $row ($task) already succeeded: $done_dir/$row.ok"; exit 0
+        fi
+        echo "row $row: stale marker from another task ($(cat "$done_dir/$row.ok")), running $task"
+    fi
     echo "run-one: $name $half row $row = $task  ($script)"
     # Watchdog for a hang after vLLM's shutdown: the eval then sits idle until the time limit
     # with no result (polymath_it_medium, hellaswag_eu, polymath_fr_medium_cot; 2026-10). A normal
