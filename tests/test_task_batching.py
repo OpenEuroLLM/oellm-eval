@@ -49,6 +49,7 @@ TEMPLATE_FIELDS = {
     "time_limit": "03:59:00",
     "slurm_mem": "96G",
     "limit": "",
+    "log_samples": "",
     "venv_path": "",
     "lm_eval_include_path": "/tmp/tasks",
     "lighteval_custom_tasks": "/tmp/custom_tasks.py",
