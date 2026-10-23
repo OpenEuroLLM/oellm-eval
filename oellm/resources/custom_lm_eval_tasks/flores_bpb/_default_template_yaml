@@ -1,0 +1,21 @@
+tag:
+  - flores_bpb
+# Bits-per-byte on FLORES-200 devtest: the summed negative log-likelihood of the
+# text divided by ln(2) times its UTF-8 byte count. Lower is better. The byte
+# count depends on the script and the language, so compare models within one
+# language, not languages with each other. facebook/flores is gated, so the HF
+# token used for the pre-download needs access to it.
+dataset_path: facebook/flores
+output_type: loglikelihood_rolling
+test_split: devtest
+process_docs: !function utils.process_docs
+doc_to_text: ""
+doc_to_target: "{{text}}"
+should_decontaminate: true
+doc_to_decontamination_query: "{{text}}"
+metric_list:
+  - metric: bits_per_byte
+    aggregation: bits_per_byte
+    higher_is_better: false
+metadata:
+  version: 0.0

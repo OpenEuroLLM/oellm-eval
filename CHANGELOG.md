@@ -18,6 +18,9 @@ it before comparing runs made with different versions.
 
 ### Added
 
+- `bpb-corpus` task group: bits-per-byte on WikiText-2 for comparing small models.
+- `bpb-flores-eu` task group: bits-per-byte on FLORES-200 devtest in the 36 OpenEuroLLM target languages.
+
 ### Changed
 
 ### Fixed
