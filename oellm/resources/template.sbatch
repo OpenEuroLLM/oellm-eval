@@ -16,6 +16,9 @@ CSV_PATH="{csv_path}"
 NUM_JOBS={num_jobs}
 TOTAL_EVALS={total_evals}
 LIMIT="{limit}"
+# Non-empty only when every sample should be saved. Full sample dumps are
+# large, so this stays off unless explicitly requested.
+LOG_SAMPLES="{log_samples}"
 VENV_PATH="{venv_path}"
 LM_EVAL_INCLUDE_PATH="{lm_eval_include_path}"
 LIGHTEVAL_CUSTOM_TASKS="{lighteval_custom_tasks}"
@@ -210,8 +213,10 @@ do
                 --trust_remote_code \
                 ${{LM_EVAL_INCLUDE_PATH:+--include_path $$LM_EVAL_INCLUDE_PATH}} \
                 --batch_size auto \
+                --write_out \
                 ${{CACHE_REQUESTS:+--cache_requests $CACHE_REQUESTS}} \
-                ${{LIMIT:+--limit $LIMIT}}
+                ${{LIMIT:+--limit $LIMIT}} \
+                ${{LOG_SAMPLES:+--log_samples}}
             EVAL_STATUS=$?
             echo "----------------------------------------------------"
             ;;
@@ -246,7 +251,8 @@ do
                     --load-tasks-multilingual \
                     --custom-tasks "$$LIGHTEVAL_CUSTOM_TASKS" \
                     --output-dir "$RESULTS_SUBDIR" \
-                    ${{LIMIT:+--max-samples $LIMIT}}
+                    ${{LIMIT:+--max-samples $LIMIT}} \
+                    ${{LOG_SAMPLES:+--save-details}}
                 EVAL_STATUS=$?
             else
                 singularity exec $SINGULARITY_ARGS \
@@ -261,7 +267,8 @@ do
                         --load-tasks-multilingual \
                         --custom-tasks "$$LIGHTEVAL_CUSTOM_TASKS" \
                         --output-dir "$RESULTS_SUBDIR" \
-                        ${{LIMIT:+--max-samples $LIMIT}}
+                        ${{LIMIT:+--max-samples $LIMIT}} \
+                        ${{LOG_SAMPLES:+--save-details}}
                 EVAL_STATUS=$?
             fi
             ;;
@@ -283,7 +290,8 @@ do
                     --model_args "trust_remote_code=True,pretrained=$model_path" \
                     --batch_size auto \
                     --output_path "$RESULTS_SUBDIR" \
-                    ${{LIMIT:+--limit $LIMIT}}
+                    ${{LIMIT:+--limit $LIMIT}} \
+                    ${{LOG_SAMPLES:+--log_samples}}
                 )
                 EVAL_STATUS=$?
             else
