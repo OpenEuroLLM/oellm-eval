@@ -34,7 +34,13 @@ from pathlib import Path
 
 from lm_eval.api.task import ConfigurableTask
 from lm_eval.tasks import TaskManager
-from lm_eval.tasks._yaml_loader import load_yaml
+
+try:
+    from lm_eval.tasks._yaml_loader import load_yaml
+except ImportError as e:  # the task index was rewritten in lm-eval 0.4.12
+    raise ImportError(
+        "The *_bpb tasks need lm-eval >= 0.4.12 (e.g. the DCLM venv pins 0.4.9.2)"
+    ) from e
 
 eval_logger = logging.getLogger(__name__)
 
