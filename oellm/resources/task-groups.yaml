@@ -543,6 +543,31 @@ task_groups:
       - task: "flores_bpb_{lang}"
         subset: "{lang}"
 
+  bpb-mc-en:
+    description: "Gold-answer bits-per-byte on English multiple-choice tasks, for comparing small models (5-shot, lower is better)."
+    suite: lm-eval-harness
+    metric: bits_per_byte
+    n_shots: [5]
+    tasks:
+      - task: arc_easy_bpb
+        dataset: allenai/ai2_arc
+        subset: ARC-Easy
+      - task: arc_challenge_bpb
+        dataset: allenai/ai2_arc
+        subset: ARC-Challenge
+      - task: hellaswag_bpb
+        dataset: Rowan/hellaswag
+      - task: openbookqa_bpb
+        dataset: allenai/openbookqa
+        subset: main
+      - task: piqa_bpb
+        dataset: baber/piqa
+      - task: social_iqa_bpb
+        dataset: lighteval/siqa
+      - task: winogrande_bpb
+        dataset: allenai/winogrande
+        subset: winogrande_xl
+
   global-piqa-eu-completions:
     description: "Global PIQA European languages — multiple-choice completions (0-shot, mrlbenchmarks/global-piqa-nonparallel)"
     suite: lm-eval-harness

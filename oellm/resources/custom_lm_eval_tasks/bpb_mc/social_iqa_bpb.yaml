@@ -1,0 +1,7 @@
+tag:
+  - bpb_mc
+task: social_iqa_bpb
+class: !function bpb_task.BPBTask
+base_task: social_iqa
+metadata:
+  version: 0.0

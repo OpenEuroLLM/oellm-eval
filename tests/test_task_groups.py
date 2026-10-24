@@ -273,3 +273,19 @@ def test_bpb_flores_eu_runs_every_target_language_zero_shot():
     assert DatasetSpec(repo_id="facebook/flores", subset="deu_Latn") in (
         _collect_dataset_specs(["bpb-flores-eu"])
     )
+
+
+def test_bpb_mc_en_runs_seven_english_tasks_five_shot():
+    results = _expand_task_groups(["bpb-mc-en"])
+    assert {result.task for result in results} == {
+        "arc_easy_bpb",
+        "arc_challenge_bpb",
+        "hellaswag_bpb",
+        "openbookqa_bpb",
+        "piqa_bpb",
+        "social_iqa_bpb",
+        "winogrande_bpb",
+    }
+    assert {(result.suite, result.n_shot) for result in results} == {
+        ("lm-eval-harness", 5)
+    }

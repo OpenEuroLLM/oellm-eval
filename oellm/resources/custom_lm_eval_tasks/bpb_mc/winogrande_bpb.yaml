@@ -1,0 +1,7 @@
+tag:
+  - bpb_mc
+task: winogrande_bpb
+class: !function bpb_task.BPBTask
+base_task: winogrande
+metadata:
+  version: 0.0
