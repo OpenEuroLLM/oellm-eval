@@ -20,6 +20,10 @@ The wrapped task's config is looked up by name at run time, because lm-eval's
 places in the venv and the container. Only use this on cloze-style tasks,
 whose answers are text: on tasks that score letters ("A", "B", ...) BPB
 measures how likely a single letter is, which says nothing about the model.
+
+Not for runs with lm-eval's --apply_chat_template: lm-eval then drops the
+target delimiter from the scored text, but process_results cannot see that and
+still counts it, one byte too many per question.
 """
 
 import functools
