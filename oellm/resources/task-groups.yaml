@@ -528,10 +528,6 @@ task_groups:
         dataset: EleutherAI/wikitext_document_level
         subset: wikitext-2-raw-v1
 
-  # Bits-per-byte on FLORES-200 devtest, defined as custom lm-eval tasks in
-  # custom_lm_eval_tasks/flores_bpb. The text is the same in every language, but
-  # the byte count depends on the script, so compare models within a language.
-  # facebook/flores is gated: the HF token needs access to it.
   bpb-flores-eu:
     description: "Bits-per-byte on FLORES-200 devtest in EU languages (0-shot, lower is better)."
     suite: lm-eval-harness
