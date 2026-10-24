@@ -46,7 +46,7 @@ Task groups are pre-defined evaluation suites in [`task-groups.yaml`](oellm/reso
 
 Available task groups:
 - `crows-pairs` - CrowS-Pairs social bias benchmark (English, 0-shot, `pct_stereotype`)
-- `bpb-corpus` - Bits-per-byte on held-out text (WikiText-2, 0-shot, `bits_per_byte`). Tokenizer-agnostic, and still separates very small models whose accuracy sits at chance. **Lower is better**, unlike every other group, so do not average it with accuracy scores
+- `bpb-corpus` - Bits-per-byte on held-out text (WikiText-2, 0-shot, `bits_per_byte`). Tokenizer-agnostic, and still separates very small models whose accuracy sits at chance. **Lower is better**, as for every `bpb-*` group, so do not average it with accuracy scores
 - `bpb-flores-eu` - Bits-per-byte on FLORES-200 devtest in the 36 OpenEuroLLM target languages (0-shot, `bits_per_byte`, lower is better). Each source article's sentences are scored as one document. The byte count depends on the script, so compare models within a language, not languages with each other. `facebook/flores` is gated, so the HF token must have access
 - `bpb-mc-en` - Gold-answer bits-per-byte on English multiple-choice tasks (ARC-Easy/Challenge, HellaSwag, OpenBookQA, PIQA, Social IQa, Winogrande; 5-shot, `bits_per_byte`, lower is better). Scores only how likely the model finds the correct answer's text, so it keeps separating small models after accuracy stops. The tasks wrap lm-eval's own ones, see [`bpb_task.py`](oellm/resources/custom_lm_eval_tasks/bpb_mc/bpb_task.py); only wrap cloze-style tasks, whose answers are text rather than letters
 - `open-sci-0.01` - Standard benchmarks (COPA, MMLU, HellaSwag, ARC, etc.)

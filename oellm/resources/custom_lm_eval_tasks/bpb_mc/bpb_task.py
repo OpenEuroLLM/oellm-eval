@@ -24,6 +24,7 @@ measures how likely a single letter is, which says nothing about the model.
 
 import functools
 import logging
+import numbers
 from copy import deepcopy
 from pathlib import Path
 
@@ -67,6 +68,14 @@ def base_task_config(name: str) -> dict:
     return deepcopy(cfg)
 
 
+def _as_index(value) -> int | None:
+    """A gold index as a plain int. Accepts numpy integers, which datasets and
+    process_docs hooks can return, but not bools."""
+    if isinstance(value, numbers.Integral) and not isinstance(value, bool):
+        return int(value)
+    return None
+
+
 class BPBTask(ConfigurableTask):
     def __init__(self, config: dict | None = None, **kwargs) -> None:
         config = dict(config or {})
@@ -82,6 +91,13 @@ class BPBTask(ConfigurableTask):
             )
         for key in _WRAPPER_OWNED_KEYS:
             base.pop(key, None)
+        # Record what was wrapped, so the results show which version of the
+        # base task's prompt and data produced them.
+        config["metadata"] = {
+            **(config.get("metadata") or {}),
+            "base_task": base_name,
+            "base_task_version": (base.get("metadata") or {}).get("version"),
+        }
         super().__init__(config={**base, **config, "metric_list": BPB_METRIC}, **kwargs)
 
     def process_results(self, doc: dict, results) -> dict:
@@ -91,7 +107,7 @@ class BPBTask(ConfigurableTask):
             # all of them continue with the same answer text, and the gold
             # index comes from doc_to_text.
             n_choices = len(self.doc_to_choice(doc))
-            gold = self.doc_to_text(doc)
+            gold = _as_index(self.doc_to_text(doc))
             answer = self.doc_to_target(doc)
         else:
             choices = self.doc_to_choice(doc)
@@ -101,14 +117,13 @@ class BPBTask(ConfigurableTask):
                 gold = gold[0] if gold else None
             if isinstance(gold, str):
                 gold = choices.index(gold) if gold in choices else None
-            answer = (
-                choices[gold] if isinstance(gold, int) and 0 <= gold < n_choices else None
-            )
+            gold = _as_index(gold)
+            answer = choices[gold] if gold is not None and 0 <= gold < n_choices else None
 
         if (
-            not isinstance(gold, int)
+            gold is None
             or not 0 <= gold < min(n_choices, len(lls))
-            or answer is None
+            or not isinstance(answer, str)
         ):
             eval_logger.warning(f"BPB: no valid gold answer for doc, skipping it: {doc}")
             # Zero log-likelihood over zero bytes leaves the micro-average unchanged.

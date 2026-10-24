@@ -4,6 +4,7 @@ import importlib.util
 from importlib.resources import files
 from types import SimpleNamespace
 
+import numpy as np
 import pytest
 import yaml
 
@@ -65,9 +66,11 @@ LLS = [(-2.0, False), (-3.0, False), (-4.0, False)]
     "target, expected",
     [
         (1, (-3.0, len(" blue"))),  # gold as an index
+        (np.int64(1), (-3.0, len(" blue"))),  # as a numpy integer from a dataset
         ("red", (-2.0, len(" red"))),  # gold as the answer text
         ([2, 0], (-4.0, len(" grün".encode()))),  # several golds: the first one
         (7, (0.0, 0)),  # out of range: skipped without moving the average
+        (True, (0.0, 0)),  # a bool is not an index
     ],
 )
 def test_scores_the_gold_answer_and_its_bytes(bpb_task, target, expected):
@@ -96,6 +99,19 @@ def test_base_task_config_comes_from_lm_eval(bpb_task):
     config = bpb_task.base_task_config("arc_easy")
     assert config["output_type"] == "multiple_choice"
     assert config["dataset_name"] == "ARC-Easy"
+
+
+def test_group_pre_downloads_the_dataset_each_task_reads(bpb_task):
+    """Compute nodes are offline, so each wrapped task must read exactly the
+    dataset and subset its task-group entry pre-downloads. A wrapper's own
+    keys, such as social_iqa_bpb's pinned dataset_path, override the base."""
+    for _suite, t in _select_tasks(["bpb-mc-en"]):
+        wrapper = yaml.load((TASK_DIR / f"{t.name}.yaml").read_text(), Loader=_Loader)
+        config = {**bpb_task.base_task_config(wrapper["base_task"]), **wrapper}
+        assert (config["dataset_path"], config.get("dataset_name")) == (
+            t.dataset,
+            t.subset,
+        ), t.name
 
 
 def test_only_multiple_choice_tasks_can_be_wrapped(bpb_task):
