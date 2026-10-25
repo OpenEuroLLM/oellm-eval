@@ -27,6 +27,8 @@ it before comparing runs made with different versions.
 
 ### Fixed
 
+- `collect` no longer reports lm-eval's `sample_len` document count as a metric for tasks outside the task groups or with `--fetch_all_metrics`.
+
 ### Removed
 
 ## [0.3.0] - 2026-10-20

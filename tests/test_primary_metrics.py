@@ -124,3 +124,21 @@ def test_bpb_corpus_reports_bits_per_byte(tmp_path):
     df = pd.read_csv(out)
     assert list(df["metric_name"]) == ["bits_per_byte"]
     assert list(df["performance"]) == [0.85]
+
+
+def test_task_outside_the_registry_reports_metrics_not_sample_len(tmp_path):
+    """A task with no declared primary metric, such as a user's own BPB corpus,
+    keeps every metric, but not lm-eval's document count."""
+    run = _write_result(
+        tmp_path,
+        "bpb_my_corpus",
+        {
+            "sample_len": 281,
+            "bits_per_byte,none": 1.74,
+            "bits_per_byte_stderr,none": "N/A",
+        },
+    )
+    out = tmp_path / "out.csv"
+    collect_results(str(run), str(out), fetch_all_metrics=False)
+    df = pd.read_csv(out)
+    assert list(df["metric_name"]) == ["bits_per_byte"]

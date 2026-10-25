@@ -778,7 +778,8 @@ def collect_results(
         seen: set[str] = set()
         metrics: list[tuple[str, float]] = []
         for raw_key, value in result_dict.items():
-            if not isinstance(value, (int, float)):
+            # sample_len is lm-eval's document count, not a metric.
+            if not isinstance(value, (int, float)) or raw_key == "sample_len":
                 continue
             # Strip lm-eval harness ",{filter}" suffix
             metric_name = raw_key.split(",")[0] if "," in raw_key else raw_key

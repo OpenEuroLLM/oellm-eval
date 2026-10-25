@@ -9,7 +9,8 @@ task: bpb_my_corpus
 
 # 2. The data. For local files keep dataset_path as json, parquet or csv and
 # list the files under test: (absolute paths). For a Hugging Face dataset set
-# dataset_path to its repo id, drop dataset_kwargs and set test_split.
+# dataset_path to its repo id, add dataset_name if it has several configs
+# (e.g. a language), drop dataset_kwargs and set test_split to the split to score.
 dataset_path: json
 dataset_kwargs:
   data_files:
