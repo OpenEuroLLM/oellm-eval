@@ -1,5 +1,5 @@
 # Bits-per-byte on your own held-out text. Copy this file into a folder of
-# your own as <task name>.yaml, fill in the three marked lines, and schedule it
+# your own as <task name>.yaml, fill in the three marked parts, and schedule it
 # with --lm_eval_include_path pointing at that folder (see docs/TASKS.md,
 # "Bits-per-byte on your own text"). This file has no .yaml extension, so
 # lm-eval does not load it as a task.

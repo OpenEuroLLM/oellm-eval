@@ -141,7 +141,7 @@ template `oellm/resources/custom_lm_eval_tasks/corpus_bpb/_corpus_bpb_template`:
    per row. BPB needs raw text: data that only exists as token ids must first
    be decoded with the tokenizer it was made with.
 2. Copy the template into that folder as `<task name>.yaml` and fill in the
-   three marked lines: the task name, the absolute path of the data file(s), and
+   three marked parts: the task name, the absolute path of the data file(s), and
    the column holding the text.
 3. Schedule it 0-shot with that folder as the task folder:
 
