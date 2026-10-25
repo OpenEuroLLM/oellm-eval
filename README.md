@@ -204,14 +204,14 @@ Pass JudgeArena runtime settings such as the judge model through
 task files, prompt overrides, and `meta-eval-*` tasks are not supported.
 
 The selected venv or container must include the `judgearena` command. Use
-`--download_only` to download each selected task into the shared
+`--download_only true` to download each selected task into the shared
 `JUDGEARENA_DATA` and `HF_HOME` directories before an offline cluster run:
 
 ```bash
 oellm-eval schedule \
   --models /path/to/model \
   --task_groups judgearena \
-  --download_only
+  --download_only true
 ```
 
 `oellm-eval collect` reads `run-metadata.v1.json` and adds its numeric metrics to
@@ -426,7 +426,7 @@ uv sync --extra dev
 uv run pytest tests/test_datasets.py -v
 
 # Download-only mode for testing
-uv run oellm-eval schedule --models "EleutherAI/pythia-160m" --task_groups "open-sci-0.01" --download_only
+uv run oellm-eval schedule --models "EleutherAI/pythia-160m" --task_groups "open-sci-0.01" --download_only true
 ```
 
 ## Deploying containers
