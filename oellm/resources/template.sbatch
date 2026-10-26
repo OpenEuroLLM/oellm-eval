@@ -350,6 +350,11 @@ do
             case "$suite_normalized" in
                 *:*) LMMS_EVAL_MODEL="${{suite_normalized#*:}}" ;;
             esac
+            # lm-eval and lighteval load any HF model through one generic class
+            # (--model hf), but lmms-eval has no such class for VLMs: you have to
+            # pass the family's class, like qwen2_5_vl or llava_hf. This block
+            # picks it from the model name when the suite doesn't set it
+            # (lmms-eval:<class>).
             if [ -z "$LMMS_EVAL_MODEL" ]; then
                 # first match wins, so specific names come first
                 case "$(echo "$model_path" | tr '[:upper:]' '[:lower:]')" in
