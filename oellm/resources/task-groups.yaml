@@ -664,6 +664,7 @@ task_groups:
     valid_langs: [de, en, es, fr, it, pt]
     tasks:
       - task: "polymath_{lang}_low_cot"
+        subset: "{lang}"
 
   flag-cot-polymath-medium:
     description: "PolyMath EU, medium tier, forced reasoning (0-shot, <think> prefill, sampled pass@1/pass@4)"
@@ -672,6 +673,7 @@ task_groups:
     valid_langs: [de, en, es, fr, it, pt]
     tasks:
       - task: "polymath_{lang}_medium_cot"
+        subset: "{lang}"
 
   flag-cot-polymath-high:
     description: "PolyMath EU, high tier, forced reasoning (0-shot, <think> prefill, sampled pass@1/pass@4)"
@@ -680,6 +682,7 @@ task_groups:
     valid_langs: [de, en, es, fr, it, pt]
     tasks:
       - task: "polymath_{lang}_high_cot"
+        subset: "{lang}"
 
   flag-cot-polymath-top:
     description: "PolyMath EU, top tier, forced reasoning (0-shot, <think> prefill, sampled pass@1/pass@4)"
@@ -688,6 +691,7 @@ task_groups:
     valid_langs: [de, en, es, fr, it, pt]
     tasks:
       - task: "polymath_{lang}_top_cot"
+        subset: "{lang}"
 
   judgearena-default:
     description: "JudgeArena tasks used when no language filter is given."
