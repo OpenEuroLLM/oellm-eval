@@ -1,6 +1,6 @@
 [project]
 name = "oellm-eval"
-version = "0.3.0"
+version = "0.4.0b1"
 description = "OpenEuroLLM Evaluation CLI"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
@@ -49,6 +49,7 @@ dev = [
 # [unitxt], [wandb], [zeno], [trackio], [sentencepiece], [archiver].
 eval-base = [
     "lm_eval[api,tasks]>=0.4.12",
+    "word2number",  # polymath scorer
     "datasets>=4.0",
 ]
 eval = [
