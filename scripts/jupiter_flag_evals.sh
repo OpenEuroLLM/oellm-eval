@@ -12,7 +12,9 @@
 #
 # Defaults are the e-sta-openeurollm setup; override ACCOUNT, FLAG_WORK (on the exports' filesystem,
 # for the hardlinks), VLLM_SIF, LIGHTEVAL_SIF (built from containers/lighteval-jupiter.def), CONCURRENCY, TIME,
-# HALVES (render / tasks: "vllm", "lighteval", "cot"; default "vllm lighteval"), HUMANEVAL_PATCH.
+# HALVES (render / tasks: "vllm", "lighteval", "cot"; default "vllm lighteval"), HUMANEVAL_PATCH,
+# SUITE (the super groups flag-$SUITE-<half>: "evals", the full suite, by default; "t1".."t4" for the
+# FLAG tiers, see task-groups.yaml; t2/t3 have a cot half, t1/t4 none).
 # The "cot" half is task group flag-evals-cot (custom_lm_eval_tasks/flag_cot: forced-reasoning _cot
 # and continuation _cont variants of the reasoning and code evals), on the vLLM image like "vllm".
 # Views: identity chat template for vLLM (Evalchemy applies it, lm-eval does not); none for lighteval,
@@ -24,6 +26,7 @@
 set -euo pipefail
 
 : "${ACCOUNT:=e-ext-2025e02-108}" "${FLAG_WORK:=/e/scratch/e-sta-openeurollm/$USER/flag-evals}"
+: "${SUITE:=evals}"
 : "${VLLM_SIF:=/e/project1/e-sta-openeurollm/container/oellm-eval-vllm.sif}"
 : "${LIGHTEVAL_SIF:=/e/project1/e-sta-openeurollm/container/oellm-eval-lighteval.sif}"
 TOKEN="${HF_TOKEN_PATH:-${HF_HOME:-$HOME/.cache/huggingface}/token}"   # where `hf auth login` wrote it
@@ -116,7 +119,7 @@ render_half() {  # <half> <model dir> <output dir>: renders one launcher, prints
     # GPUS_PER_NODE=4: vLLM overrides it with DP x TP; lighteval splits the model over all four.
     EVAL_BASE_DIR="$FLAG_WORK/runs" EVAL_OUTPUT_DIR="$out" QUEUE_LIMIT=1000 GPUS_PER_NODE=4 \
     EVAL_CONTAINER_IMAGE="$sif" SINGULARITY_ARGS="$(echo $ARGS $extra)" \
-        oellm_eval schedule --models "$model" --task_groups "flag-evals-$half" "${opts[@]}" \
+        oellm_eval schedule --models "$model" --task_groups "flag-$SUITE-$half" "${opts[@]}" \
             --log_samples true --confirm_run_unsafe_code true --max_array_len 1000 \
             --slurm_template_var "$SLURM" --skip_checks true --dry_run true > /dev/null
     ls -t "$out"/*/submit_evals.sbatch | head -1
@@ -144,7 +147,7 @@ prefetch)
     ENVS=(--cleanenv --env HF_HOME="$HF_HOME" --env HF_HUB_CACHE="$HF_HOME/hub" --env HF_ALLOW_CODE_EVAL=1
           --env HF_DATASETS_OFFLINE=0 --env HF_HUB_OFFLINE=0 --env HF_TOKEN_PATH="$TOKEN")
     list=$(mktemp); trap 'rm -f "$list"' EXIT
-    expand flag-evals-vllm lm-eval-harness > "$list"
+    expand "flag-$SUITE-vllm" lm-eval-harness > "$list"
     apptainer exec "${ENVS[@]}" "$VLLM_SIF" \
         python - "$list" "$TASKS_DIR" <<'EOF'
 import logging, os, sys
@@ -170,7 +173,7 @@ load_dataset("livecodebench/code_generation_lite", name="release_latest", versio
 print(f"lm-eval: {len(bad)} failed" + (f": {bad}" if bad else ""))
 sys.exit(1 if bad else 0)
 EOF
-    expand flag-evals-lighteval lighteval > "$list"
+    expand "flag-$SUITE-lighteval" lighteval > "$list"
     apptainer exec "${ENVS[@]}" "$LIGHTEVAL_SIF" \
         python - "$list" <<'EOF'
 import logging, sys
