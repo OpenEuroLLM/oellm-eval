@@ -10,16 +10,21 @@ From: rocm/pytorch:rocm7.2.1_ubuntu24.04_py3.12_pytorch_release_2.9.1
     JudgeArenaRef {{ JUDGEARENA_GIT_REF }}
 
 %post
+    umask 022
     # Install uv
     curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
     export UV_TOOL_BIN_DIR=/usr/local/bin
     export UV_TOOL_DIR=/opt/uv-tools
 
     # lm-eval and dependencies in the ROCm/PyTorch base venv.
+    # transformers<5.20: 5.20 removed transformers.data.metrics, which lm-eval
+    # tasks still import (coqa, xquad, record, scrolls, ...); a failing import
+    # takes down every task batched with it (e.g. part of dclm-core-22).
     uv pip install --python /opt/venv/bin/python \
-        lm-eval \
-        transformers \
-        "datasets<4.0.0" \
+        "lm-eval[api,tasks]" \
+        word2number \
+        "transformers<5.20" \
+        "datasets>=4.0" \
         wandb \
         sentencepiece \
         tiktoken \
@@ -36,6 +41,40 @@ From: rocm/pytorch:rocm7.2.1_ubuntu24.04_py3.12_pytorch_release_2.9.1
         "huggingface-hub>=1.5,<2" \
         "judgearena @ git+https://github.com/OpenEuroLLM/JudgeArena.git@{{ JUDGEARENA_GIT_REF }}"
     ln -s /opt/judgearena/bin/judgearena /usr/local/bin/judgearena
+
+    # Patch two lm-eval bugs that break dclm-core-22 at n_shot>0 (both fail the
+    # whole batched lm_eval call): agieval_lsat_ar ("Answer is not a string! : [4]")
+    # and squadv2 ("doc_to_text() takes 2 positional arguments but 3 were given").
+    # Exact-string replacements; the build fails if a target is not found.
+    /opt/venv/bin/python - <<'PY'
+import os, lm_eval
+root = os.path.dirname(lm_eval.__file__)
+patches = {
+    "api/task.py": [(
+        "                c[a]\n                if (c and isinstance(a, int))\n                # TODO: for multiple targets a is a list[str]. Fix this hack\n",
+        "                c[a]\n                if (c and isinstance(a, int))\n                # Gold given as a list of choice indices (AGIEval: [4]) -> map through choices.\n                else c[a[0]]\n                if (c and isinstance(a, list) and len(a) and isinstance(a[0], int))\n                # TODO: for multiple targets a is a list[str]. Fix this hack\n",
+    )],
+    "tasks/squadv2/task.py": [
+        ("    def doc_to_text(self, doc):\n", "    def doc_to_text(self, doc, doc_to_text=None):\n"),
+        ("    def doc_to_target(self, doc):\n", "    def doc_to_target(self, doc, doc_to_target=None):\n"),
+    ],
+}
+for rel, reps in patches.items():
+    path = os.path.join(root, rel)
+    src = open(path).read()
+    for old, new in reps:
+        if new in src:
+            continue
+        if src.count(old) != 1:
+            raise SystemExit(f"lm-eval patch target not found exactly once in {rel}")
+        src = src.replace(old, new)
+    open(path, "w").write(src)
+    print("patched", rel)
+PY
+
+    # Fail the build if any lm-eval task module that dclm-core-22 needs cannot
+    # import (see the transformers pin above).
+    /opt/venv/bin/python -c "import transformers.data.metrics.squad_metrics, lm_eval.tasks.coqa.utils"
 
     # lighteval as isolated tool (avoids dependency conflicts).
     #
@@ -66,7 +105,7 @@ From: rocm/pytorch:rocm7.2.1_ubuntu24.04_py3.12_pytorch_release_2.9.1
     /opt/uv-tools/lighteval/bin/python -c "from lighteval.tasks.registry import Registry; Registry.load_all_task_configs(load_multilingual=True)"
 
     # NLTK data
-    mkdir -p /opt/nltk_data
+    mkdir -p /opt/nltk_data && chmod 755 /opt/nltk_data
     python -c "import nltk; nltk.download('punkt', download_dir='/opt/nltk_data'); nltk.download('punkt_tab', download_dir='/opt/nltk_data')"
 
 %environment
