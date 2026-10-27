@@ -485,11 +485,14 @@ task_groups:
         dataset: allenai/ai2_arc
         subset: ARC-Challenge
 
+  # 10-shot, as English hellaswag in dclm-core-22 and open-sci-0.01. The dataset has only a `val`
+  # split, which is both scored and the example pool; lm-eval leaves the scored item out because
+  # fewshot_split and test_split are both unset (equal). Setting fewshot_split: val would disable that.
   hellaswag-eu:
-    description: "Okapi HellaSwag multilingual (16 EU languages, 0-shot)."
+    description: "Okapi HellaSwag multilingual (16 EU languages, 10-shot)."
     suite: lm-eval-harness
     metric: acc_norm
-    n_shots: [0]
+    n_shots: [10]
     dataset: alexandrainst/m_hellaswag
     valid_langs: [da, nl, fr, de, hu, it, pt, ro, sk, es, sv, hr,
                   ca, eu, sr, uk]
