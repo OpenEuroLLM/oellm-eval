@@ -213,11 +213,14 @@ task_groups:
       - task: mgsm_native_cot_fr
         subset: fr
 
+  # 0-shot: the instruction asks for reasoning steps, but the dataset has no worked solutions, so any
+  # few-shot example contradicts it (the model copies the direct answer; Gemma 4 E2B scores lower
+  # 4-shot than 0-shot). mgsm-eu (mgsm_native_cot, worked examples) is the few-shot math signal.
   global-mgsm-eu:
-    description: "Global-MGSM EU grade-school math (5-shot, direct-answer examples, exact_match)."
+    description: "Global-MGSM EU grade-school math (0-shot, exact_match)."
     suite: lm-eval-harness
     metric: exact_match
-    n_shots: [5]
+    n_shots: [0]
     dataset: CohereLabs/global-mgsm
     valid_langs: [de, fr, es, el, cs, hu, en, ca, eu, gl, sr]
     tasks:
