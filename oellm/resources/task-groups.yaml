@@ -179,6 +179,29 @@ task_groups:
                   srp_Cyrl, tur_Latn, ukr_Cyrl, isl_Latn, nob_Latn]
     tasks:
       - task: "flores200:eng_Latn-{lang}"
+
+  # FLAG tier 1 (every checkpoint): FLORES in six languages instead of 35, one per family/script plus
+  # a low-resource one (Germanic, Romance, Slavic, Uralic, Greek script, Maltese).
+  flores-200-eu-to-eng-t1:
+    description: "Flores 200 EU->English, six-language subset for checkpoint monitoring (4-shot, chrf++)."
+    suite: lighteval
+    metric: chrf++
+    n_shots: [4]
+    dataset: facebook/flores
+    valid_langs: [deu_Latn, fra_Latn, pol_Latn, fin_Latn, ell_Grek, mlt_Latn]
+    tasks:
+      - task: "flores200:{lang}-eng_Latn"
+
+  flores-200-eng-to-eu-t1:
+    description: "Flores 200 English->EU, six-language subset for checkpoint monitoring (4-shot, chrf++)."
+    suite: lighteval
+    metric: chrf++
+    n_shots: [4]
+    dataset: facebook/flores
+    valid_langs: [deu_Latn, fra_Latn, pol_Latn, fin_Latn, ell_Grek, mlt_Latn]
+    tasks:
+      - task: "flores200:eng_Latn-{lang}"
+
   global-mmlu-eu:
     description: "Global MMLU EU tasks"
     suite: lm-eval-harness
@@ -657,6 +680,17 @@ task_groups:
       - task: mbpp_cont
         n_shots: [3]
 
+  # flag-cot-code without LiveCodeBench, for the FLAG tiers: release_v2 (May 2023 - May 2024)
+  # predates the training data cutoff, and Codeforces test splits are in the data.
+  flag-cot-code-clean:
+    description: "Code as a continuation (HumanEval 0-shot, MBPP 3-shot; sampled pass@1/pass@k)"
+    suite: lm-eval-harness
+    tasks:
+      - task: humaneval_cont
+        n_shots: [0]
+      - task: mbpp_cont
+        n_shots: [3]
+
   flag-cot-polymath-low:
     description: "PolyMath EU, low tier, forced reasoning (0-shot, <think> prefill, sampled pass@1/pass@4)"
     suite: lm-eval-harness
@@ -810,6 +844,19 @@ task_groups:
         dataset: LumiOpen/GPQA-FI
         subset: default
 
+  # The base-model GSM8K setting (Llama, OLMo): lm-eval's gsm8k_cot, the 8 fixed worked examples of
+  # Wei et al. 2022 ("Q: ... A: ... The answer is N."). The 4-shot gsm8k in `reasoning` stays for
+  # comparison with the reference suite. The first 50 test problems are in AgentTrove: report only.
+  gsm8k-cot:
+    description: "GSM8K, 8-shot chain-of-thought (Wei et al. exemplars), exact_match."
+    suite: lm-eval-harness
+    metric: exact_match
+    n_shots: [8]
+    tasks:
+      - task: gsm8k_cot
+        dataset: openai/gsm8k
+        subset: main
+
 super_groups:
   judgearena:
     description: "JudgeArena base tasks."
@@ -942,3 +989,123 @@ super_groups:
       - task: flores-200-eng-to-eu
       - task: flores-200-eu-to-eng
       - task: xcopa-eu
+
+  # FLAG tiers. Each tier contains the one below it; split per launcher half like flag-evals
+  # (super groups cannot nest, and the vLLM backend refuses lighteval tasks), so groups are flat.
+  #   t1 monitor  every checkpoint: cheap log-likelihood evals and a six-language FLORES subset
+  #   t2 decide   anneal mixes, merges, continuation candidates
+  #   t3 report   release; adds the held-out groups (include, gsm8k-cot, mmlu-prox-eu,
+  #               global-piqa-eu-prompted, competition math), which never feed a t1/t2 decision
+  #   t4 post-train  SFT/DPO checkpoints: t1 as the short-context regression check plus the
+  #               instruct-style evals, among them global-mgsm-eu (a 0-shot instruction prompt that
+  #               a base model runs on past). The launcher's views are base-model views
+  #               (identity chat template), and JudgeArena runs through its own suite.
+  # scripts/jupiter_flag_evals.sh selects a tier with SUITE=t1|t2|t3|t4.
+  flag-t1-vllm:
+    description: "FLAG tier 1 (monitor), vLLM part"
+    task_groups:
+      - task: dclm-core-22
+      - task: open-sci-0.01
+      - task: belebele-eu-5-shot
+      - task: global-mmlu-eu
+      - task: multiblimp-eu
+      - task: sib200-eu
+
+  flag-t1-lighteval:
+    description: "FLAG tier 1 (monitor), lighteval part"
+    task_groups:
+      - task: flores-200-eng-to-eu-t1
+      - task: flores-200-eu-to-eng-t1
+
+  flag-t2-vllm:
+    description: "FLAG tier 2 (decide), vLLM part"
+    task_groups:
+      - task: dclm-core-22
+      - task: open-sci-0.01
+      - task: belebele-eu-5-shot
+      - task: global-mmlu-eu
+      - task: multiblimp-eu
+      - task: sib200-eu
+      - task: arc-challenge-25
+      - task: arc-challenge-mt-eu
+      - task: hellaswag-eu
+      - task: piqa-0
+      - task: global-piqa-eu-completions
+      - task: xcsqa-eu
+      - task: mgsm-eu
+      - task: opensubtitles-eu-en-xx
+      - task: opensubtitles-eu-xx-en
+
+  flag-t2-lighteval:
+    description: "FLAG tier 2 (decide), lighteval part"
+    task_groups:
+      - task: flores-200-eng-to-eu
+      - task: flores-200-eu-to-eng
+      - task: xcopa-eu
+
+  flag-t2-cot:
+    description: "FLAG tier 2 (decide), forced-reasoning and continuation part"
+    task_groups:
+      - task: flag-cot-code-clean
+      - task: flag-cot-polymath-low
+      - task: flag-cot-polymath-medium
+
+  flag-t3-vllm:
+    description: "FLAG tier 3 (report), vLLM part"
+    task_groups:
+      - task: dclm-core-22
+      - task: open-sci-0.01
+      - task: belebele-eu-5-shot
+      - task: global-mmlu-eu
+      - task: multiblimp-eu
+      - task: sib200-eu
+      - task: arc-challenge-25
+      - task: arc-challenge-mt-eu
+      - task: hellaswag-eu
+      - task: piqa-0
+      - task: global-piqa-eu-completions
+      - task: xcsqa-eu
+      - task: mgsm-eu
+      - task: opensubtitles-eu-en-xx
+      - task: opensubtitles-eu-xx-en
+      - task: include
+      - task: global-piqa-eu-prompted
+      - task: mmlu-prox-eu
+      - task: gsm8k-cot
+
+  flag-t3-lighteval:
+    description: "FLAG tier 3 (report), lighteval part"
+    task_groups:
+      - task: flores-200-eng-to-eu
+      - task: flores-200-eu-to-eng
+      - task: xcopa-eu
+
+  flag-t3-cot:
+    description: "FLAG tier 3 (report), forced-reasoning and continuation part"
+    task_groups:
+      - task: flag-cot-code-clean
+      - task: flag-cot-polymath-low
+      - task: flag-cot-polymath-medium
+      - task: flag-cot-math
+      - task: flag-cot-polymath-high
+      - task: flag-cot-polymath-top
+
+  flag-t4-vllm:
+    description: "FLAG tier 4 (post-train), vLLM part"
+    task_groups:
+      - task: dclm-core-22
+      - task: open-sci-0.01
+      - task: belebele-eu-5-shot
+      - task: global-mmlu-eu
+      - task: multiblimp-eu
+      - task: sib200-eu
+      - task: reasoning
+      - task: jeebench
+      - task: global-mgsm-eu
+
+  flag-t4-lighteval:
+    description: "FLAG tier 4 (post-train), lighteval part"
+    task_groups:
+      - task: flores-200-eng-to-eu-t1
+      - task: flores-200-eu-to-eng-t1
+      - task: gpqa-diamond

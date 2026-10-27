@@ -219,6 +219,52 @@ class TestFlagEvals:
         assert {metrics[r.task] for r in _expand_task_groups(["sib200-eu"])} == {"acc"}
 
 
+def _evals(group):
+    return {(r.task, r.n_shot) for r in _expand_task_groups([group])}
+
+
+class TestFlagTiers:
+    def test_tier_sizes(self):
+        sizes = {
+            f"{tier}-{half}": len(_evals(f"flag-{tier}-{half}"))
+            for tier, halves in [("t1", "vllm lighteval"), ("t2", "vllm lighteval cot"),
+                                 ("t3", "vllm lighteval cot"), ("t4", "vllm lighteval")]
+            for half in halves.split()
+        }
+        assert sizes == {"t1-vllm": 132, "t1-lighteval": 12, "t2-vllm": 266, "t2-lighteval": 73,
+                         "t2-cot": 14, "t3-vllm": 330, "t3-lighteval": 73, "t3-cot": 32,
+                         "t4-vllm": 154, "t4-lighteval": 14}
+
+    def test_each_tier_contains_the_one_below(self):
+        for half in ("vllm", "lighteval"):
+            assert _evals(f"flag-t1-{half}") <= _evals(f"flag-t2-{half}") <= _evals(f"flag-t3-{half}")
+        assert _evals("flag-t2-cot") <= _evals("flag-t3-cot")
+        assert _evals("flag-t1-vllm") <= _evals("flag-t4-vllm")
+        assert _evals("flag-t1-lighteval") <= _evals("flag-t4-lighteval")
+
+    def test_held_out_groups_only_in_tier_3(self):
+        held_out = set().union(*(_evals(g) for g in [
+            "include", "gsm8k-cot", "mmlu-prox-eu", "global-piqa-eu-prompted",
+            "flag-cot-math", "flag-cot-polymath-high", "flag-cot-polymath-top"]))
+        decide = set().union(*(_evals(f"flag-t2-{h}") for h in ("vllm", "lighteval", "cot")))
+        report = set().union(*(_evals(f"flag-t3-{h}") for h in ("vllm", "lighteval", "cot")))
+        assert held_out <= report
+        assert held_out.isdisjoint(decide)
+
+    def test_global_mgsm_only_post_train(self):
+        base = set().union(*(_evals(f"flag-t3-{h}") for h in ("vllm", "lighteval", "cot")))
+        assert _evals("global-mgsm-eu").isdisjoint(base)
+        assert _evals("global-mgsm-eu") <= _evals("flag-t4-vllm")
+
+    def test_no_livecodebench_in_tiers(self):
+        for group in ("flag-t2-cot", "flag-t3-cot"):
+            assert "livecodebench_cont" not in {task for task, _ in _evals(group)}
+
+    def test_shots(self):
+        assert _evals("gsm8k-cot") == {("gsm8k_cot", 8)}
+        assert {n for _, n in _evals("global-mgsm-eu")} == {0}
+
+
 def test_judgearena_does_not_register_standalone_ja_variants():
     assert {"alpaca-eval-ja", "arena-hard-v0.1-ja", "arena-hard-v2.0-ja"}.isdisjoint(
         _build_task_suite_map()
