@@ -24,6 +24,10 @@ from oellm.task_groups import _load_task_groups_data
 TS = "2026-10-27T10-00-00.000000"
 # A real blocklist, e.g. agenttrove-0.0_filtered/dropped on LUMI.
 BLOCKLIST_DIR = Path(os.environ.get("OELLM_BLOCKLIST_DIR", "/nonexistent"))
+# An evalchemy checkout, as oellm's job template finds it, and the questions
+# each of its benchmarks loads.
+EVALCHEMY_DIR = Path(os.environ.get("EVALCHEMY_DIR", "/opt/evalchemy"))
+EVALCHEMY_QUESTIONS = {"MATH500": "eval/chat_benchmarks/MATH500/data/math500.jsonl"}
 
 
 @pytest.fixture(autouse=True)
@@ -590,6 +594,112 @@ def test_collect_logs_a_mapped_task_reported_only_through_a_group(
     assert "only reported as part of a larger group" in caplog.text
 
 
+# --- evalchemy's MATH500 -----------------------------------------------------
+
+# Correct model answers that only lm-eval's is_equiv accepts, by question.
+EQUIVALENT_ANSWERS = {
+    0: ("\\frac{1}{2}", "1/2"),
+    1: ("7", "x = 7"),
+    2: ("90", "90^\\circ"),
+}
+
+
+def _math500_question(i):
+    answer = EQUIVALENT_ANSWERS.get(i, (str(i),))[0]
+    return {
+        "problem": f"What is {i}?",
+        "solution": f"It is $\\boxed{{{answer}}}$.",
+        "answer": answer,
+        "subject": "Algebra",
+        "level": i % 5 + 1,
+        "unique_id": f"test/algebra/{i}.json",
+    }
+
+
+def _write_math500_run(run_dir, solved, n=500, num_solved=None, task="MATH500"):
+    """evalchemy's results file: every question with the model's answer, which
+    is right for the questions in *solved*."""
+    examples = []
+    for i in range(n):
+        question = _math500_question(i)
+        right = EQUIVALENT_ANSWERS.get(i, (None, question["answer"]))[1]
+        answer = right if i in solved else "wrong"
+        examples.append(
+            question | {"model_output": f"\\boxed{{{answer}}}", "model_answer": answer}
+        )
+    num_solved = len(solved) if num_solved is None else num_solved
+    result = {
+        "examples": examples,
+        "num_total": n,
+        "num_solved": num_solved,
+        "accuracy": num_solved / n,
+    }
+    run_dir.mkdir(parents=True, exist_ok=True)
+    results_file = run_dir / f"results_{TS}.json"
+    results_file.write_text(
+        json.dumps(
+            {
+                "results": {task: result},
+                "config": {"model": "hf", "limit": None},
+                "model_name": "m",
+            }
+        )
+    )
+    return results_file
+
+
+def test_math500_is_rescored_without_blocklisted_questions(tmp_path):
+    run = _write_math500_run(tmp_path, solved=set(range(10)))
+    blocklist = {"Math500": [_math500_question(0), _math500_question(100)]}
+    clean, n_excluded = _clean(run, blocklist, {"Math500": ["MATH500"]})["MATH500"]
+    assert n_excluded == 2
+    assert clean["num_solved"] == 9
+    assert clean["num_total"] == 498
+    assert clean["accuracy"] == 9 / 498
+
+
+def test_math500_answers_that_do_not_reproduce_num_solved_are_refused(tmp_path):
+    run = _write_math500_run(tmp_path, solved=set(range(10)), num_solved=11)
+    with pytest.raises(
+        SampleExclusionError, match="solves 10 questions, but evalchemy reported 11"
+    ):
+        _clean(run, {"Math500": [_math500_question(0)]}, {"Math500": ["MATH500"]})
+
+
+def test_a_math500_run_on_part_of_the_questions_is_refused(tmp_path):
+    run = _write_math500_run(tmp_path, solved={0}, n=2)
+    with pytest.raises(RunNotFilterable, match="scored 2 of 500 questions"):
+        _clean(run, {"Math500": [_math500_question(0)]}, {"Math500": ["MATH500"]})
+
+
+def test_other_evalchemy_benchmarks_are_refused(tmp_path):
+    run = _write_math500_run(tmp_path, solved={0}, task="AIME24")
+    with pytest.raises(
+        SampleExclusionError, match="AIME24: excluding samples from this evalchemy"
+    ):
+        _clean(run, {"Aime": [_math500_question(0)]}, {"Aime": ["AIME24"]})
+
+
+def test_collect_reports_full_and_clean_math500_scores(tmp_path, monkeypatch):
+    _write_math500_run(tmp_path / "run", solved=set(range(10)))
+    blocklist = tmp_path / "blocklist"
+    blocklist.mkdir()
+    row = _math500_question(0) | {"_matched_ngrams": ["what is 0"]}
+    (blocklist / "Math500.jsonl").write_text(json.dumps(row) + "\n")
+    monkeypatch.setattr(
+        sample_exclusion, "load_task_map", lambda: {"Math500": ["MATH500"]}
+    )
+    out = tmp_path / "out.csv"
+    collect_results(str(tmp_path / "run"), str(out), exclude_samples=str(blocklist))
+    df = pd.read_csv(out).set_index(["subset", "metric_name"])
+    assert set(df.task) == {"MATH500"}
+    assert df.loc[("full", "accuracy"), "performance"] == 10 / 500
+    assert df.loc[("clean", "accuracy"), "performance"] == 9 / 499
+    assert df.loc[("clean", "num_solved"), "performance"] == 9
+    assert df.loc[("clean", "num_total"), "performance"] == 499
+    assert set(df.loc["clean", "n_excluded"]) == {1}
+
+
 # --- the task map ------------------------------------------------------------
 
 
@@ -598,6 +708,19 @@ def test_every_mapped_task_is_in_the_task_groups():
     tasks = {t["task"] for g in groups.values() for t in g.get("tasks") or []}
     for benchmark, mapped in sample_exclusion.load_task_map().items():
         assert set(mapped) <= tasks, benchmark
+
+
+def test_every_mapped_evalchemy_task_can_be_rescored():
+    groups = _load_task_groups_data()["task_groups"]
+    evalchemy = {
+        t["task"]
+        for g in groups.values()
+        for t in g.get("tasks") or []
+        if t.get("suite", g.get("suite")) == "evalchemy"
+    }
+    mapped = {t for ts in sample_exclusion.load_task_map().values() for t in ts}
+    assert mapped & evalchemy <= sample_exclusion._EVALCHEMY_BENCHMARKS.keys()
+    assert EVALCHEMY_QUESTIONS.keys() == sample_exclusion._EVALCHEMY_BENCHMARKS.keys()
 
 
 @pytest.mark.skipif(not BLOCKLIST_DIR.is_dir(), reason="set OELLM_BLOCKLIST_DIR")
@@ -613,6 +736,8 @@ def test_every_mapped_row_matches_one_lm_eval_document():
     blocklist = sample_exclusion.load_blocklist(BLOCKLIST_DIR)
     manager = TaskManager()
     for benchmark, mapped in sample_exclusion.load_task_map().items():
+        if set(mapped) & EVALCHEMY_QUESTIONS.keys():
+            continue
         loaded = manager.load(mapped)["tasks"]
         samples, stack = {}, [loaded]
         while stack:
@@ -628,3 +753,23 @@ def test_every_mapped_row_matches_one_lm_eval_document():
             blocklist[benchmark], samples, benchmark
         )
         assert sum(map(len, excluded.values())) == len(blocklist[benchmark]), benchmark
+
+
+@pytest.mark.skipif(
+    not (BLOCKLIST_DIR.is_dir() and EVALCHEMY_DIR.is_dir()),
+    reason="set OELLM_BLOCKLIST_DIR and EVALCHEMY_DIR",
+)
+def test_every_mapped_row_matches_one_evalchemy_question():
+    """Each blocklisted row of a benchmark mapped to evalchemy is one of the
+    questions evalchemy loads, which its results file keeps as they are."""
+    blocklist = sample_exclusion.load_blocklist(BLOCKLIST_DIR)
+    for benchmark, mapped in sample_exclusion.load_task_map().items():
+        for task in set(mapped) & EVALCHEMY_QUESTIONS.keys():
+            lines = (EVALCHEMY_DIR / EVALCHEMY_QUESTIONS[task]).read_text().splitlines()
+            samples = {
+                task: [{"doc_id": i, "doc": json.loads(x)} for i, x in enumerate(lines)]
+            }
+            excluded = sample_exclusion._excluded_docs(
+                blocklist[benchmark], samples, benchmark
+            )
+            assert len(excluded[task]) == len(blocklist[benchmark]), benchmark

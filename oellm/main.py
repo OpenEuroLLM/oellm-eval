@@ -785,8 +785,8 @@ def collect_results(
         exclude_samples: Directory of blocklisted dataset rows, one
             ``<benchmark>.jsonl`` per benchmark (e.g. contaminated test rows).
             Each lm-eval task that holds such rows is also reported with them
-            left out, recomputed from the samples saved with ``--log_samples``.
-            The CSV then gets a ``subset`` column (``full`` or ``clean``) and an
+            left out, recomputed from the samples saved with ``--log_samples``,
+            and so is MATH500, from the answers evalchemy keeps. The CSV then gets a ``subset`` column (``full`` or ``clean``) and an
             ``n_excluded`` column. A run without saved samples or made with
             ``--limit`` gets no clean rows and a warning; a score that cannot
             be recomputed exactly is an error. See ``oellm/sample_exclusion.py``.

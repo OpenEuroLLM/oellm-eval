@@ -335,12 +335,14 @@ oellm-eval collect --results_dir /path/to/eval-output-dir \
     --exclude_samples /path/to/blocklist
 ```
 
-The blocklist is a directory with one `<benchmark>.jsonl` per benchmark, each line an original dataset row; fields starting with `_` are ignored. [`oellm/resources/sample-exclusion.yaml`](oellm/resources/sample-exclusion.yaml) maps the benchmarks to lm-eval tasks. Each task holding blocklisted rows gets a second set of rows in the CSV, recomputed from the saved samples without those rows, and the CSV gains a `subset` column (`full` or `clean`) and an `n_excluded` column. Rows are matched by content, so every copy of a blocklisted question is excluded, and `n_excluded` counts documents: it can exceed the number of blocklisted rows when a benchmark repeats a question.
+The blocklist is a directory with one `<benchmark>.jsonl` per benchmark, each line an original dataset row; fields starting with `_` are ignored. [`oellm/resources/sample-exclusion.yaml`](oellm/resources/sample-exclusion.yaml) maps the benchmarks to lm-eval tasks and evalchemy's MATH500. Each task holding blocklisted rows gets a second set of rows in the CSV, recomputed from the saved samples without those rows, and the CSV gains a `subset` column (`full` or `clean`) and an `n_excluded` column. Rows are matched by content, so every copy of a blocklisted question is excluded, and `n_excluded` counts documents: it can exceed the number of blocklisted rows when a benchmark repeats a question.
 
-A run without saved samples, or one made with `--limit` or `--samples`, gets no clean rows and a warning; its full scores are collected as usual. `collect` stops with an error instead of reporting a number it cannot recompute exactly:
+MATH500 needs no `--log_samples`: evalchemy's results file already keeps every question and model answer, and `collect` re-scores them the way evalchemy does. evalchemy's other benchmarks cannot be filtered; HumanEval and LiveCodeBench, for example, keep only their overall scores.
+
+A run without saved samples, or one made with `--limit` or `--samples` (or evalchemy's `--debug`), gets no clean rows and a warning; its full scores are collected as usual. `collect` stops with an error instead of reporting a number it cannot recompute exactly:
 - a blocklisted row that matches no document of its task;
 - a metric that is not an average over samples, such as BLEU or F1 computed over the whole corpus;
-- saved samples that do not reproduce the scores lm-eval reported.
+- saved samples that do not reproduce the reported scores.
 
 ## CSV-Based Scheduling
 

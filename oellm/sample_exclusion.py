@@ -4,12 +4,15 @@ A blocklist is a directory with one ``<benchmark>.jsonl`` file per benchmark,
 each line an original row of that benchmark's dataset, for example the rows a
 decontamination run found in the training data. Fields starting with ``_`` are
 annotations and ignored. ``resources/sample-exclusion.yaml`` maps each
-benchmark to the lm-eval tasks or groups that hold its documents.
+benchmark to the lm-eval tasks or groups, or evalchemy benchmarks, that hold
+its documents.
 
 The samples lm-eval saves with ``--log_samples`` are matched against the rows
 by content, and every per-sample mean metric is recomputed without them, the
-way lm-eval computes it. Before anything is excluded the recomputation has to
-reproduce lm-eval's reported scores, and anything that cannot be recomputed
+way lm-eval computes it. evalchemy saves no samples, but MATH500 keeps every
+question and model answer in its results file, so its questions are re-scored
+the way evalchemy scores them. Before anything is excluded the recomputation
+has to reproduce the reported scores, and anything that cannot be recomputed
 exactly is an error rather than an approximate number.
 """
 
@@ -22,12 +25,21 @@ from pathlib import Path
 
 import yaml
 
+from oellm.hendrycks_math import is_equiv
+
 # Metrics lm-eval aggregates with a mean when a task's metric_list does not
 # name them, by output type.
 _DEFAULT_MEAN_METRICS = {
     "multiple_choice": {"acc", "acc_norm", "acc_mutual_info"},
     "loglikelihood": {"acc"},
     "generate_until": {"exact_match"},
+}
+
+# evalchemy benchmarks whose results keep every question and model answer
+# (``examples``): their number of questions, and whether a question is solved,
+# as evalchemy decides it.
+_EVALCHEMY_BENCHMARKS = {
+    "MATH500": (500, lambda ex: is_equiv(str(ex["answer"]), ex["model_answer"])),
 }
 
 
@@ -169,6 +181,54 @@ def _read_samples(results_file: Path, task: str, data: dict) -> list[dict]:
             f"documents, but lm-eval scored {counts.get('effective')}."
         )
     return samples
+
+
+def _is_evalchemy(result: dict) -> bool:
+    return isinstance(result.get("examples"), list)
+
+
+def _read_examples(results_file: Path, task: str, result: dict) -> list[dict]:
+    """evalchemy's questions, in the layout of lm-eval's saved samples."""
+    if task not in _EVALCHEMY_BENCHMARKS:
+        raise SampleExclusionError(
+            f"{task}: excluding samples from this evalchemy benchmark is not supported."
+        )
+    size, _ = _EVALCHEMY_BENCHMARKS[task]
+    examples = result["examples"]
+    if len(examples) != size:
+        raise RunNotFilterable(
+            f"{task}: {results_file} scored {len(examples)} of {size} questions "
+            "(a --debug run?). Excluding samples needs a run over the whole benchmark."
+        )
+    return [{"doc_id": i, "doc": example} for i, example in enumerate(examples)]
+
+
+def _evalchemy_scores(
+    task: str, result: dict, examples: list[dict], excluded: set[int]
+) -> dict:
+    """*result* recomputed without *excluded*, by re-scoring every question."""
+    _, solved = _EVALCHEMY_BENCHMARKS[task]
+    correct = [bool(solved(s["doc"])) for s in examples]
+    if sum(correct) != result.get("num_solved"):
+        raise SampleExclusionError(
+            f"{task}: re-scoring the saved answers solves {sum(correct)} questions, "
+            f"but evalchemy reported {result.get('num_solved')}; refusing to "
+            "recompute it."
+        )
+    kept = [
+        c for c, s in zip(correct, examples, strict=True) if s["doc_id"] not in excluded
+    ]
+    if len(kept) < 2:
+        raise SampleExclusionError(
+            f"{task}: {len(kept)} questions remain after exclusion"
+        )
+    scores = {
+        "sample_len": len(kept),
+        "num_total": len(kept),
+        "num_solved": sum(kept),
+        "accuracy": sum(kept) / len(kept),
+    }
+    return _in_order_of(result, scores)
 
 
 def _excluded_docs(
@@ -319,7 +379,8 @@ def clean_results(
     """Results of the tasks and groups in *data* that lose blocklisted samples.
 
     Returns ``{name: (result, n_excluded)}``, where ``result`` has the layout of
-    lm-eval's per-task results (``metric,filter`` keys) and holds only the
+    the reported one (lm-eval's ``metric,filter`` keys, or evalchemy's
+    ``accuracy``, ``num_solved`` and ``num_total``) and holds only the
     recomputed metrics. Tasks without blocklisted documents are left out.
     """
     results = data.get("results", {})
@@ -345,7 +406,12 @@ def clean_results(
         )
 
     leaves = sorted({leaf for ls in leaves_by_benchmark.values() for leaf in ls})
-    samples = {leaf: _read_samples(results_file, leaf, data) for leaf in leaves}
+    samples = {
+        leaf: _read_examples(results_file, leaf, results[leaf])
+        if _is_evalchemy(results[leaf])
+        else _read_samples(results_file, leaf, data)
+        for leaf in leaves
+    }
     excluded: dict[str, set[int]] = {leaf: set() for leaf in leaves}
     for benchmark, benchmark_leaves in leaves_by_benchmark.items():
         found = _excluded_docs(
@@ -358,7 +424,9 @@ def clean_results(
 
     full = {leaf: results[leaf] for leaf in leaves}
     clean = {
-        leaf: _task_scores(
+        leaf: _evalchemy_scores(leaf, results[leaf], samples[leaf], excluded[leaf])
+        if _is_evalchemy(results[leaf])
+        else _task_scores(
             leaf,
             results[leaf],
             data.get("configs", {}).get(leaf, {}),
