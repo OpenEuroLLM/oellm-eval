@@ -266,9 +266,16 @@ def _evalchemy_scores(
 
 
 def _excluded_docs(
-    rows: list[dict], samples_by_task: dict[str, list[dict]], benchmark: str
+    rows: list[dict],
+    samples_by_task: dict[str, list[dict]],
+    benchmark: str,
+    every_row_matches: bool = True,
 ) -> dict[str, set[int]]:
-    """Doc ids per task whose document equals a blocklist row on all its fields."""
+    """Doc ids per task whose document equals a blocklist row on all its fields.
+
+    A row that matches no document is an error if *every_row_matches*: the
+    tasks hold the whole benchmark.
+    """
     index: dict[tuple, dict[str, list[tuple[str, int]]]] = {}
     excluded: dict[str, set[int]] = {}
     for row in rows:
@@ -285,6 +292,8 @@ def _excluded_docs(
                     key = _canonical({f: doc[f] for f in fields})
                     by_key.setdefault(key, []).append((task, s["doc_id"]))
         hits = index[fields].get(_canonical(row))
+        if not hits and not every_row_matches:
+            continue
         if not hits:
             raise SampleExclusionError(
                 f"{benchmark}: a blocklist row matches no document of "
@@ -428,8 +437,14 @@ def clean_results(
     group_subtasks = data.get("group_subtasks", {})
 
     leaves_by_benchmark: dict[str, list[str]] = {}
+    # A benchmark split over tasks run separately (polymath_en_low and _medium)
+    # may be only partly in this run; its other rows belong to the other tasks.
+    partial: set[str] = set()
     for benchmark, rows in blocklist.items():
-        targets = [t for t in task_map.get(benchmark, []) if t in results or t in groups]
+        mapped = task_map.get(benchmark, [])
+        targets = [t for t in mapped if t in results or t in groups]
+        if len(targets) < len(mapped):
+            partial.add(benchmark)
         if rows and targets:
             leaves_by_benchmark[benchmark] = [
                 leaf
@@ -458,6 +473,7 @@ def clean_results(
             blocklist[benchmark],
             {leaf: samples[leaf] for leaf in benchmark_leaves},
             benchmark,
+            every_row_matches=benchmark not in partial,
         )
         for leaf, doc_ids in found.items():
             excluded[leaf] |= doc_ids

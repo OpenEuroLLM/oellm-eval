@@ -289,6 +289,32 @@ def test_a_row_that_matches_no_document_is_an_error(tmp_path, row):
         _clean(run, {"Toy": [row]})
 
 
+SPLIT_MAP = {"Toy": ["toy_low", "toy_medium"]}
+
+
+def test_a_run_with_part_of_a_split_benchmark_skips_the_other_rows(tmp_path):
+    """PolyMath's rows come from polymath_en_low and _medium, which can be run
+    separately; the medium rows match nothing in a run of the low task."""
+    low, medium = _docs(4, "low"), _docs(4, "medium")
+    run = _write_run(tmp_path, {"toy_low": _task(low, {"none": [1, 0, 1, 0]})})
+    clean = _clean(run, {"Toy": [low[0], medium[1]]}, SPLIT_MAP)
+    assert clean.keys() == {"toy_low"}
+    assert clean["toy_low"][1] == 1
+
+
+def test_a_run_with_all_of_a_split_benchmark_needs_every_row_to_match(tmp_path):
+    low, medium = _docs(4, "low"), _docs(4, "medium")
+    tasks = {
+        "toy_low": _task(low, {"none": [1, 0, 1, 0]}),
+        "toy_medium": _task(medium, {"none": [0, 1, 1, 0]}),
+    }
+    run = _write_run(tmp_path, tasks)
+    clean = _clean(run, {"Toy": [low[0], medium[1]]}, SPLIT_MAP)
+    assert {name: n for name, (_, n) in clean.items()} == {"toy_low": 1, "toy_medium": 1}
+    with pytest.raises(SampleExclusionError, match="matches no document"):
+        _clean(run, {"Toy": [low[0], {"question": "high0", "answer": 0}]}, SPLIT_MAP)
+
+
 def test_annotation_fields_of_the_blocklist_are_ignored(tmp_path):
     (tmp_path / "Toy.jsonl").write_text(
         json.dumps({"question": "q1", "answer": 1, "_matched_ngrams": "['q1']"}) + "\n\n"
@@ -819,7 +845,11 @@ def test_every_mapped_row_matches_one_lm_eval_document():
     from lm_eval.tasks import TaskManager
 
     blocklist = sample_exclusion.load_blocklist(BLOCKLIST_DIR)
-    manager = TaskManager()
+    # oellm's own tasks (global_mgsm, polymath), as the job template passes them.
+    include_path = (
+        Path(sample_exclusion.__file__).parent / "resources/custom_lm_eval_tasks"
+    )
+    manager = TaskManager(include_path=str(include_path))
     for benchmark, mapped in sample_exclusion.load_task_map().items():
         if set(mapped) & EVALCHEMY_QUESTIONS.keys():
             continue

@@ -4,7 +4,9 @@
 # ignored.
 #
 # Only list a task after checking that every row of the benchmark matches one
-# of the task's documents exactly: collect stops on a row that matches nothing.
+# of the task's documents exactly: collect stops on a row that matches nothing
+# in a run holding all of the benchmark's tasks. (A run holding some of them,
+# such as polymath_en_low without polymath_en_medium, skips the other rows.)
 # Checked against agenttrove-0.0's blocklist, lm-eval 0.4.13 and evalchemy
 # 54ac976. Its Jeopardy rows are not in the jeopardy subset evaluated here, so
 # Jeopardy is not listed. Of evalchemy's benchmarks only MATH500 keeps a result
@@ -16,3 +18,7 @@ benchmarks:
   BoolQ: [boolq]
   MBPP: [mbpp]
   Math500: [MATH500]
+  # The blocklisted rows of these are all English.
+  MMLUProX: [mmlu_prox_en]
+  GlobalMGSM: [global_mgsm_en]
+  PolyMath: [polymath_en_low, polymath_en_medium]
