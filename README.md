@@ -326,6 +326,22 @@ The `--check` flag outputs a `results_missing.csv` that can be used to re-schedu
 oellm-eval schedule --eval_csv_path results_missing.csv
 ```
 
+### Scores without contaminated samples
+
+To also report scores without blocklisted test rows, such as rows found in the training data, schedule the evaluations with `--log_samples` and pass the blocklist to `collect`:
+
+```bash
+oellm-eval collect --results_dir /path/to/eval-output-dir \
+    --exclude_samples /path/to/blocklist
+```
+
+The blocklist is a directory with one `<benchmark>.jsonl` per benchmark, each line an original dataset row; fields starting with `_` are ignored. [`oellm/resources/sample-exclusion.yaml`](oellm/resources/sample-exclusion.yaml) maps the benchmarks to lm-eval tasks. Each task holding blocklisted rows gets a second set of rows in the CSV, recomputed from the saved samples without those rows, and the CSV gains a `subset` column (`full` or `clean`) and an `n_excluded` column. Rows are matched by content, so every copy of a blocklisted question is excluded, and `n_excluded` counts documents: it can exceed the number of blocklisted rows when a benchmark repeats a question.
+
+A run without saved samples, or one made with `--limit` or `--samples`, gets no clean rows and a warning; its full scores are collected as usual. `collect` stops with an error instead of reporting a number it cannot recompute exactly:
+- a blocklisted row that matches no document of its task;
+- a metric that is not an average over samples, such as BLEU or F1 computed over the whole corpus;
+- saved samples that do not reproduce the scores lm-eval reported.
+
 ## CSV-Based Scheduling
 
 For full control, provide a CSV file with columns: `model_path`, `task_path`, `n_shot`, and optionally `eval_suite`:

@@ -19,6 +19,7 @@ it before comparing runs made with different versions.
 ### Added
 
 - lm-eval runs pass `--write_out` by default, and `--log_samples` saves every sample when requested.
+- `collect --exclude_samples` also reports lm-eval scores without blocklisted (e.g. contaminated) test rows, recomputed from the saved samples.
 
 ### Changed
 

@@ -1,0 +1,14 @@
+# The lm-eval tasks or groups whose documents each blocklist benchmark holds,
+# for `oellm-eval collect --exclude_samples`. Keys are blocklist file names
+# without `.jsonl`. Rows of a benchmark not listed here are ignored.
+#
+# Only list a task after checking that every row of the benchmark matches one
+# of the task's documents exactly: collect stops on a row that matches nothing.
+# Checked against agenttrove-0.0's blocklist and lm-eval 0.4.13. Its Jeopardy
+# rows are not in the jeopardy subset evaluated here, so Jeopardy is not listed.
+benchmarks:
+  GSM8K: [gsm8k]
+  MMLU: [mmlu]
+  OpenBookQA: [openbookqa]
+  BoolQ: [boolq]
+  MBPP: [mbpp]

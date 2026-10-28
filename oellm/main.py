@@ -14,6 +14,7 @@ from string import Template
 import pandas as pd
 from jsonargparse import auto_cli
 
+from oellm import sample_exclusion
 from oellm.task_groups import (
     _build_task_suite_map,
     _collect_dataset_specs,
@@ -709,6 +710,7 @@ def collect_results(
     *,
     check: bool = False,
     fetch_all_metrics: bool = False,
+    exclude_samples: str | None = None,
     verbose: bool = False,
 ) -> None:
     """
@@ -733,11 +735,28 @@ def collect_results(
             by the ``metric:`` key on its task group in ``task-groups.yaml`` (or
             on the individual task entry, which overrides the group). Tasks that
             declare no primary metric keep all of theirs.
+        exclude_samples: Directory of blocklisted dataset rows, one
+            ``<benchmark>.jsonl`` per benchmark (e.g. contaminated test rows).
+            Each lm-eval task that holds such rows is also reported with them
+            left out, recomputed from the samples saved with ``--log_samples``.
+            The CSV then gets a ``subset`` column (``full`` or ``clean``) and an
+            ``n_excluded`` column. See ``oellm/sample_exclusion.py``.
         verbose: Enable verbose logging
     """
     import json
 
     _setup_logging(verbose)
+
+    if exclude_samples:
+        blocklist = sample_exclusion.load_blocklist(exclude_samples)
+        exclusion_task_map = sample_exclusion.load_task_map()
+        exclusion_targets = {t for tasks in exclusion_task_map.values() for t in tasks}
+        unmapped = sorted(b for b in blocklist if b not in exclusion_task_map)
+        if unmapped:
+            logging.info(
+                "Blocklisted benchmarks with no oellm-eval task, ignored: "
+                + ", ".join(unmapped)
+            )
 
     # ------------------------------------------------------------------
     # Primary metric per task, taken from the task definitions themselves
@@ -894,6 +913,8 @@ def collect_results(
                     for metric_name, performance in metric_pairs
                 )
             continue
+
+        file_rows_start = len(rows)
 
         # Extract model name/path from a few common locations used in different
         # versions of the result JSON schema.
@@ -1062,16 +1083,73 @@ def collect_results(
                         f"No performance metric found for {model_name} | {task_name} | n_shot={n_shot} in {json_file.name}"
                     )
 
+        if exclude_samples:
+            # Report each task that loses blocklisted samples a second time,
+            # with the same metrics recomputed without them.
+            file_rows = rows[file_rows_start:]
+            try:
+                clean = sample_exclusion.clean_results(
+                    json_file, data, blocklist, exclusion_task_map
+                )
+            except sample_exclusion.RunNotFilterable as e:
+                # No wrong number, just no clean one: e.g. an older run
+                # without --log_samples in the same results directory.
+                logging.warning(f"No scores without blocklisted samples: {e}")
+                clean = {}
+            for name, (clean_result, n_excluded) in clean.items():
+                full_rows = [r for r in file_rows if r["task"] == name]
+                if not full_rows:
+                    # An MMLU subject is reported through its group, silently.
+                    # A mapped task should have a row of its own.
+                    if name in exclusion_targets:
+                        logging.info(
+                            f"{model_name} | {name}: {n_excluded} blocklisted "
+                            "documents, but the task is only reported as part of "
+                            "a larger group, so it gets no score without them"
+                        )
+                    continue
+                wanted = {r["metric_name"] for r in full_rows}
+                clean_metrics = {
+                    m: v for m, v in _extract_all_metrics(clean_result) if m in wanted
+                }
+                if wanted - clean_metrics.keys():
+                    raise sample_exclusion.SampleExclusionError(
+                        f"{name}: {sorted(wanted - clean_metrics.keys())} cannot be "
+                        "recomputed without the blocklisted samples; only metrics "
+                        "averaged over samples can."
+                    )
+                logging.info(
+                    f"{model_name} | {name}: {n_excluded} blocklisted documents excluded"
+                )
+                rows.extend(
+                    {
+                        **r,
+                        "performance": clean_metrics[r["metric_name"]],
+                        "subset": "clean",
+                        "n_excluded": n_excluded,
+                    }
+                    for r in full_rows
+                )
+
     if not rows and not check:
         logging.warning("No results extracted from JSON files")
         return
 
     # Create DataFrame and save to CSV (if we have results)
     if rows:
+        key_columns = ["model_name", "task", "n_shot", "metric_name"]
+        if exclude_samples:
+            rows = [
+                {
+                    **r,
+                    "subset": r.get("subset", "full"),
+                    "n_excluded": r.get("n_excluded", 0),
+                }
+                for r in rows
+            ]
+            key_columns.append("subset")
         df = pd.DataFrame(rows)
-        df = df.drop_duplicates(
-            subset=["model_name", "task", "n_shot", "metric_name"], keep="last"
-        )
+        df = df.drop_duplicates(subset=key_columns, keep="last")
         df.to_csv(output_csv, index=False)
         logging.info(f"Results saved to {output_csv}")
         logging.info(f"Extracted {len(df)} evaluation results")
