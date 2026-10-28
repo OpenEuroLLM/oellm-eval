@@ -276,6 +276,8 @@ do
                 # otherwise leak into the next evaluation in this job
                 (
                 cd "$EVALCHEMY_WORK_DIR"
+                # evalchemy passes --limit only to lm-eval tasks; its own benchmarks
+                # (MATH500, AIME24, ...) ignore it and shrink only under --debug
                 accelerate launch --num-processes "$GPUS_PER_NODE" --num-machines 1 \
                     $MULTI_GPU_FLAG -m eval.eval \
                     --model hf \
@@ -283,7 +285,7 @@ do
                     --model_args "trust_remote_code=True,pretrained=$model_path" \
                     --batch_size auto \
                     --output_path "$RESULTS_SUBDIR" \
-                    ${{LIMIT:+--limit $LIMIT}}
+                    ${{LIMIT:+--limit $LIMIT --debug}}
                 )
                 EVAL_STATUS=$?
             else
