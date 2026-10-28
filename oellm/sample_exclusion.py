@@ -15,6 +15,7 @@ exactly is an error rather than an approximate number.
 
 import json
 import math
+import re
 from importlib.resources import files
 from numbers import Real
 from pathlib import Path
@@ -47,11 +48,15 @@ def load_blocklist(path: str | Path) -> dict[str, list[dict]]:
     blocklist = {}
     for file in sorted(path.glob("*.jsonl")):
         with open(file, encoding="utf-8") as f:
-            blocklist[file.stem] = [
+            rows = [
                 {k: v for k, v in json.loads(line).items() if not k.startswith("_")}
                 for line in f
                 if line.strip()
             ]
+        if not all(rows):
+            # A row without fields would match every document.
+            raise SampleExclusionError(f"{file}: a row has only `_` annotation fields")
+        blocklist[file.stem] = rows
     if not blocklist:
         raise SampleExclusionError(f"No .jsonl files in blocklist directory {path}")
     return blocklist
@@ -107,7 +112,7 @@ def _is_mean_metric(metric: str, config: dict) -> bool:
         name = str(entry.get("metric"))
         # A metric given as a function (mbpp's utils.pass_at_1) is saved as its
         # source code.
-        if name == metric or name.startswith(f"def {metric}("):
+        if name == metric or re.search(rf"^def {re.escape(metric)}\(", name, re.M):
             return entry.get("aggregation") == "mean"
     return metric in _DEFAULT_MEAN_METRICS.get(config.get("output_type"), set())
 

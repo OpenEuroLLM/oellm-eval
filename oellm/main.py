@@ -740,7 +740,9 @@ def collect_results(
             Each lm-eval task that holds such rows is also reported with them
             left out, recomputed from the samples saved with ``--log_samples``.
             The CSV then gets a ``subset`` column (``full`` or ``clean``) and an
-            ``n_excluded`` column. See ``oellm/sample_exclusion.py``.
+            ``n_excluded`` column. A run without saved samples or made with
+            ``--limit`` gets no clean rows and a warning; a score that cannot
+            be recomputed exactly is an error. See ``oellm/sample_exclusion.py``.
         verbose: Enable verbose logging
     """
     import json

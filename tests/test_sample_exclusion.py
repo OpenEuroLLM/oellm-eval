@@ -132,6 +132,19 @@ def test_nothing_excluded_reproduces_the_reported_scores(tmp_path):
         assert clean[key] == pytest.approx(task["result"][key], rel=1e-12)
 
 
+@pytest.mark.parametrize(
+    "source",
+    [
+        "def pass_at_1(\n    references, predictions\n) -> float:\n    ...\n",
+        "@functools.cache\ndef pass_at_1(references, predictions):\n    ...\n",
+    ],
+)
+def test_metric_function_sources_are_recognised(source):
+    config = {"metric_list": [{"metric": source, "aggregation": "mean"}]}
+    assert sample_exclusion._is_mean_metric("pass_at_1", config)
+    assert not sample_exclusion._is_mean_metric("pass_at", config)
+
+
 @pytest.mark.parametrize("key", ["acc,none", "acc_stderr,none"])
 def test_samples_that_do_not_reproduce_the_reported_score_are_refused(tmp_path, key):
     docs = _docs(5)
@@ -219,6 +232,18 @@ def test_annotation_fields_of_the_blocklist_are_ignored(tmp_path):
     assert sample_exclusion.load_blocklist(tmp_path) == {
         "Toy": [{"question": "q1", "answer": 1}]
     }
+
+
+def test_a_row_with_only_annotations_is_refused(tmp_path):
+    """Without its `_` fields it would match, and exclude, every document."""
+    (tmp_path / "Toy.jsonl").write_text(
+        json.dumps({"question": "q1"})
+        + "\n"
+        + json.dumps({"_matched_ngrams": "x"})
+        + "\n"
+    )
+    with pytest.raises(SampleExclusionError, match="only `_` annotation fields"):
+        sample_exclusion.load_blocklist(tmp_path)
 
 
 def test_identical_documents_are_all_excluded(tmp_path):
