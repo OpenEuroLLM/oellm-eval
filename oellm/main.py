@@ -704,6 +704,53 @@ def schedule_evals(
         raise SystemExit(1) from e
 
 
+def _pair_clean_with_full(df: pd.DataFrame, key_columns: list[str]) -> pd.DataFrame:
+    """Deduplicate the rows of ``collect --exclude_samples``.
+
+    Of several runs of one model, task and n_shot the last full score is kept,
+    as without the flag. A clean score is kept only if it comes from that same
+    run, so the two rows never describe different evaluations, e.g. a rerun
+    without saved samples next to an older run with them.
+    """
+    df = df.copy()
+    for column, default in (("subset", "full"), ("n_excluded", 0), ("_source", "")):
+        df[column] = df[column].fillna(default) if column in df else default
+    df["n_excluded"] = df["n_excluded"].astype(int)
+
+    full = df[df["subset"] == "full"].drop_duplicates(subset=key_columns, keep="last")
+    run_of = {
+        tuple(key): source
+        for *key, source in full[[*key_columns, "_source"]].itertuples(index=False)
+    }
+    clean = df[df["subset"] == "clean"]
+    same_run = pd.Series(
+        [
+            run_of.get(tuple(key)) == source
+            for *key, source in clean[[*key_columns, "_source"]].itertuples(index=False)
+        ],
+        index=clean.index,
+        dtype=bool,
+    )
+    dropped = clean[~same_run]
+    clean = clean[same_run].drop_duplicates(subset=key_columns, keep="last")
+    kept = set(clean[key_columns].itertuples(index=False, name=None))
+    missing = sorted(
+        {
+            f"{r.model_name} | {r.task} | n_shot={r.n_shot}"
+            for r in dropped.itertuples()
+            if tuple(getattr(r, c) for c in key_columns) not in kept
+        }
+    )
+    if missing:
+        logging.warning(
+            "No scores without blocklisted samples for "
+            + ", ".join(missing)
+            + ": the full score kept comes from another run of the same task, "
+            "which cannot be filtered."
+        )
+    return pd.concat([full, clean]).sort_index().drop(columns="_source")
+
+
 def collect_results(
     results_dir: str,
     output_csv: str = "eval_results.csv",
@@ -1089,6 +1136,9 @@ def collect_results(
             # Report each task that loses blocklisted samples a second time,
             # with the same metrics recomputed without them.
             file_rows = rows[file_rows_start:]
+            for r in file_rows:
+                # Pairs each clean score with the full score of the same run.
+                r["_source"] = str(json_file)
             try:
                 clean = sample_exclusion.clean_results(
                     json_file, data, blocklist, exclusion_task_map
@@ -1140,18 +1190,11 @@ def collect_results(
     # Create DataFrame and save to CSV (if we have results)
     if rows:
         key_columns = ["model_name", "task", "n_shot", "metric_name"]
-        if exclude_samples:
-            rows = [
-                {
-                    **r,
-                    "subset": r.get("subset", "full"),
-                    "n_excluded": r.get("n_excluded", 0),
-                }
-                for r in rows
-            ]
-            key_columns.append("subset")
         df = pd.DataFrame(rows)
-        df = df.drop_duplicates(subset=key_columns, keep="last")
+        if exclude_samples:
+            df = _pair_clean_with_full(df, key_columns)
+        else:
+            df = df.drop_duplicates(subset=key_columns, keep="last")
         df.to_csv(output_csv, index=False)
         logging.info(f"Results saved to {output_csv}")
         logging.info(f"Extracted {len(df)} evaluation results")

@@ -63,12 +63,18 @@ def _task(docs, scores, metric="acc", output_type="multiple_choice", aggregation
 
 
 def _write_run(
-    run_dir, tasks, groups=None, group_subtasks=None, limit=None, name="results"
+    run_dir,
+    tasks,
+    groups=None,
+    group_subtasks=None,
+    limit=None,
+    results_name="results",
 ):
     """Write lm-eval's results file and sample files; return the results path.
 
     lm-eval names the results file results_<date>.json when --output_path is a
-    directory and <name>_<date>.json when it is <name>.json, as oellm passes it.
+    directory and <results_name>_<date>.json when it is <results_name>.json, as
+    oellm passes it.
     """
     run_dir.mkdir(parents=True, exist_ok=True)
     group_subtasks = group_subtasks or {name: [] for name in tasks}
@@ -85,7 +91,7 @@ def _write_run(
         "config": {"limit": limit, "samples": None},
         "model_name": "m",
     }
-    results_file = run_dir / f"{name}_{TS}.json"
+    results_file = run_dir / f"{results_name}_{TS}.json"
     results_file.write_text(json.dumps(data))
     for name, t in tasks.items():
         (run_dir / f"samples_{name}_{TS}.jsonl").write_text(
@@ -118,7 +124,9 @@ def test_samples_are_found_for_either_results_file_name(tmp_path, name):
     """oellm's job template passes --output_path <run id>.json, so lm-eval
     writes <run id>_<date>.json next to samples_<task>_<date>.jsonl."""
     docs = _docs(4)
-    run = _write_run(tmp_path, {"toy": _task(docs, {"none": [1, 0, 1, 0]})}, name=name)
+    run = _write_run(
+        tmp_path, {"toy": _task(docs, {"none": [1, 0, 1, 0]})}, results_name=name
+    )
     assert run.name == f"{name}_{TS}.json"
     assert _clean(run, {"Toy": [docs[0]]})["toy"][0]["acc,none"] == pytest.approx(1 / 3)
 
@@ -496,6 +504,63 @@ def test_collect_skips_a_run_it_cannot_filter_and_filters_the_rest(
     assert set(clean.model_name) == {"m"}
     assert set(df[df.model_name == "old-model"].subset) == {"full"}
     assert "--log_samples" in caplog.text
+
+
+def _collect_runs(tmp_path, monkeypatch, runs):
+    """collect over one run per (directory, scores, with saved samples)."""
+    docs = _docs(6)
+    for run_dir, values, with_samples in runs:
+        _write_run(tmp_path / run_dir, {"toy": _task(docs, {"none": values})})
+        if not with_samples:
+            (tmp_path / run_dir / f"samples_toy_{TS}.jsonl").unlink()
+    (tmp_path / "blocklist").mkdir()
+    (tmp_path / "blocklist" / "Toy.jsonl").write_text(json.dumps(docs[0]) + "\n")
+    monkeypatch.setattr(sample_exclusion, "load_task_map", lambda: {"Toy": ["toy"]})
+    out = tmp_path / "out.csv"
+    collect_results(str(tmp_path), str(out), exclude_samples=str(tmp_path / "blocklist"))
+    df = pd.read_csv(out)
+    assert "_source" not in df.columns
+    return df[df.metric_name == "acc"].set_index("subset")
+
+
+def test_full_and_clean_scores_come_from_the_same_run(tmp_path, monkeypatch, caplog):
+    """Run b sorts after run a, so its full score is kept. b saved no samples,
+    so a's clean score must not be paired with it."""
+    monkeypatch.setattr("oellm.main._setup_logging", lambda verbose=False: None)
+    caplog.set_level(logging.WARNING)
+    df = _collect_runs(
+        tmp_path,
+        monkeypatch,
+        [("a", [1, 1, 1, 1, 0, 0], True), ("b", [1, 0, 0, 0, 0, 0], False)],
+    )
+    assert df.loc["full", "performance"] == pytest.approx(1 / 6)
+    assert "clean" not in df.index
+    assert "m | toy | n_shot=0: the full score kept comes from another run" in caplog.text
+
+
+def test_the_kept_run_gives_both_scores(tmp_path, monkeypatch):
+    df = _collect_runs(
+        tmp_path,
+        monkeypatch,
+        [("a", [1, 0, 0, 0, 0, 0], False), ("b", [1, 1, 1, 1, 0, 0], True)],
+    )
+    assert df.loc["full", "performance"] == pytest.approx(4 / 6)
+    assert df.loc["clean", "performance"] == pytest.approx(3 / 5)
+
+
+def test_of_two_runs_with_samples_the_kept_one_gives_both_scores(
+    tmp_path, monkeypatch, caplog
+):
+    monkeypatch.setattr("oellm.main._setup_logging", lambda verbose=False: None)
+    caplog.set_level(logging.WARNING)
+    df = _collect_runs(
+        tmp_path,
+        monkeypatch,
+        [("a", [1, 1, 1, 1, 0, 0], True), ("b", [1, 0, 0, 0, 0, 1], True)],
+    )
+    assert df.loc["full", "performance"] == pytest.approx(2 / 6)
+    assert df.loc["clean", "performance"] == pytest.approx(1 / 5)
+    assert "No scores without blocklisted samples" not in caplog.text
 
 
 def test_collect_logs_a_mapped_task_reported_only_through_a_group(
