@@ -283,6 +283,7 @@ do
                 # otherwise leak into the next evaluation in this job
                 (
                 cd "$EVALCHEMY_WORK_DIR"
+                # No sample logging: evalchemy's benchmarks crash on it.
                 accelerate launch --num-processes "$GPUS_PER_NODE" --num-machines 1 \
                     $MULTI_GPU_FLAG -m eval.eval \
                     --model hf \
@@ -290,8 +291,7 @@ do
                     --model_args "trust_remote_code=True,pretrained=$model_path" \
                     --batch_size auto \
                     --output_path "$RESULTS_SUBDIR" \
-                    ${{LIMIT:+--limit $LIMIT}} \
-                    ${{LOG_SAMPLES:+--log_samples}}
+                    ${{LIMIT:+--limit $LIMIT}}
                 )
                 EVAL_STATUS=$?
             else

@@ -214,10 +214,10 @@ def schedule_evals(
             --generation.n_instructions to JudgeArena.
         log_samples: If True, save every sample (prompt, model output, and
             per-sample metrics) instead of only the aggregated scores. Passes
-            --log_samples to lm-eval-harness and evalchemy, and --save-details
-            to lighteval. Off by default; the dumps are large. lm-eval-harness
-            always receives --write_out, which logs the first sample of each
-            task in the job output whether or not this is set.
+            --log_samples to lm-eval-harness and --save-details to lighteval,
+            but nothing to evalchemy, whose benchmarks crash on it. Off by
+            default. lm-eval-harness always gets --write_out, which logs each
+            task's first sample either way.
         download_only: If True, only download the datasets and models and exit.
         dry_run: If True, generate the SLURM script but don't submit it to the scheduler.
         skip_checks: If True, skip container image, model validation, and dataset pre-download checks for faster execution.

@@ -68,7 +68,8 @@ def test_full_sample_logging_is_opt_in(script):
     assert script.count("--save-details") == script.count(
         "${LOG_SAMPLES:+--save-details}"
     )
-    assert script.count("${LOG_SAMPLES:+--log_samples}") == 2  # lm-eval and evalchemy
+    # lm-eval only: evalchemy crashes on --log_samples (see template.sbatch)
+    assert script.count("${LOG_SAMPLES:+--log_samples}") == 1
     assert script.count("${LOG_SAMPLES:+--save-details}") == 2  # venv and container
 
 
