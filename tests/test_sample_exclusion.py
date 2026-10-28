@@ -157,6 +157,23 @@ def test_metric_function_sources_are_recognised(source):
     assert not sample_exclusion._is_mean_metric("pass_at", config)
 
 
+@pytest.mark.parametrize("metric, is_mean", [("acc", True), ("f1", False)])
+def test_a_metric_without_aggregation_takes_lm_eval_s_default(metric, is_mean):
+    """boolq lists `metric: acc` alone; lm-eval then averages it."""
+    config = {"output_type": "multiple_choice", "metric_list": [{"metric": metric}]}
+    assert sample_exclusion._is_mean_metric(metric, config) is is_mean
+
+
+def test_a_boolq_like_task_is_recomputed(tmp_path):
+    docs = _docs(6)
+    task = _task(docs, {"none": [1, 0, 1, 1, 0, 1]})
+    task["config"]["metric_list"] = [{"metric": "acc"}]
+    run = _write_run(tmp_path, {"toy": task})
+    clean, _ = _clean(run, {"Toy": [docs[0]]})["toy"]
+    assert clean["acc,none"] == pytest.approx(3 / 5)
+    assert "acc_stderr,none" in clean
+
+
 @pytest.mark.parametrize("key", ["acc,none", "acc_stderr,none"])
 def test_samples_that_do_not_reproduce_the_reported_score_are_refused(tmp_path, key):
     docs = _docs(5)
@@ -181,6 +198,41 @@ def test_a_document_is_excluded_from_every_filter(tmp_path):
     assert n_excluded == 1
     assert clean["exact_match,strict-match"] == 0.25
     assert clean["exact_match,flexible-extract"] == 0.75
+
+
+def test_a_metric_whose_first_filter_is_not_recomputed_is_left_out(tmp_path):
+    """collect reports a metric's first filter. Recomputing only a later one
+    would pair the full strict-match score with a clean flexible-extract one."""
+    docs = _docs(5)
+    task = _task(
+        docs,
+        {"strict-match": [1, 0, 0, 1, 0], "flexible-extract": [1, 1, 0, 1, 1]},
+        metric="exact_match",
+        output_type="generate_until",
+    )
+    task["samples"][4]["exact_match"] = None  # strict-match, last document
+    run = _write_run(tmp_path, {"toy": task})
+    clean, _ = _clean(run, {"Toy": [docs[0]]})["toy"]
+    assert not any(k.startswith("exact_match,") for k in clean)
+    assert not any(k.startswith("exact_match_stderr,") for k in clean)
+
+
+def test_a_filter_reported_without_a_number_is_passed_over(tmp_path):
+    """collect skips a filter whose reported value is not a number ("N/A"), and
+    so does the order of the recomputed keys."""
+    docs = _docs(5)
+    task = _task(
+        docs,
+        {"strict-match": [1, 0, 0, 1, 0], "flexible-extract": [1, 1, 0, 1, 1]},
+        metric="exact_match",
+        output_type="generate_until",
+    )
+    task["result"]["exact_match,strict-match"] = "N/A"
+    task["result"]["exact_match_stderr,strict-match"] = "N/A"
+    run = _write_run(tmp_path, {"toy": task})
+    clean, _ = _clean(run, {"Toy": [docs[0]]})["toy"]
+    assert clean["exact_match,flexible-extract"] == 0.75
+    assert "exact_match_stderr,flexible-extract" in clean
 
 
 def test_metrics_that_are_not_means_are_not_recomputed(tmp_path):
@@ -254,7 +306,25 @@ def test_a_row_with_only_annotations_is_refused(tmp_path):
         + json.dumps({"_matched_ngrams": "x"})
         + "\n"
     )
-    with pytest.raises(SampleExclusionError, match="only `_` annotation fields"):
+    with pytest.raises(
+        SampleExclusionError, match="Toy.jsonl, line 2: the row has only `_` annotation"
+    ):
+        sample_exclusion.load_blocklist(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "line, message",
+    [
+        ("[1, 2]", "expected a JSON object .* got a list"),
+        ('"q1"', "expected a JSON object .* got a str"),
+        ("{not json", "not valid JSON"),
+    ],
+)
+def test_a_line_that_is_not_a_row_is_refused(tmp_path, line, message):
+    (tmp_path / "Toy.jsonl").write_text(
+        json.dumps({"question": "q1"}) + "\n\n" + line + "\n"
+    )
+    with pytest.raises(SampleExclusionError, match=f"Toy.jsonl, line 3: {message}"):
         sample_exclusion.load_blocklist(tmp_path)
 
 
@@ -408,6 +478,17 @@ def test_a_group_whose_weighting_is_unknown_is_refused(tmp_path):
     once a document is excluded."""
     run, a, _ = _group_run(tmp_path, sizes=(5, 5))
     with pytest.raises(SampleExclusionError, match="they differ without"):
+        _clean(run, {"Toy": [a["samples"][0]["doc"]]})
+
+
+def test_a_group_from_lm_eval_before_0_4_12_is_refused(tmp_path):
+    """Older lm-eval writes no sample_len, which weighs a group's tasks."""
+    run, a, _ = _group_run(tmp_path)
+    data = json.loads(run.read_text())
+    for name in ("toy_a", "toy_b"):
+        del data["results"][name]["sample_len"]
+    run.write_text(json.dumps(data))
+    with pytest.raises(SampleExclusionError, match="lm-eval 0.4.12 or later"):
         _clean(run, {"Toy": [a["samples"][0]["doc"]]})
 
 
@@ -725,12 +806,16 @@ def test_every_mapped_evalchemy_task_can_be_rescored():
 
 @pytest.mark.skipif(not BLOCKLIST_DIR.is_dir(), reason="set OELLM_BLOCKLIST_DIR")
 def test_every_mapped_row_matches_one_lm_eval_document():
-    """Each blocklisted row of a mapped benchmark is a document of its task.
+    """Each blocklisted row of a mapped benchmark is a document of its task, and
+    each metric lm-eval averages over the task's samples is recognised as such
+    from the config it saves in the results file.
 
     Needs lm-eval and the datasets in the Hugging Face cache, e.g. inside the
-    eval container on LUMI.
+    eval container on LUMI, and HF_ALLOW_CODE_EVAL=1: loading mbpp runs a check
+    of HF's code_eval metric.
     """
     pytest.importorskip("lm_eval")
+    from lm_eval.api.metrics import mean
     from lm_eval.tasks import TaskManager
 
     blocklist = sample_exclusion.load_blocklist(BLOCKLIST_DIR)
@@ -749,6 +834,11 @@ def test_every_mapped_row_matches_one_lm_eval_document():
                         {"doc_id": i, "doc": json.loads(json.dumps(doc))}
                         for i, doc in enumerate(task.eval_docs)
                     ]
+                    config = json.loads(json.dumps(task.dump_config(), default=str))
+                    for metric, aggregation in task.aggregation().items():
+                        assert sample_exclusion._is_mean_metric(metric, config) == (
+                            aggregation is mean
+                        ), (name, metric)
         excluded = sample_exclusion._excluded_docs(
             blocklist[benchmark], samples, benchmark
         )

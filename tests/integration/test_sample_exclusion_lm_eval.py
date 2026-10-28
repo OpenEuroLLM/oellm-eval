@@ -4,9 +4,9 @@ Runs a small model through lm-eval twice: once over whole benchmarks with
 ``--log_samples``, and once with ``--samples`` limited to the documents a
 blocklist leaves. The scores ``clean_results`` recomputes from the first run
 must equal what lm-eval reports for the second. The tasks cover a
-multiple-choice task, a generation task with two filters, a metric defined as
-a function (mbpp's pass@1, which runs the generated code) and a size-weighted
-group.
+multiple-choice task, one whose metric has no aggregation in its config (boolq),
+a generation task with two filters, a metric defined as a function (mbpp's
+pass@1, which runs the generated code) and a size-weighted group.
 
 Needs lm-eval, the model and the datasets in the Hugging Face cache, so it
 only runs when OELLM_LM_EVAL_MODEL_TESTS=1, e.g. in the eval container in a
@@ -31,7 +31,7 @@ MODEL = "pretrained=EleutherAI/pythia-70m,dtype=float32"
 DEVICE = os.environ.get("OELLM_LM_EVAL_DEVICE", "cuda")
 # 0-shot: lm-eval draws few-shot examples from one random stream across all
 # documents, so with --samples a document would get other examples.
-TASKS = ["openbookqa", "gsm8k", "mbpp", "mmlu_stem"]
+TASKS = ["openbookqa", "boolq", "gsm8k", "mbpp", "mmlu_stem"]
 
 
 def _lm_eval(output, *args):
@@ -96,6 +96,6 @@ def test_excluding_after_the_run_equals_lm_eval_scoring_the_rest(tmp_path):
         for key, value in scores.items():
             assert value == pytest.approx(expected[key], rel=1e-9, abs=1e-12), (name, key)
             compared += 1
-    assert {"openbookqa", "gsm8k", "mbpp", "mmlu_stem"} <= clean.keys()
+    assert set(TASKS) <= clean.keys()
     assert clean["mmlu_stem"][1] > len(blocklist["mmlu"])  # duplicates were excluded
     assert compared > 50

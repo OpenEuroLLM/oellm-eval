@@ -1168,7 +1168,8 @@ def collect_results(
                     raise sample_exclusion.SampleExclusionError(
                         f"{name}: {sorted(wanted - clean_metrics.keys())} cannot be "
                         "recomputed without the blocklisted samples; only metrics "
-                        "averaged over samples can."
+                        "averaged over samples, with a number saved for every "
+                        "sample, can."
                     )
                 logging.info(
                     f"{model_name} | {name}: {n_excluded} blocklisted documents excluded"

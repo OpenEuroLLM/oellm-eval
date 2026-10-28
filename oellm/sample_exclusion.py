@@ -34,6 +34,17 @@ _DEFAULT_MEAN_METRICS = {
     "loglikelihood": {"acc"},
     "generate_until": {"exact_match"},
 }
+# Metrics registered in lm-eval with a mean as their default aggregation, which
+# lm-eval uses when a metric_list entry gives none (boolq's acc).
+_REGISTERED_MEAN_METRICS = {
+    "acc",
+    "acc_norm",
+    "acc_mutual_info",
+    "acc_bytes",
+    "acc_all",
+    "exact_match",
+    "likelihood",
+}
 
 # evalchemy benchmarks whose results keep every question and model answer
 # (``examples``): their number of questions, and whether a question is solved,
@@ -59,15 +70,28 @@ def load_blocklist(path: str | Path) -> dict[str, list[dict]]:
         raise SampleExclusionError(f"Blocklist directory does not exist: {path}")
     blocklist = {}
     for file in sorted(path.glob("*.jsonl")):
+        rows = []
         with open(file, encoding="utf-8") as f:
-            rows = [
-                {k: v for k, v in json.loads(line).items() if not k.startswith("_")}
-                for line in f
-                if line.strip()
-            ]
-        if not all(rows):
-            # A row without fields would match every document.
-            raise SampleExclusionError(f"{file}: a row has only `_` annotation fields")
+            for line_number, line in enumerate(f, 1):
+                if not line.strip():
+                    continue
+                where = f"{file}, line {line_number}"
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError as e:
+                    raise SampleExclusionError(f"{where}: not valid JSON ({e})") from e
+                if not isinstance(row, dict):
+                    raise SampleExclusionError(
+                        f"{where}: expected a JSON object (one dataset row), "
+                        f"got a {type(row).__name__}"
+                    )
+                row = {k: v for k, v in row.items() if not k.startswith("_")}
+                if not row:
+                    # A row without fields would match every document.
+                    raise SampleExclusionError(
+                        f"{where}: the row has only `_` annotation fields"
+                    )
+                rows.append(row)
         blocklist[file.stem] = rows
     if not blocklist:
         raise SampleExclusionError(f"No .jsonl files in blocklist directory {path}")
@@ -125,7 +149,9 @@ def _is_mean_metric(metric: str, config: dict) -> bool:
         # A metric given as a function (mbpp's utils.pass_at_1) is saved as its
         # source code.
         if name == metric or re.search(rf"^def {re.escape(metric)}\(", name, re.M):
-            return entry.get("aggregation") == "mean"
+            if "aggregation" not in entry:
+                return metric in _REGISTERED_MEAN_METRICS
+            return entry["aggregation"] == "mean"
     return metric in _DEFAULT_MEAN_METRICS.get(config.get("output_type"), set())
 
 
@@ -135,11 +161,19 @@ def _metric_keys(result: dict) -> list[str]:
 
 
 def _in_order_of(result: dict, scores: dict) -> dict:
-    # collect keeps the first of several filters' values for a metric, so the
-    # recomputed keys must come in the order of the reported ones.
-    return {k: scores[k] for k in result if k in scores} | {
-        "sample_len": scores["sample_len"]
-    }
+    # collect keeps the first of several filters' numeric values for a metric,
+    # so the recomputed keys must come in the order of the reported ones. A
+    # metric whose first filter was not recomputed is left out, rather than
+    # paired with another filter's value.
+    first: dict[str, str] = {}
+    for key, value in result.items():
+        if _is_number(value):
+            first.setdefault(key.split(",")[0], key)
+    return {
+        k: scores[k]
+        for k in result
+        if k in scores and first.get(k.split(",")[0]) in scores
+    } | {"sample_len": scores["sample_len"]}
 
 
 def _leaves(name: str, group_subtasks: dict) -> list[str]:
@@ -317,6 +351,12 @@ def _group_scores(
     one that reproduces the reported score and stderr. If both do, they must
     also agree once the blocklisted samples are gone.
     """
+    if not all("sample_len" in full[leaf] for leaf in leaves):
+        raise SampleExclusionError(
+            f"{group}: its tasks' results have no sample_len, which lm-eval writes "
+            "from 0.4.12 on. Recomputing a group needs a run made with lm-eval "
+            "0.4.12 or later."
+        )
     scores = {"sample_len": sum(clean[leaf]["sample_len"] for leaf in leaves)}
     sizes = [full[leaf]["sample_len"] for leaf in leaves]
     clean_sizes = [clean[leaf]["sample_len"] for leaf in leaves]

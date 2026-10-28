@@ -341,8 +341,9 @@ MATH500 needs no `--log_samples`: evalchemy's results file already keeps every q
 
 A run without saved samples, or one made with `--limit` or `--samples` (or evalchemy's `--debug`), gets no clean rows and a warning; its full scores are collected as usual. `collect` stops with an error instead of reporting a number it cannot recompute exactly:
 - a blocklisted row that matches no document of its task;
-- a metric that is not an average over samples, such as BLEU or F1 computed over the whole corpus;
-- saved samples that do not reproduce the reported scores.
+- a metric that is not an average over samples, such as BLEU or F1 computed over the whole corpus, or one without a number saved for every sample;
+- saved samples that do not reproduce the reported scores;
+- a group such as MMLU from a run made with lm-eval before 0.4.12, which does not save the task sizes the group is weighted by.
 
 ## CSV-Based Scheduling
 
