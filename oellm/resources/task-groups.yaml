@@ -503,6 +503,15 @@ task_groups:
         n_shots: [0]
         suite: evalchemy
 
+  bbq:
+    description: "BBQ bias benchmark for question answering (0-shot, accuracy)."
+    suite: inspect
+    metric: accuracy
+    n_shots: [0]
+    dataset: heegyu/bbq
+    tasks:
+      - task: inspect_evals/bbq
+
   crows-pairs:
     description: "CrowS-Pairs social bias benchmark (English, 0-shot)."
     suite: lm-eval-harness

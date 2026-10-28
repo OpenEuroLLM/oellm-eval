@@ -36,7 +36,8 @@ def test_cache_dirs_live_under_hf_home(script):
 
 def test_lighteval_is_told_where_to_cache(script):
     """lighteval ignores HF_HOME, so it only honours cache_dir as a model arg."""
-    assert script.count("cache_dir=$LIGHTEVAL_CACHE_DIR") == 2  # venv and container
+    # Both runtimes now use the same command through run_in_eval_env.
+    assert script.count("cache_dir=$LIGHTEVAL_CACHE_DIR") == 1
 
 
 def test_lm_harness_cache_reaches_contained_containers(script):
