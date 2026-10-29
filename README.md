@@ -335,15 +335,34 @@ oellm-eval collect --results_dir /path/to/eval-output-dir \
     --exclude_samples /path/to/blocklist
 ```
 
-The blocklist is a directory with one `<benchmark>.jsonl` per benchmark, each line an original dataset row; fields starting with `_` are ignored. [`oellm/resources/sample-exclusion.yaml`](oellm/resources/sample-exclusion.yaml) maps the benchmarks to lm-eval tasks and evalchemy's MATH500. Each task holding blocklisted rows gets a second set of rows in the CSV, recomputed from the saved samples without those rows, and the CSV gains a `subset` column (`full` or `clean`) and an `n_excluded` column. Rows are matched by content, so every copy of a blocklisted question is excluded, and `n_excluded` counts documents: it can exceed the number of blocklisted rows when a benchmark repeats a question.
+The blocklist is a directory with one `<benchmark>.jsonl` per benchmark, each line an original dataset row; fields starting with `_` are ignored. Benchmarks are named as the decontamination pipeline names them, and [`oellm/resources/sample-exclusion.yaml`](oellm/resources/sample-exclusion.yaml) maps each to the lm-eval and lighteval tasks, or evalchemy's MATH500, that hold its rows. Each task holding blocklisted rows gets a second set of rows in the CSV, recomputed from the saved samples without those rows, and the CSV gains a `subset` column (`full` or `clean`) and an `n_excluded` column.
 
-MATH500 needs no `--log_samples`: evalchemy's results file already keeps every question and model answer, and `collect` re-scores them the way evalchemy does. evalchemy's other benchmarks cannot be filtered; HumanEval and LiveCodeBench, for example, keep only their overall scores.
+A blocklisted row is excluded in every language oellm evaluates its benchmark in: an English XNLI row also removes its German, French and other translations. Every copy of a blocklisted question is excluded, so `n_excluded` counts documents: it can exceed the number of blocklisted rows when a benchmark repeats a question.
+- lm-eval saves each dataset row, and a blocklist row matches a document whose fields equal its own, comparing the fields both have. The map can name the fields to match on (`match_on`): ones oellm's copy keeps unchanged, or that identify an item in every language (PAWS-X's `id`, XStoryCloze's `story_id`). With `normalize`, text is compared by its letters and digits only (oellm's Jeopardy drops apostrophes).
+- lighteval saves the prompt it built from a row instead, so a blocklist row matches a document whose prompt contains each of its text fields, ignoring case and punctuation. The map names those fields.
+- Where the translations share no such field (XNLI, MGSM, PolyMath, MMLU's Global-MMLU and MMMLU), or are lighteval tasks (Belebele's cf tasks, GPQA in Finnish), an alignment table in [`oellm/resources/sample-exclusion-alignments/`](oellm/resources/sample-exclusion-alignments) gives each item's position in every task. `collect` first checks that a run's documents are the ones the table was built from (as many, with the same answers in the same order) and skips the run with a warning if not. [`scripts/build_sample_exclusion_alignments.py`](scripts/build_sample_exclusion_alignments.py) builds the tables in the eval container, checking that every language's documents are translations of the same items; with `--check`, it rebuilds them and compares them with the repository's.
+- A row that matches no document, for example because oellm evaluates only part of a benchmark, is not excluded, and `collect` logs how many there are.
+
+MATH500 needs no `--log_samples`: evalchemy's results file already keeps every question and model answer, and `collect` re-scores them the way evalchemy does. evalchemy's other benchmarks and JudgeArena's cannot be filtered yet; HumanEval and LiveCodeBench, for example, keep only their overall scores.
+
+Recomputed are scores averaged over samples, lm-eval's perplexity and IFEval's instruction-level accuracy, and lighteval's corpus BLEU and chrF++ (FLORES-200), for which `collect` needs `sacrebleu` installed (without it, such a run gets no clean rows and a warning). A standard error lm-eval or lighteval estimates by bootstrapping (perplexity, BLEU, chrF++) is left out of the clean rows, with a warning. lighteval's chrF++ scores only the first translation, against every reference (it passes each sentence's references as a separate reference set); the clean score is computed the same way, so it is as uninformative.
 
 A run without saved samples, or one made with `--limit` or `--samples` (or evalchemy's `--debug`), gets no clean rows and a warning; its full scores are collected as usual. `collect` stops with an error instead of reporting a number it cannot recompute exactly:
-- a blocklisted row that matches no document of its task;
-- a metric that is not an average over samples, such as BLEU or F1 computed over the whole corpus, or one without a number saved for every sample;
+- a metric that cannot be recomputed from the saved samples, such as F1 computed over the whole corpus (SQuAD v2), or one without a value saved for every sample;
 - saved samples that do not reproduce the reported scores;
-- a group such as MMLU from a run made with lm-eval before 0.4.12, which does not save the task sizes the group is weighted by.
+- a group such as MMLU from a run made with lm-eval before 0.4.12, which does not save the task sizes the group is weighted by;
+- a blocklist row that matches more than 10 documents of one task, which means the fields it is matched on do not identify a document.
+
+### Evaluating without contaminated samples
+
+The task group `decontaminated-agenttrove-0.0` runs every lm-eval task that holds a test row the decontamination pipeline (agenttrove-0.0) marked as contaminated, in every language oellm evaluates it in, on all of its documents but the marked ones (the `all` super group leaves it out):
+
+```bash
+oellm-eval schedule --models "my-model" \
+    --task_groups decontaminated-agenttrove-0.0
+```
+
+The documents to leave out ship with oellm-eval ([`oellm/resources/decontaminated/agenttrove-0.0.json`](oellm/resources/decontaminated/agenttrove-0.0.json)), so neither scheduling nor collecting needs the marked rows. The job template passes them to lm-eval as `--samples` (which cannot be combined with `--limit`) and names the results `<run>--decontaminated--agenttrove-0.0_<date>.json`, since lm-eval does not record `--samples`. `collect` reports these results with `subset` `decontaminated:agenttrove-0.0` and `n_excluded` set, next to any full scores of the same tasks, after checking that each task has as many documents as the list was built from and ran on as many as it keeps (and, with `--log_samples`, on exactly those, with the answers it lists); a run that does not match is skipped with a warning. The scores equal those `collect --exclude_samples` recomputes from a full run with the marked rows as blocklist. [`scripts/build_decontaminated_samples.py`](scripts/build_decontaminated_samples.py) builds the list from the marked rows, with the same matching.
 
 ## CSV-Based Scheduling
 

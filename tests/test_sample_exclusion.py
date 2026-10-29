@@ -6,11 +6,14 @@ computed with the ``statistics`` module, independently of the code under test,
 so a recomputation that drifts from lm-eval's formulas fails the self-check.
 """
 
+import hashlib
+import importlib.util
 import json
 import logging
 import math
 import os
 import statistics
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -28,6 +31,8 @@ BLOCKLIST_DIR = Path(os.environ.get("OELLM_BLOCKLIST_DIR", "/nonexistent"))
 # each of its benchmarks loads.
 EVALCHEMY_DIR = Path(os.environ.get("EVALCHEMY_DIR", "/opt/evalchemy"))
 EVALCHEMY_QUESTIONS = {"MATH500": "eval/chat_benchmarks/MATH500/data/math500.jsonl"}
+# agenttrove-0.0's rows that are not among the questions oellm evaluates.
+ROWS_OUTSIDE_EVALUATED_COPY = {"Jeopardy": 4}
 
 
 @pytest.fixture(autouse=True)
@@ -257,6 +262,110 @@ def test_a_metric_given_as_a_function_is_recomputed(tmp_path):
     assert clean["pass_at_1,none"] == 0.5
 
 
+def _ifeval_like(docs, prompt, instructions):
+    """ifeval: a boolean per prompt, and a list of booleans per prompt (one per
+    instruction) that lm-eval flattens before averaging, with no stderr."""
+    flat = [x for item in instructions for x in item]
+    result = {
+        "alias": "",
+        "sample_len": len(docs),
+        "prompt_level_strict_acc,none": statistics.mean(prompt),
+        "prompt_level_strict_acc_stderr,none": _score(prompt)[1],
+        "inst_level_strict_acc,none": sum(flat) / len(flat),
+        "inst_level_strict_acc_stderr,none": "N/A",
+    }
+    samples = [
+        {
+            "doc_id": i,
+            "doc": doc,
+            "filter": "none",
+            "prompt_level_strict_acc": p,
+            "inst_level_strict_acc": inst,
+        }
+        for i, (doc, p, inst) in enumerate(zip(docs, prompt, instructions, strict=True))
+    ]
+    config = {
+        "output_type": "generate_until",
+        "metric_list": [
+            {"metric": "prompt_level_strict_acc", "aggregation": "mean"},
+            {
+                "metric": "inst_level_strict_acc",
+                "aggregation": "def agg_inst_level_acc(items):\n    flat_items = ...\n",
+            },
+        ],
+    }
+    return {"result": result, "samples": samples, "config": config, "n": len(docs)}
+
+
+def test_ifeval_s_instruction_level_accuracy_is_recomputed(tmp_path):
+    docs = _docs(4)
+    prompt = [True, False, True, False]
+    instructions = [[True, True], [False, True, False], [True], [False]]
+    run = _write_run(tmp_path, {"toy": _ifeval_like(docs, prompt, instructions)})
+    clean, _ = _clean(run, {"Toy": [docs[1]]})["toy"]
+    assert clean["inst_level_strict_acc,none"] == 3 / 4  # [T, T], [T], [F]
+    assert clean["prompt_level_strict_acc,none"] == pytest.approx(2 / 3)
+    assert clean["prompt_level_strict_acc_stderr,none"] == pytest.approx(
+        _score([1, 1, 0])[1]
+    )
+    assert "inst_level_strict_acc_stderr,none" not in clean
+
+
+def _perplexity_like(docs, loglikelihoods, accs):
+    """lambada: a loglikelihood task without a metric_list gets acc and
+    perplexity, exp(-mean(ll)), whose stderr lm-eval bootstraps."""
+    result = {
+        "alias": "",
+        "sample_len": len(docs),
+        "perplexity,none": math.exp(-statistics.mean(loglikelihoods)),
+        "perplexity_stderr,none": 0.123,
+        "acc,none": statistics.mean(accs),
+        "acc_stderr,none": _score(accs)[1],
+    }
+    samples = [
+        {"doc_id": i, "doc": doc, "filter": "none", "perplexity": ll, "acc": a}
+        for i, (doc, ll, a) in enumerate(zip(docs, loglikelihoods, accs, strict=True))
+    ]
+    config = {"output_type": "loglikelihood"}
+    return {"result": result, "samples": samples, "config": config, "n": len(docs)}
+
+
+def test_perplexity_is_recomputed_without_its_bootstrapped_stderr(tmp_path):
+    docs = _docs(4)
+    task = _perplexity_like(docs, [-1.0, -2.0, -0.5, -1.5], [1, 0, 1, 0])
+    run = _write_run(tmp_path, {"toy": task})
+    clean, _ = _clean(run, {"Toy": [docs[0]]})["toy"]
+    assert clean["perplexity,none"] == pytest.approx(math.exp(4 / 3))
+    assert "perplexity_stderr,none" not in clean
+    assert clean["acc,none"] == pytest.approx(1 / 3)
+
+
+def test_collect_leaves_out_a_bootstrapped_stderr_and_says_so(
+    tmp_path, monkeypatch, capfd
+):
+    docs = _docs(4)
+    task = _perplexity_like(docs, [-1.0, -2.0, -0.5, -1.5], [1, 0, 1, 0])
+    _write_run(tmp_path / "run", {"toy": task})
+    (tmp_path / "blocklist").mkdir()
+    (tmp_path / "blocklist" / "Toy.jsonl").write_text(json.dumps(docs[0]) + "\n")
+    monkeypatch.setattr(sample_exclusion, "load_task_map", lambda: {"Toy": ["toy"]})
+    out = tmp_path / "out.csv"
+    collect_results(
+        str(tmp_path / "run"),
+        str(out),
+        fetch_all_metrics=True,
+        exclude_samples=str(tmp_path / "blocklist"),
+    )
+    df = pd.read_csv(out)
+    clean = df[df.subset == "clean"].set_index("metric_name")["performance"]
+    assert clean["perplexity"] == pytest.approx(math.exp(4 / 3))
+    assert "perplexity_stderr" not in clean
+    assert "acc_stderr" in clean
+    # collect logs through rich, which wraps lines.
+    logged = " ".join(capfd.readouterr().out.split())
+    assert "perplexity_stderr, which the harness estimates by bootstrapping" in logged
+
+
 def test_too_few_documents_left_is_refused(tmp_path):
     docs = _docs(3)
     run = _write_run(tmp_path, {"toy": _task(docs, {"none": [1, 0, 1]})})
@@ -274,35 +383,75 @@ def test_fields_the_task_added_to_its_documents_do_not_prevent_a_match(tmp_path)
     assert _clean(run, {"Toy": [row]})["toy"][1] == 1
 
 
+def test_fields_the_documents_lack_are_left_out_of_the_match(tmp_path):
+    """The evaluated copy of a dataset may keep only some of its fields."""
+    run = _write_run(tmp_path, {"toy": _task(_docs(4), {"none": [1, 0, 1, 0]})})
+    row = {"question": "q1", "answer": 1, "source": "x"}
+    assert _clean(run, {"Toy": [row]})["toy"][1] == 1
+
+
+def test_a_row_sharing_no_field_with_the_documents_matches_none(tmp_path):
+    run = _write_run(tmp_path, {"toy": _task(_docs(4), {"none": [1, 0, 1, 0]})})
+    assert _clean(run, {"Toy": [{"source": "x"}]}) == {}
+
+
+def test_a_row_matching_many_documents_is_refused(tmp_path):
+    """Sharing only a label with the documents, a row would exclude every
+    document with that label."""
+    docs = [{"question": f"q{i}", "answer": i % 2} for i in range(30)]
+    run = _write_run(tmp_path, {"toy": _task(docs, {"none": [1, 0] * 15})})
+    with pytest.raises(SampleExclusionError, match="Toy: a blocklist row matches 15"):
+        _clean(run, {"Toy": [{"label": "x", "answer": 1}]})
+
+
 @pytest.mark.parametrize(
     "row",
     [
         {"question": "q1", "answer": 2},  # different value
         {"question": "q1", "answer": "1"},  # different type
         {"question": "q1 ", "answer": 1},  # whitespace
-        {"question": "q1", "answer": 1, "source": "x"},  # field the docs lack
     ],
 )
-def test_a_row_that_matches_no_document_is_an_error(tmp_path, row):
+def test_a_row_that_matches_no_document_is_not_excluded(tmp_path, row, caplog):
+    """A row outside the evaluated copy (oellm's Jeopardy is a subset) leaves
+    nothing to exclude, and says so."""
     run = _write_run(tmp_path, {"toy": _task(_docs(4), {"none": [1, 0, 1, 0]})})
-    with pytest.raises(SampleExclusionError, match="matches no document"):
-        _clean(run, {"Toy": [row]})
+    with caplog.at_level(logging.INFO):
+        assert _clean(run, {"Toy": [row]}) == {}
+    (record,) = [r for r in caplog.records if r.getMessage().startswith("Toy:")]
+    assert record.levelno == logging.WARNING
+    assert "there are no samples to exclude" in record.getMessage()
+
+
+def test_the_rows_that_match_are_excluded_and_the_others_counted(tmp_path, caplog):
+    docs = _docs(4)
+    run = _write_run(tmp_path, {"toy": _task(docs, {"none": [1, 0, 1, 0]})})
+    rows = [docs[0], {"question": "q9", "answer": 0}, {"question": "q8", "answer": 2}]
+    with caplog.at_level(logging.WARNING):
+        clean, n_excluded = _clean(run, {"Toy": rows})["toy"]
+    assert n_excluded == 1
+    assert clean["acc,none"] == pytest.approx(1 / 3)
+    assert "3 blocklisted rows, 2 of them match no document" in caplog.text
 
 
 SPLIT_MAP = {"Toy": ["toy_low", "toy_medium"]}
 
 
-def test_a_run_with_part_of_a_split_benchmark_skips_the_other_rows(tmp_path):
+def test_a_run_with_part_of_a_split_benchmark_skips_the_other_rows(tmp_path, caplog):
     """PolyMath's rows come from polymath_en_low and _medium, which can be run
-    separately; the medium rows match nothing in a run of the low task."""
+    separately; the medium rows match nothing in a run of the low task, which is
+    expected, so it is no warning."""
     low, medium = _docs(4, "low"), _docs(4, "medium")
     run = _write_run(tmp_path, {"toy_low": _task(low, {"none": [1, 0, 1, 0]})})
-    clean = _clean(run, {"Toy": [low[0], medium[1]]}, SPLIT_MAP)
+    with caplog.at_level(logging.INFO):
+        clean = _clean(run, {"Toy": [low[0], medium[1]]}, SPLIT_MAP)
     assert clean.keys() == {"toy_low"}
     assert clean["toy_low"][1] == 1
+    (record,) = [r for r in caplog.records if r.getMessage().startswith("Toy:")]
+    assert record.levelno == logging.INFO
 
 
-def test_a_run_with_all_of_a_split_benchmark_needs_every_row_to_match(tmp_path):
+def test_a_run_with_all_of_a_split_benchmark_excludes_from_each_task(tmp_path):
     low, medium = _docs(4, "low"), _docs(4, "medium")
     tasks = {
         "toy_low": _task(low, {"none": [1, 0, 1, 0]}),
@@ -311,8 +460,30 @@ def test_a_run_with_all_of_a_split_benchmark_needs_every_row_to_match(tmp_path):
     run = _write_run(tmp_path, tasks)
     clean = _clean(run, {"Toy": [low[0], medium[1]]}, SPLIT_MAP)
     assert {name: n for name, (_, n) in clean.items()} == {"toy_low": 1, "toy_medium": 1}
-    with pytest.raises(SampleExclusionError, match="matches no document"):
-        _clean(run, {"Toy": [low[0], {"question": "high0", "answer": 0}]}, SPLIT_MAP)
+
+
+def test_a_benchmark_can_be_matched_on_some_fields(tmp_path):
+    """oellm's Jeopardy keeps 3 of the original dataset's fields."""
+    (tmp_path / "Toy.jsonl").write_text(
+        json.dumps({"question": "q1", "answer": 1, "air_date": "2008", "_n": 1}) + "\n"
+    )
+    match_fields = {"Toy": ["question", "answer"]}
+    blocklist = sample_exclusion.load_blocklist(tmp_path, match_fields)
+    assert blocklist == {"Toy": [{"question": "q1", "answer": 1}]}
+    run = _write_run(tmp_path / "run", {"toy": _task(_docs(4), {"none": [1, 0, 1, 0]})})
+    assert _clean(run, blocklist)["toy"][1] == 1
+
+
+def test_a_row_without_a_field_it_is_matched_on_is_refused(tmp_path):
+    (tmp_path / "Toy.jsonl").write_text(json.dumps({"question": "q1"}) + "\n")
+    with pytest.raises(SampleExclusionError, match="line 1: the row has no answer"):
+        sample_exclusion.load_blocklist(tmp_path, {"Toy": ["question", "answer"]})
+
+
+def test_match_fields_come_from_the_task_map():
+    assert sample_exclusion.load_match_fields()["Jeopardy"] == ["context", "continuation"]
+    assert sample_exclusion.load_task_map()["Jeopardy"] == ["jeopardy"]
+    assert "MMLU" not in sample_exclusion.load_match_fields()
 
 
 def test_annotation_fields_of_the_blocklist_are_ignored(tmp_path):
@@ -376,12 +547,19 @@ def test_a_limit_run_is_refused(tmp_path):
 
 
 def test_a_run_on_selected_samples_is_refused(tmp_path):
+    """lm-eval does not record --samples; a run with it scores fewer documents
+    than the task has, and saves them under their own doc_ids."""
     docs = _docs(5)
-    run = _write_run(tmp_path, {"toy": _task(docs, {"none": [1, 0, 1, 1, 0]})})
+    task = _task([docs[0], docs[2], docs[4]], {"none": [1, 0, 1]})
+    for s, doc_id in zip(task["samples"], [0, 2, 4], strict=True):
+        s["doc_id"] = doc_id
+    run = _write_run(tmp_path, {"toy": task})
     data = json.loads(run.read_text())
-    data["config"]["samples"] = {"toy": [0, 1, 2, 3, 4]}
+    data["n-samples"]["toy"]["original"] = 5
     run.write_text(json.dumps(data))
-    with pytest.raises(RunNotFilterable, match="--samples"):
+    with pytest.raises(
+        RunNotFilterable, match=r"3 of 5 documents \(a --limit or --samples"
+    ):
         _clean(run, {"Toy": [docs[0]]})
 
 
@@ -516,6 +694,285 @@ def test_a_group_from_lm_eval_before_0_4_12_is_refused(tmp_path):
     run.write_text(json.dumps(data))
     with pytest.raises(SampleExclusionError, match="lm-eval 0.4.12 or later"):
         _clean(run, {"Toy": [a["samples"][0]["doc"]]})
+
+
+# --- translations ------------------------------------------------------------
+
+
+def test_a_row_excludes_its_item_in_every_language(tmp_path):
+    """PAWS-X's id is the same in every language, so a row matched on it excludes
+    one document of each task, however many languages there are."""
+    langs = [f"toy_{i}" for i in range(12)]
+    run = _write_run(
+        tmp_path,
+        {
+            t: _task(
+                [{"id": i, "sentence": f"{t} {i}"} for i in range(4)],
+                {"none": [1, 0, 1, 0]},
+            )
+            for t in langs
+        },
+    )
+    clean = _clean(run, {"Toy": [{"id": 1}]}, {"Toy": langs})
+    assert {t: n for t, (_, n) in clean.items()} == dict.fromkeys(langs, 1)
+
+
+def test_text_is_matched_by_its_letters_and_digits_where_normalized(tmp_path):
+    """openeurollm/jeopardy drops apostrophes and some spaces of the original."""
+    docs = [
+        {"context": "HISTORY:   In 1453 the French won its last battle", "continuation": "the Hundred Years War"},
+        {"context": "HISTORY: In 1756 soldiers were held in this 15 x 18 room", "continuation": "the Black Hole"},
+        {"context": "SCIENCE: Mass number counts these & protons", "continuation": "neutrons"},
+    ]  # fmt: skip
+    row = {
+        "context": "HISTORY: In 1453 the French won its last battle",
+        "continuation": "the Hundred Years\\' War",
+    }
+    run = _write_run(tmp_path, {"toy": _task(docs, {"none": [1, 0, 1]})})
+    data = json.loads(run.read_text())
+    assert clean_results(run, data, {"Toy": [row]}, {"Toy": ["toy"]}) == {}
+    clean = clean_results(run, data, {"Toy": [row]}, {"Toy": ["toy"]}, normalized={"Toy"})
+    assert clean["toy"][1] == 1
+    assert clean["toy"][0]["acc,none"] == 0.5
+
+
+def test_benchmarks_matched_by_letters_and_digits_come_from_the_task_map():
+    assert sample_exclusion.load_normalized() == {"Jeopardy"}
+
+
+ENGLISH = [{"premise": f"p{i}", "hypothesis": f"h{i}", "label": i % 3} for i in range(5)]
+GERMAN = [
+    {"premise": f"de p{i}", "hypothesis": f"de h{i}", "label": i % 3} for i in range(5)
+]
+TRANSLATED = {"Toy": ["toy_en", "toy_de"]}
+
+
+def _table(rows, tasks, key=("premise", "hypothesis")):
+    return {
+        "key": list(key),
+        "items": [sample_exclusion.item_key([r[f] for f in key]) for r in rows],
+        "tasks": tasks,
+    }
+
+
+def _entry(docs, positions=None, first=0):
+    """A task's table entry; the answers are what lm-eval saves (str of the label)."""
+    answers = sample_exclusion.item_key([str(d["label"]) for d in docs])
+    where = {"first": first} if positions is None else {"positions": positions}
+    return {"documents": len(docs), "answers": answers} | where
+
+
+IDENTITY = _table(ENGLISH, {"toy_en": _entry(ENGLISH), "toy_de": _entry(GERMAN)})
+
+
+def _translated_task(docs, values):
+    """A task whose samples carry the target lm-eval saves (str of the label)."""
+    task = _task(docs, {"none": values})
+    for s in task["samples"]:
+        s["target"] = str(docs[s["doc_id"]]["label"])
+    return task
+
+
+def _translated_run(tmp_path, german=GERMAN, german_values=(0, 0, 1, 1, 1)):
+    return _write_run(
+        tmp_path,
+        {
+            "toy_en": _translated_task(ENGLISH, [1, 0, 1, 1, 0]),
+            "toy_de": _translated_task(german, list(german_values)),
+        },
+    )
+
+
+def _clean_translated(run, rows, table=IDENTITY, task_map=TRANSLATED):
+    data = json.loads(run.read_text())
+    return clean_results(run, data, {"Toy": rows}, task_map, {"Toy": table})
+
+
+def test_a_row_excludes_its_translations_by_their_position(tmp_path):
+    """XNLI's languages share no field identifying an item, but list the items
+    in the same order: the alignment table finds the German document of an
+    English row by its position."""
+    clean = _clean_translated(_translated_run(tmp_path), [ENGLISH[1]])
+    assert {t: n for t, (_, n) in clean.items()} == {"toy_en": 1, "toy_de": 1}
+    assert clean["toy_en"][0]["acc,none"] == 0.75  # 1, 1, 1, 0
+    assert clean["toy_de"][0]["acc,none"] == 0.75  # 0, 1, 1, 1
+
+
+def test_a_row_is_found_in_the_table_by_its_key_fields_only(tmp_path):
+    row = {"premise": "p3", "hypothesis": "h3", "label": "other", "_n": 1}
+    clean = _clean_translated(_translated_run(tmp_path), [row])
+    assert {t: n for t, (_, n) in clean.items()} == {"toy_en": 1, "toy_de": 1}
+
+
+def test_translations_in_another_order_are_found_at_their_positions(tmp_path):
+    """Belebele orders each language's questions differently."""
+    order = [3, 0, 4, 1, 2]  # German document i is item order[i]
+    german = [GERMAN[i] for i in order]
+    table = _table(
+        ENGLISH,
+        {
+            "toy_en": _entry(ENGLISH),
+            "toy_de": _entry(german, positions=[order.index(i) for i in range(5)]),
+        },
+    )
+    run = _translated_run(tmp_path, german, german_values=[1, 1, 1, 0, 1])
+    clean = _clean_translated(run, [ENGLISH[1]], table)
+    # Item 1 is German document 3, the only 0.
+    assert clean["toy_de"] == (
+        {"acc,none": 1.0, "acc_stderr,none": 0.0, "sample_len": 4},
+        1,
+    )
+
+
+def test_an_item_a_translation_lacks_is_excluded_where_it_is(tmp_path):
+    """X-CSQA translates only some of CommonsenseQA's questions."""
+    table = _table(
+        ENGLISH,
+        {
+            "toy_en": _entry(ENGLISH),
+            "toy_de": _entry(GERMAN, positions=[0, None, 2, 3, 4]),
+        },
+    )
+    clean = _clean_translated(_translated_run(tmp_path), [ENGLISH[1]], table)
+    assert {t: n for t, (_, n) in clean.items()} == {"toy_en": 1}
+
+
+def test_a_row_outside_the_table_is_not_excluded(tmp_path, caplog):
+    row = {"premise": "p9", "hypothesis": "h9"}
+    with caplog.at_level(logging.WARNING):
+        assert _clean_translated(_translated_run(tmp_path), [row]) == {}
+    assert "there are no samples to exclude" in caplog.text
+
+
+def test_documents_with_other_answers_than_the_table_are_refused(tmp_path):
+    """A dataset that changed since the table was built (reordered, say) would
+    put the excluded items elsewhere."""
+    german = [GERMAN[1], GERMAN[0], *GERMAN[2:]]
+    with pytest.raises(RunNotFilterable, match="toy_de: its documents are not the ones"):
+        _clean_translated(_translated_run(tmp_path, german), [ENGLISH[2]])
+
+
+def test_items_after_the_first_are_found_from_the_task_s_first_item(tmp_path):
+    """PolyMath's levels are tasks of their own: the medium task holds the
+    items after the low ones."""
+    low, medium = ENGLISH[:2], ENGLISH[2:]
+    run = _write_run(
+        tmp_path,
+        {
+            "toy_low": _translated_task(low, [1, 0]),
+            "toy_medium": _translated_task(medium, [1, 0, 1]),
+        },
+    )
+    table = _table(
+        ENGLISH, {"toy_low": _entry(low), "toy_medium": _entry(medium, first=2)}
+    )
+    clean = _clean_translated(
+        run, [ENGLISH[3]], table, {"Toy": ["toy_low", "toy_medium"]}
+    )
+    assert {t: n for t, (_, n) in clean.items()} == {"toy_medium": 1}
+    assert clean["toy_medium"][0]["acc,none"] == 1.0  # its 0 was item 3
+
+
+def test_a_repeated_item_is_excluded_wherever_it_is(tmp_path):
+    """MMLU repeats some questions; a row excludes each copy, as it does where
+    its documents are matched by content."""
+    english = [ENGLISH[0], ENGLISH[1], ENGLISH[0], ENGLISH[3], ENGLISH[4]]
+    table = _table(english, {"toy_en": _entry(english), "toy_de": _entry(GERMAN)})
+    run = _write_run(
+        tmp_path,
+        {
+            "toy_en": _translated_task(english, [1, 0, 1, 1, 0]),
+            "toy_de": _translated_task(GERMAN, [0, 0, 1, 1, 1]),
+        },
+    )
+    clean = _clean_translated(run, [ENGLISH[0]], table)
+    assert {t: n for t, (_, n) in clean.items()} == {"toy_en": 2, "toy_de": 2}
+
+
+def test_a_task_with_more_or_fewer_documents_than_the_table_is_refused(tmp_path):
+    run = _write_run(
+        tmp_path,
+        {
+            "toy_en": _translated_task(ENGLISH, [1, 0, 1, 1, 0]),
+            "toy_de": _translated_task(GERMAN[:4], [0, 0, 1, 1]),
+        },
+    )
+    with pytest.raises(RunNotFilterable, match="toy_de: 4 documents, but"):
+        _clean_translated(run, [ENGLISH[2]])
+
+
+def test_tasks_outside_the_table_are_matched_by_content(tmp_path):
+    """GSM8K's own task is matched on its rows' fields, MGSM's translations of
+    some of its questions by the table; a row is matched if either matches."""
+    source = [{"premise": f"p{i}", "hypothesis": f"h{i}", "answer": i} for i in range(6)]
+    run = _write_run(
+        tmp_path,
+        {
+            "toy_src": _task(source, {"none": [1, 0, 1, 1, 0, 1]}),
+            "toy_de": _translated_task(GERMAN, [0, 0, 1, 1, 1]),
+        },
+    )
+    table = _table(ENGLISH, {"toy_de": _entry(GERMAN)})
+    rows = [source[1], source[5]]  # source[5] has no translation
+    clean = _clean_translated(run, rows, table, {"Toy": ["toy_src", "toy_de"]})
+    assert {t: n for t, (_, n) in clean.items()} == {"toy_src": 2, "toy_de": 1}
+
+
+def test_two_benchmarks_holding_a_task_exclude_both_their_rows(tmp_path):
+    """MGSM translates questions of GSM8K and of Global-MGSM."""
+    run = _translated_run(tmp_path)
+    data = json.loads(run.read_text())
+    clean = clean_results(
+        run,
+        data,
+        {"A": [ENGLISH[1]], "B": [ENGLISH[2]]},
+        {"A": TRANSLATED["Toy"], "B": TRANSLATED["Toy"]},
+        {"A": IDENTITY, "B": IDENTITY},
+    )
+    assert {t: n for t, (_, n) in clean.items()} == {"toy_en": 2, "toy_de": 2}
+
+
+def _write_translated_lighteval_run(tmp_path, ids, gold_index=0):
+    """A lighteval run whose details list the documents out of their dataset
+    order, as lighteval does; a document's id is its position there."""
+    docs = [
+        {
+            "query": f"Q {i}",
+            "choices": [" A", " B"],
+            "gold_index": gold_index,
+            "id": str(i),
+        }
+        for i in ids
+    ]
+    accs = [1, 0, 1, 1, 0]  # by details row
+    return _write_lighteval_run(tmp_path, accs, docs=docs)
+
+
+def _lighteval_table(n=5):
+    rows = [{"q": f"q{i}"} for i in range(n)]
+    # lighteval's details save gold_index, compared as JSON.
+    entry = {"documents": n, "answers": sample_exclusion.item_key(["0"] * n), "first": 0}
+    return rows, _table(rows, {"toy:it": entry}, key=["q"])
+
+
+def test_a_lighteval_document_is_found_by_its_position_in_the_dataset(tmp_path):
+    run = _write_translated_lighteval_run(tmp_path, ids=[2, 0, 1, 3, 4])
+    rows, table = _lighteval_table()
+    data = json.loads(run.read_text())
+    clean = clean_results(
+        run, data, {"Toy": [rows[0]]}, {"Toy": ["toy:it"]}, {"Toy": table}
+    )
+    # Item 0 is the second details row, the first 0.
+    assert clean["toy:it"][1] == 1
+    assert clean["toy:it"][0]["acc"] == 0.75
+
+
+def test_lighteval_documents_with_other_answers_than_the_table_are_refused(tmp_path):
+    run = _write_translated_lighteval_run(tmp_path, ids=[2, 0, 1, 3, 4], gold_index=1)
+    rows, table = _lighteval_table()
+    data = json.loads(run.read_text())
+    with pytest.raises(RunNotFilterable, match="toy:it: its documents are not the ones"):
+        clean_results(run, data, {"Toy": [rows[0]]}, {"Toy": ["toy:it"]}, {"Toy": table})
 
 
 # --- collect -----------------------------------------------------------------
@@ -701,6 +1158,158 @@ def test_collect_logs_a_mapped_task_reported_only_through_a_group(
     assert "only reported as part of a larger group" in caplog.text
 
 
+# --- lighteval ---------------------------------------------------------------
+
+PREMISES = [
+    f"the {thing} fell over." for thing in ["cup", "lamp", "tree", "chair", "vase"]
+]
+
+
+def _write_lighteval_run(
+    output_dir, accs, max_samples=None, details=True, model="org/model", docs=None
+):
+    """lighteval's output with --save-details: results/<model>/results_<date>.json,
+    and details/<model>/<date>/details_<task>|<shot>_<date>.parquet holding each
+    sample's prompt (query and choices, built from the dataset row), its
+    position in the dataset (id) and its metrics. lighteval strips the leading
+    "/" of a local checkpoint's path from the directory names."""
+    key = "toy:it|0"
+    mean, stderr = _score(accs)
+    data = {
+        "config_general": {"model_name": model, "max_samples": max_samples},
+        "results": {key: {"acc": mean, "acc_stderr": stderr}, "all": {"acc": mean}},
+        "config_tasks": {
+            key: {
+                "name": "toy:it",
+                "metrics": [{"metric_name": "acc", "corpus_level_fn": "mean"}],
+            }
+        },
+    }
+    results_file = output_dir / "results" / model.strip("/") / f"results_{TS}.json"
+    results_file.parent.mkdir(parents=True)
+    results_file.write_text(json.dumps(data))
+    if details:
+        # The template capitalises and re-punctuates the dataset's text.
+        docs = docs or [
+            {"query": f"Premise: {p.capitalize()[:-1]}!\nQuestion: why", "choices": [" A.", " B."], "gold_index": 0, "id": str(i)}
+            for i, p in enumerate(PREMISES[: len(accs)])
+        ]  # fmt: skip
+        path = (
+            output_dir / "details" / model.strip("/") / TS / f"details_{key}_{TS}.parquet"
+        )
+        path.parent.mkdir(parents=True)
+        pd.DataFrame({"doc": docs, "metric": [{"acc": a} for a in accs]}).to_parquet(path)
+    return results_file
+
+
+def _clean_lighteval(results_file, rows):
+    data = json.loads(results_file.read_text())
+    return clean_results(results_file, data, {"Toy": rows}, {"Toy": ["toy:it"]})
+
+
+def test_a_lighteval_sample_is_found_by_its_text_in_the_prompt(tmp_path):
+    run = _write_lighteval_run(tmp_path, [1, 1, 1, 0, 1])
+    row = {"premise": PREMISES[0], "idx": 0, "url": "https://x"}  # not in the prompt
+    clean, n_excluded = _clean_lighteval(run, [{"premise": row["premise"]}])["toy:it"]
+    assert n_excluded == 1
+    assert clean == {"acc": 0.75, "acc_stderr": pytest.approx(_score([1, 1, 0, 1])[1])}
+
+
+def test_every_text_field_of_a_lighteval_row_must_be_in_the_prompt(tmp_path, caplog):
+    run = _write_lighteval_run(tmp_path, [1, 1, 1, 0, 1])
+    with caplog.at_level(logging.WARNING):
+        assert _clean_lighteval(run, [{"premise": PREMISES[0], "url": "https://x"}]) == {}
+    assert "there are no samples to exclude" in caplog.text
+
+
+def test_a_lighteval_run_with_max_samples_is_refused(tmp_path):
+    run = _write_lighteval_run(tmp_path, [1, 1, 1, 0, 1], max_samples=5)
+    with pytest.raises(RunNotFilterable, match="scored at most 5 samples"):
+        _clean_lighteval(run, [{"premise": PREMISES[0]}])
+
+
+def test_a_lighteval_run_without_details_is_refused(tmp_path):
+    run = _write_lighteval_run(tmp_path, [1, 1, 1, 0, 1], details=False)
+    with pytest.raises(RunNotFilterable, match="no saved details"):
+        _clean_lighteval(run, [{"premise": PREMISES[0]}])
+
+
+def test_the_details_of_a_local_checkpoint_are_found(tmp_path):
+    """oellm passes lighteval the checkpoint's absolute path as model_name."""
+    run = _write_lighteval_run(tmp_path, [1, 1, 1, 0, 1], model="/scratch/p/model")
+    assert run == tmp_path / "results/scratch/p/model" / f"results_{TS}.json"
+    assert _clean_lighteval(run, [{"premise": PREMISES[0]}])["toy:it"][1] == 1
+
+
+def test_a_lighteval_results_file_moved_out_of_its_directory_is_refused(tmp_path):
+    run = _write_lighteval_run(tmp_path / "out", [1, 1, 1, 0, 1])
+    moved = tmp_path / run.name
+    run.rename(moved)
+    with pytest.raises(RunNotFilterable, match="not in lighteval's results/org/model/"):
+        _clean_lighteval(moved, [{"premise": PREMISES[0]}])
+
+
+def test_lighteval_details_that_do_not_reproduce_the_score_are_refused(tmp_path):
+    run = _write_lighteval_run(tmp_path, [1, 1, 1, 0, 1])
+    data = json.loads(run.read_text())
+    data["results"]["toy:it|0"]["acc"] = 0.6
+    run.write_text(json.dumps(data))
+    with pytest.raises(SampleExclusionError, match="lighteval reported 0.6"):
+        _clean_lighteval(run, [{"premise": PREMISES[0]}])
+
+
+def test_collect_reports_full_and_clean_lighteval_scores(tmp_path, monkeypatch):
+    _write_lighteval_run(tmp_path / "run", [1, 1, 1, 0, 1])
+    (tmp_path / "blocklist").mkdir()
+    (tmp_path / "blocklist" / "Toy.jsonl").write_text(
+        json.dumps({"premise": PREMISES[3]}) + "\n"
+    )
+    monkeypatch.setattr(sample_exclusion, "load_task_map", lambda: {"Toy": ["toy:it"]})
+    out = tmp_path / "out.csv"
+    collect_results(
+        str(tmp_path / "run"),
+        str(out),
+        fetch_all_metrics=True,
+        exclude_samples=str(tmp_path / "blocklist"),
+    )
+    df = pd.read_csv(out).set_index(["task", "subset", "metric_name"])["performance"]
+    assert df["toy:it", "full", "acc"] == pytest.approx(0.8)
+    assert df["toy:it", "clean", "acc"] == 1.0
+    assert ("toy:it", "clean", "acc_stderr") in df.index
+
+
+TRANSLATIONS = [
+    ({"golds": ["Das Haus ist rot."], "preds": ["Das Haus ist rot."]}),
+    ({"golds": ["Der Hund schläft."], "preds": ["Ein Hund schläft gern."]}),
+    ({"golds": ["Wir essen Brot."], "preds": ["Wir trinken Wasser."]}),
+]
+
+
+def test_corpus_bleu_is_scored_as_lighteval_scores_it():
+    sacrebleu = pytest.importorskip("sacrebleu")
+    preds = [t["preds"][0] for t in TRANSLATIONS]
+    golds = [t["golds"][0] for t in TRANSLATIONS]
+    expected = sacrebleu.BLEU().corpus_score(preds, [golds]).score
+    assert sample_exclusion._translation_score("bleu", "", TRANSLATIONS) == expected
+
+
+def test_corpus_chrf_is_scored_as_lighteval_scores_it():
+    """lighteval passes each sentence's references as a reference stream, so
+    sacrebleu scores the first translation alone, against every reference."""
+    sacrebleu = pytest.importorskip("sacrebleu")
+    first = TRANSLATIONS[0]["preds"][0]
+    alone = sacrebleu.CHRF(word_order=2).corpus_score(
+        [first], [t["golds"] for t in TRANSLATIONS]
+    )
+    assert sample_exclusion._translation_score("chrf++", "", TRANSLATIONS) == alone.score
+
+
+def test_corpus_translation_metrics_need_sacrebleu(monkeypatch):
+    monkeypatch.setitem(sys.modules, "sacrebleu", None)  # import fails
+    with pytest.raises(RunNotFilterable, match="needs sacrebleu"):
+        sample_exclusion._translation_score("chrf++", "", TRANSLATIONS)
+
+
 # --- evalchemy's MATH500 -----------------------------------------------------
 
 # Correct model answers that only lm-eval's is_equiv accepts, by question.
@@ -830,28 +1439,221 @@ def test_every_mapped_evalchemy_task_can_be_rescored():
     assert EVALCHEMY_QUESTIONS.keys() == sample_exclusion._EVALCHEMY_BENCHMARKS.keys()
 
 
+# --- alignment tables --------------------------------------------------------
+
+
+def test_an_item_key_is_a_hash_of_the_key_fields_values():
+    """Tables already built keep their keys: this pins the format."""
+    assert (
+        sample_exclusion.item_key(["p", 1])
+        == hashlib.sha256(b'["p", 1]').hexdigest()[:16]
+    )
+    assert (
+        sample_exclusion.item_key(["ü"])
+        == hashlib.sha256('["ü"]'.encode()).hexdigest()[:16]
+    )
+
+
+@pytest.mark.parametrize("benchmark", sorted(sample_exclusion.load_alignments()))
+def test_an_alignment_table_is_well_formed(benchmark):
+    table = sample_exclusion.load_alignments()[benchmark]
+    entry = sample_exclusion._load_benchmarks()[benchmark]
+    assert set(table) == {"key", "items", "tasks"}
+    # Rows are cut down to match_on when loaded, so keep the table's key.
+    assert set(table["key"]) <= set(entry.get("match_on") or table["key"])
+    assert table["items"]
+    assert all(len(k) == 16 and int(k, 16) >= 0 for k in table["items"])
+    # A mapped task, or a subtask of a mapped group (global_mmlu_full_de's).
+    for task in table["tasks"]:
+        assert any(task == t or task.startswith(f"{t}_") for t in entry["tasks"]), task
+    for task, e in table["tasks"].items():
+        assert e["documents"] > 0 and len(e["answers"]) == 16, task
+        if "first" in e:
+            assert set(e) == {"documents", "answers", "first"}, task
+            assert 0 <= e["first"] <= len(table["items"]) - e["documents"], task
+        else:
+            assert set(e) == {"documents", "answers", "positions"}, task
+            assert len(e["positions"]) == len(table["items"]), task
+            taken = [p for p in e["positions"] if p is not None]
+            assert taken, task
+            assert len(set(taken)) == len(taken), task
+            assert all(isinstance(p, int) and 0 <= p < e["documents"] for p in taken), (
+                task
+            )
+
+
+def _builder():
+    path = Path(__file__).parents[1] / "scripts/build_sample_exclusion_alignments.py"
+    spec = importlib.util.spec_from_file_location("build_alignments", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_translations_in_the_same_order_are_put_together_by_position():
+    build = _builder()
+    english = [{"label": i % 3} for i in range(4)]
+    assert build.by_position("X", english, "x_de", english, lambda d: d["label"]) == [
+        0,
+        1,
+        2,
+        3,
+    ]
+    with pytest.raises(build.AlignmentError, match=r"x_de's documents \[0, 1\]"):
+        build.by_position(
+            "X", english, "x_de", english[1::-1] + english[2:], lambda d: d["label"]
+        )
+    with pytest.raises(build.AlignmentError, match="has 3 documents, not 4"):
+        build.by_position("X", english, "x_de", english[:3], lambda d: d["label"])
+
+
+def test_a_few_mislabelled_translations_can_be_tolerated(capsys):
+    """MMMLU's German labels 5 of MMLU's 14,042 answers differently; documents
+    out of order would differ in most."""
+    build = _builder()
+    english = [{"label": i % 4} for i in range(100)]
+    german = [dict(d) for d in english]
+    german[7]["label"] = 0
+    assert build.by_position(
+        "X", english, "x_de", german, lambda d: d["label"], 0.02
+    ) == list(range(100))
+    assert "x_de's documents [7] have another answer" in capsys.readouterr().out
+    with pytest.raises(build.AlignmentError):
+        build.by_position("X", english, "x_de", german, lambda d: d["label"])
+    shifted = english[1:] + english[:1]
+    with pytest.raises(build.AlignmentError):
+        build.by_position("X", english, "x_de", shifted, lambda d: d["label"], 0.02)
+
+
+def test_translations_in_another_order_are_put_together_by_a_shared_field():
+    build = _builder()
+    english = [{"id": i, "answer": i % 2} for i in range(4)]
+    german = [english[2], english[0], english[3]]
+    assert build.by_field("X", english, "id", "x_de", german) == [1, None, 0, 2]
+    with pytest.raises(build.AlignmentError, match="another answer"):
+        build.by_field(
+            "X",
+            english,
+            "id",
+            "x_de",
+            [dict(english[0], answer=1)],
+            lambda d: d["answer"],
+        )
+    with pytest.raises(build.AlignmentError, match="repeats id 0"):
+        build.by_field("X", english, "id", "x_de", [english[0], english[0]])
+
+
+def test_a_table_entry_lists_positions_only_where_items_are_not_in_a_row():
+    build = _builder()
+    answers = sample_exclusion.item_key(["a", "b"])
+    assert build.entry([0, 1], ["a", "b"]) == {
+        "documents": 2,
+        "answers": answers,
+        "first": 0,
+    }
+    assert build.entry([None, 0, 1, None], ["a", "b"])["first"] == 1
+    assert build.entry([1, None, 0], ["a", "b"])["positions"] == [1, None, 0]
+    # Every document must be an item for a run of them.
+    assert build.entry([0, None], ["a", "b"])["positions"] == [0, None]
+    for positions in ([1, 1], [2, 0], [None, None]):
+        with pytest.raises(build.AlignmentError):
+            build.entry(positions, ["a", "b"])
+
+
+def test_items_must_be_told_apart_by_the_key():
+    build = _builder()
+    docs = [{"q": "a", "n": 1}, {"q": "a", "n": 2}]
+    assert len(build.items_of(["q", "n"], docs, "X")) == 2
+    with pytest.raises(build.AlignmentError, match="does not identify one document each"):
+        build.items_of(["q"], docs, "X")
+    assert len(set(build.items_of(["q"], docs, "X", repeats=True))) == 1
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["lm-eval", "--languages", "xx", "MMLU"],
+        ["lm-eval", "MMLU", "--languages", "xx"],
+    ],
+)
+def test_the_languages_of_a_part_are_checked_wherever_they_are_given(
+    argv, monkeypatch, capsys
+):
+    build = _builder()
+    monkeypatch.setattr(sys, "argv", ["build", *argv])
+    with pytest.raises(SystemExit):
+        build.main()
+    assert "no MMLU tasks in ['xx']" in capsys.readouterr().err
+
+
+def test_only_a_table_built_in_parts_takes_languages(monkeypatch, capsys):
+    build = _builder()
+    monkeypatch.setattr(sys, "argv", ["build", "lm-eval", "--languages", "de", "XNLI"])
+    with pytest.raises(SystemExit):
+        build.main()
+    assert "--languages builds part of MMLU only" in capsys.readouterr().err
+
+
+def test_a_table_built_in_parts_merges_their_tasks(tmp_path):
+    build = _builder()
+    path = tmp_path / "MMLU.json"
+    first = {"key": ["q"], "items": ["a", "b"], "tasks": {"x_de": {"documents": 2}}}
+    assert build.merged(path, first) == first  # nothing built yet
+    path.write_text(json.dumps(first))
+    second = dict(first, tasks={"x_fr": {"documents": 2}})
+    assert build.merged(path, second)["tasks"].keys() == {"x_de", "x_fr"}
+    with pytest.raises(build.AlignmentError, match="built from other items"):
+        build.merged(path, dict(second, items=["a", "c"]))
+
+
+@pytest.mark.parametrize(
+    "text, value",
+    [
+        ("18", "18.0"),
+        (18, "18.0"),
+        ("1,000", "1000.0"),
+        ("1 000", "1000.0"),
+        ("-2.5", "-2.5"),
+    ],
+)
+def test_answers_are_compared_as_numbers(text, value):
+    assert _builder().number(text) == value
+
+
+def test_an_answer_that_is_not_a_number_is_refused():
+    build = _builder()
+    with pytest.raises(build.AlignmentError, match="not a number"):
+        build.number("eighteen")
+
+
 @pytest.mark.skipif(not BLOCKLIST_DIR.is_dir(), reason="set OELLM_BLOCKLIST_DIR")
-def test_every_mapped_row_matches_one_lm_eval_document():
-    """Each blocklisted row of a mapped benchmark is a document of its task, and
-    each metric lm-eval averages over the task's samples is recognised as such
-    from the config it saves in the results file.
+def test_every_mapped_row_matches_its_lm_eval_documents():
+    """Each blocklisted row of a mapped benchmark is a document of its tasks
+    (one in each language), the documents of a task in its alignment table are
+    the ones the table was built from, and each metric whose aggregation collect can recompute is read as lm-eval runs
+    it, from the config lm-eval saves in the results file.
 
     Needs lm-eval and the datasets in the Hugging Face cache, e.g. inside the
     eval container on LUMI, and HF_ALLOW_CODE_EVAL=1: loading mbpp runs a check
-    of HF's code_eval metric.
+    of HF's code_eval metric. Benchmarks without a file in the blocklist are
+    not loaded.
     """
     pytest.importorskip("lm_eval")
-    from lm_eval.api.metrics import mean
     from lm_eval.tasks import TaskManager
 
-    blocklist = sample_exclusion.load_blocklist(BLOCKLIST_DIR)
+    match_fields = sample_exclusion.load_match_fields()
+    blocklist = sample_exclusion.load_blocklist(BLOCKLIST_DIR, match_fields)
+    alignments = sample_exclusion.load_alignments()
+    normalized = sample_exclusion.load_normalized()
     # oellm's own tasks (global_mgsm, polymath), as the job template passes them.
     include_path = (
         Path(sample_exclusion.__file__).parent / "resources/custom_lm_eval_tasks"
     )
     manager = TaskManager(include_path=str(include_path))
     for benchmark, mapped in sample_exclusion.load_task_map().items():
-        if set(mapped) & EVALCHEMY_QUESTIONS.keys():
+        # lm-eval's tasks only, not lighteval's (belebele_*_cf) or evalchemy's.
+        mapped = [t for t in mapped if t in manager.task_index]
+        if not mapped or benchmark not in blocklist:
             continue
         loaded = manager.load(mapped)["tasks"]
         samples, stack = {}, [loaded]
@@ -861,18 +1663,49 @@ def test_every_mapped_row_matches_one_lm_eval_document():
                     stack.append(task)
                 else:
                     samples[name] = [
-                        {"doc_id": i, "doc": json.loads(json.dumps(doc))}
+                        {
+                            "doc_id": i,
+                            "doc": json.loads(json.dumps(doc)),
+                            "target": str(task.doc_to_target(doc)),
+                        }
                         for i, doc in enumerate(task.eval_docs)
                     ]
                     config = json.loads(json.dumps(task.dump_config(), default=str))
                     for metric, aggregation in task.aggregation().items():
-                        assert sample_exclusion._is_mean_metric(metric, config) == (
-                            aggregation is mean
-                        ), (name, metric)
-        excluded = sample_exclusion._excluded_docs(
-            blocklist[benchmark], samples, benchmark
-        )
-        assert sum(map(len, excluded.values())) == len(blocklist[benchmark]), benchmark
+                        ours = sample_exclusion._aggregation(metric, config)
+                        if {
+                            ours,
+                            aggregation.__name__,
+                        } & sample_exclusion._AGGREGATIONS.keys():
+                            assert ours == aggregation.__name__, (name, metric)
+        for name, task_samples in samples.items():
+            assert all(
+                f in s["doc"]
+                for s in task_samples
+                for f in match_fields.get(benchmark, [])
+            ), (name, match_fields[benchmark])
+        rows = blocklist[benchmark]
+        table = alignments.get(benchmark, {"tasks": {}})
+        aligned = {n: s for n, s in samples.items() if n in table["tasks"]}
+        others = {n: s for n, s in samples.items() if n not in aligned}
+        found = [
+            sample_exclusion._excluded_docs(
+                rows, others, benchmark, benchmark in normalized
+            )
+        ]
+        if aligned:
+            # Also checks each task's documents against the table.
+            found.append(
+                sample_exclusion._aligned_docs(rows, aligned, table, benchmark, False)
+            )
+        matched = [any(flags) for flags in zip(*(f for _, f in found), strict=True)]
+        outside = ROWS_OUTSIDE_EVALUATED_COPY.get(benchmark, 0)
+        assert matched.count(False) == outside, benchmark
+        # A row is one item: at most one document of each task, but for
+        # duplicated documents (MMLU repeats some questions).
+        for excluded, _ in found:
+            for name, doc_ids in excluded.items():
+                assert len(doc_ids) <= len(rows), (benchmark, name)
 
 
 @pytest.mark.skipif(
@@ -889,7 +1722,8 @@ def test_every_mapped_row_matches_one_evalchemy_question():
             samples = {
                 task: [{"doc_id": i, "doc": json.loads(x)} for i, x in enumerate(lines)]
             }
-            excluded = sample_exclusion._excluded_docs(
-                blocklist[benchmark], samples, benchmark
+            excluded, matched = sample_exclusion._excluded_docs(
+                blocklist[benchmark], samples
             )
+            assert all(matched), benchmark
             assert len(excluded[task]) == len(blocklist[benchmark]), benchmark

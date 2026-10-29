@@ -1,0 +1,2239 @@
+{
+ "name": "agenttrove-0.0",
+ "tasks": {
+  "boolq": {
+   "documents": 3270,
+   "excluded": [
+    1787
+   ],
+   "kept_answers": "9acdbd88ed3534fe"
+  },
+  "global_mgsm_ca": {
+   "documents": 250,
+   "excluded": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49
+   ],
+   "kept_answers": "683cbb8400800fb6"
+  },
+  "global_mgsm_cs": {
+   "documents": 250,
+   "excluded": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49
+   ],
+   "kept_answers": "683cbb8400800fb6"
+  },
+  "global_mgsm_de": {
+   "documents": 250,
+   "excluded": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49
+   ],
+   "kept_answers": "683cbb8400800fb6"
+  },
+  "global_mgsm_el": {
+   "documents": 250,
+   "excluded": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49
+   ],
+   "kept_answers": "683cbb8400800fb6"
+  },
+  "global_mgsm_en": {
+   "documents": 250,
+   "excluded": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49
+   ],
+   "kept_answers": "683cbb8400800fb6"
+  },
+  "global_mgsm_es": {
+   "documents": 250,
+   "excluded": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49
+   ],
+   "kept_answers": "683cbb8400800fb6"
+  },
+  "global_mgsm_eu": {
+   "documents": 250,
+   "excluded": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49
+   ],
+   "kept_answers": "683cbb8400800fb6"
+  },
+  "global_mgsm_fr": {
+   "documents": 250,
+   "excluded": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49
+   ],
+   "kept_answers": "683cbb8400800fb6"
+  },
+  "global_mgsm_gl": {
+   "documents": 250,
+   "excluded": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49
+   ],
+   "kept_answers": "683cbb8400800fb6"
+  },
+  "global_mgsm_hu": {
+   "documents": 250,
+   "excluded": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49
+   ],
+   "kept_answers": "683cbb8400800fb6"
+  },
+  "global_mgsm_sr": {
+   "documents": 250,
+   "excluded": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49
+   ],
+   "kept_answers": "683cbb8400800fb6"
+  },
+  "global_mmlu_full_cs_college_computer_science": {
+   "documents": 100,
+   "excluded": [
+    64
+   ],
+   "kept_answers": "4d70630f0d6ab5b8"
+  },
+  "global_mmlu_full_cs_high_school_mathematics": {
+   "documents": 270,
+   "excluded": [
+    3,
+    45,
+    63,
+    101,
+    119,
+    132,
+    141,
+    146,
+    160,
+    257,
+    268
+   ],
+   "kept_answers": "ac4f04608f6fb7ba"
+  },
+  "global_mmlu_full_cs_high_school_statistics": {
+   "documents": 216,
+   "excluded": [
+    144
+   ],
+   "kept_answers": "86476405ca0c93fd"
+  },
+  "global_mmlu_full_de_college_computer_science": {
+   "documents": 100,
+   "excluded": [
+    64
+   ],
+   "kept_answers": "4d70630f0d6ab5b8"
+  },
+  "global_mmlu_full_de_high_school_mathematics": {
+   "documents": 270,
+   "excluded": [
+    3,
+    45,
+    63,
+    101,
+    119,
+    132,
+    141,
+    146,
+    160,
+    257,
+    268
+   ],
+   "kept_answers": "ac4f04608f6fb7ba"
+  },
+  "global_mmlu_full_de_high_school_statistics": {
+   "documents": 216,
+   "excluded": [
+    144
+   ],
+   "kept_answers": "86476405ca0c93fd"
+  },
+  "global_mmlu_full_el_college_computer_science": {
+   "documents": 100,
+   "excluded": [
+    64
+   ],
+   "kept_answers": "4d70630f0d6ab5b8"
+  },
+  "global_mmlu_full_el_high_school_mathematics": {
+   "documents": 270,
+   "excluded": [
+    3,
+    45,
+    63,
+    101,
+    119,
+    132,
+    141,
+    146,
+    160,
+    257,
+    268
+   ],
+   "kept_answers": "ac4f04608f6fb7ba"
+  },
+  "global_mmlu_full_el_high_school_statistics": {
+   "documents": 216,
+   "excluded": [
+    144
+   ],
+   "kept_answers": "86476405ca0c93fd"
+  },
+  "global_mmlu_full_en_college_computer_science": {
+   "documents": 100,
+   "excluded": [
+    64
+   ],
+   "kept_answers": "4d70630f0d6ab5b8"
+  },
+  "global_mmlu_full_en_high_school_mathematics": {
+   "documents": 270,
+   "excluded": [
+    3,
+    45,
+    63,
+    101,
+    119,
+    132,
+    141,
+    146,
+    160,
+    257,
+    268
+   ],
+   "kept_answers": "ac4f04608f6fb7ba"
+  },
+  "global_mmlu_full_en_high_school_statistics": {
+   "documents": 216,
+   "excluded": [
+    144
+   ],
+   "kept_answers": "86476405ca0c93fd"
+  },
+  "global_mmlu_full_es_college_computer_science": {
+   "documents": 100,
+   "excluded": [
+    64
+   ],
+   "kept_answers": "4d70630f0d6ab5b8"
+  },
+  "global_mmlu_full_es_high_school_mathematics": {
+   "documents": 270,
+   "excluded": [
+    3,
+    45,
+    63,
+    101,
+    119,
+    132,
+    141,
+    146,
+    160,
+    257,
+    268
+   ],
+   "kept_answers": "ac4f04608f6fb7ba"
+  },
+  "global_mmlu_full_es_high_school_statistics": {
+   "documents": 216,
+   "excluded": [
+    144
+   ],
+   "kept_answers": "86476405ca0c93fd"
+  },
+  "global_mmlu_full_fr_college_computer_science": {
+   "documents": 100,
+   "excluded": [
+    64
+   ],
+   "kept_answers": "4d70630f0d6ab5b8"
+  },
+  "global_mmlu_full_fr_high_school_mathematics": {
+   "documents": 270,
+   "excluded": [
+    3,
+    45,
+    63,
+    101,
+    119,
+    132,
+    141,
+    146,
+    160,
+    257,
+    268
+   ],
+   "kept_answers": "ac4f04608f6fb7ba"
+  },
+  "global_mmlu_full_fr_high_school_statistics": {
+   "documents": 216,
+   "excluded": [
+    144
+   ],
+   "kept_answers": "86476405ca0c93fd"
+  },
+  "global_mmlu_full_it_college_computer_science": {
+   "documents": 100,
+   "excluded": [
+    64
+   ],
+   "kept_answers": "4d70630f0d6ab5b8"
+  },
+  "global_mmlu_full_it_high_school_mathematics": {
+   "documents": 270,
+   "excluded": [
+    3,
+    45,
+    63,
+    101,
+    119,
+    132,
+    141,
+    146,
+    160,
+    257,
+    268
+   ],
+   "kept_answers": "ac4f04608f6fb7ba"
+  },
+  "global_mmlu_full_it_high_school_statistics": {
+   "documents": 216,
+   "excluded": [
+    144
+   ],
+   "kept_answers": "86476405ca0c93fd"
+  },
+  "global_mmlu_full_lt_college_computer_science": {
+   "documents": 100,
+   "excluded": [
+    64
+   ],
+   "kept_answers": "4d70630f0d6ab5b8"
+  },
+  "global_mmlu_full_lt_high_school_mathematics": {
+   "documents": 270,
+   "excluded": [
+    3,
+    45,
+    63,
+    101,
+    119,
+    132,
+    141,
+    146,
+    160,
+    257,
+    268
+   ],
+   "kept_answers": "ac4f04608f6fb7ba"
+  },
+  "global_mmlu_full_lt_high_school_statistics": {
+   "documents": 216,
+   "excluded": [
+    144
+   ],
+   "kept_answers": "86476405ca0c93fd"
+  },
+  "global_mmlu_full_nl_college_computer_science": {
+   "documents": 100,
+   "excluded": [
+    64
+   ],
+   "kept_answers": "4d70630f0d6ab5b8"
+  },
+  "global_mmlu_full_nl_high_school_mathematics": {
+   "documents": 270,
+   "excluded": [
+    3,
+    45,
+    63,
+    101,
+    119,
+    132,
+    141,
+    146,
+    160,
+    257,
+    268
+   ],
+   "kept_answers": "ac4f04608f6fb7ba"
+  },
+  "global_mmlu_full_nl_high_school_statistics": {
+   "documents": 216,
+   "excluded": [
+    144
+   ],
+   "kept_answers": "86476405ca0c93fd"
+  },
+  "global_mmlu_full_pl_college_computer_science": {
+   "documents": 100,
+   "excluded": [
+    64
+   ],
+   "kept_answers": "4d70630f0d6ab5b8"
+  },
+  "global_mmlu_full_pl_high_school_mathematics": {
+   "documents": 270,
+   "excluded": [
+    3,
+    45,
+    63,
+    101,
+    119,
+    132,
+    141,
+    146,
+    160,
+    257,
+    268
+   ],
+   "kept_answers": "ac4f04608f6fb7ba"
+  },
+  "global_mmlu_full_pl_high_school_statistics": {
+   "documents": 216,
+   "excluded": [
+    144
+   ],
+   "kept_answers": "86476405ca0c93fd"
+  },
+  "global_mmlu_full_pt_college_computer_science": {
+   "documents": 100,
+   "excluded": [
+    64
+   ],
+   "kept_answers": "4d70630f0d6ab5b8"
+  },
+  "global_mmlu_full_pt_high_school_mathematics": {
+   "documents": 270,
+   "excluded": [
+    3,
+    45,
+    63,
+    101,
+    119,
+    132,
+    141,
+    146,
+    160,
+    257,
+    268
+   ],
+   "kept_answers": "ac4f04608f6fb7ba"
+  },
+  "global_mmlu_full_pt_high_school_statistics": {
+   "documents": 216,
+   "excluded": [
+    144
+   ],
+   "kept_answers": "86476405ca0c93fd"
+  },
+  "global_mmlu_full_ro_college_computer_science": {
+   "documents": 100,
+   "excluded": [
+    64
+   ],
+   "kept_answers": "4d70630f0d6ab5b8"
+  },
+  "global_mmlu_full_ro_high_school_mathematics": {
+   "documents": 270,
+   "excluded": [
+    3,
+    45,
+    63,
+    101,
+    119,
+    132,
+    141,
+    146,
+    160,
+    257,
+    268
+   ],
+   "kept_answers": "ac4f04608f6fb7ba"
+  },
+  "global_mmlu_full_ro_high_school_statistics": {
+   "documents": 216,
+   "excluded": [
+    144
+   ],
+   "kept_answers": "86476405ca0c93fd"
+  },
+  "global_mmlu_full_sr_college_computer_science": {
+   "documents": 100,
+   "excluded": [
+    64
+   ],
+   "kept_answers": "4d70630f0d6ab5b8"
+  },
+  "global_mmlu_full_sr_high_school_mathematics": {
+   "documents": 270,
+   "excluded": [
+    3,
+    45,
+    63,
+    101,
+    119,
+    132,
+    141,
+    146,
+    160,
+    257,
+    268
+   ],
+   "kept_answers": "ac4f04608f6fb7ba"
+  },
+  "global_mmlu_full_sr_high_school_statistics": {
+   "documents": 216,
+   "excluded": [
+    144
+   ],
+   "kept_answers": "86476405ca0c93fd"
+  },
+  "global_mmlu_full_sv_college_computer_science": {
+   "documents": 100,
+   "excluded": [
+    64
+   ],
+   "kept_answers": "4d70630f0d6ab5b8"
+  },
+  "global_mmlu_full_sv_high_school_mathematics": {
+   "documents": 270,
+   "excluded": [
+    3,
+    45,
+    63,
+    101,
+    119,
+    132,
+    141,
+    146,
+    160,
+    257,
+    268
+   ],
+   "kept_answers": "ac4f04608f6fb7ba"
+  },
+  "global_mmlu_full_sv_high_school_statistics": {
+   "documents": 216,
+   "excluded": [
+    144
+   ],
+   "kept_answers": "86476405ca0c93fd"
+  },
+  "global_mmlu_full_tr_college_computer_science": {
+   "documents": 100,
+   "excluded": [
+    64
+   ],
+   "kept_answers": "4d70630f0d6ab5b8"
+  },
+  "global_mmlu_full_tr_high_school_mathematics": {
+   "documents": 270,
+   "excluded": [
+    3,
+    45,
+    63,
+    101,
+    119,
+    132,
+    141,
+    146,
+    160,
+    257,
+    268
+   ],
+   "kept_answers": "ac4f04608f6fb7ba"
+  },
+  "global_mmlu_full_tr_high_school_statistics": {
+   "documents": 216,
+   "excluded": [
+    144
+   ],
+   "kept_answers": "86476405ca0c93fd"
+  },
+  "global_mmlu_full_uk_college_computer_science": {
+   "documents": 100,
+   "excluded": [
+    64
+   ],
+   "kept_answers": "4d70630f0d6ab5b8"
+  },
+  "global_mmlu_full_uk_high_school_mathematics": {
+   "documents": 270,
+   "excluded": [
+    3,
+    45,
+    63,
+    101,
+    119,
+    132,
+    141,
+    146,
+    160,
+    257,
+    268
+   ],
+   "kept_answers": "ac4f04608f6fb7ba"
+  },
+  "global_mmlu_full_uk_high_school_statistics": {
+   "documents": 216,
+   "excluded": [
+    144
+   ],
+   "kept_answers": "86476405ca0c93fd"
+  },
+  "gsm8k": {
+   "documents": 1319,
+   "excluded": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49
+   ],
+   "kept_answers": "6f183d127cc6ba50"
+  },
+  "mbpp": {
+   "documents": 500,
+   "excluded": [
+    13,
+    21,
+    28,
+    93,
+    134,
+    215
+   ],
+   "kept_answers": "b1b9b8484f06275b"
+  },
+  "mgsm_native_cot_de": {
+   "documents": 250,
+   "excluded": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49
+   ],
+   "kept_answers": "683cbb8400800fb6"
+  },
+  "mgsm_native_cot_en": {
+   "documents": 250,
+   "excluded": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49
+   ],
+   "kept_answers": "683cbb8400800fb6"
+  },
+  "mgsm_native_cot_es": {
+   "documents": 250,
+   "excluded": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49
+   ],
+   "kept_answers": "683cbb8400800fb6"
+  },
+  "mgsm_native_cot_fr": {
+   "documents": 250,
+   "excluded": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49
+   ],
+   "kept_answers": "683cbb8400800fb6"
+  },
+  "mmlu_college_computer_science": {
+   "documents": 100,
+   "excluded": [
+    64
+   ],
+   "kept_answers": "234e99741df8f3e1"
+  },
+  "mmlu_high_school_mathematics": {
+   "documents": 270,
+   "excluded": [
+    3,
+    45,
+    63,
+    101,
+    119,
+    132,
+    141,
+    146,
+    160,
+    257,
+    268
+   ],
+   "kept_answers": "52096270def336ac"
+  },
+  "mmlu_high_school_statistics": {
+   "documents": 216,
+   "excluded": [
+    144
+   ],
+   "kept_answers": "63a9fb48c7f27793"
+  },
+  "mmlu_prox_cs_computer_science": {
+   "documents": 410,
+   "excluded": [
+    360
+   ],
+   "kept_answers": "8d3452faee8ed701"
+  },
+  "mmlu_prox_cs_math": {
+   "documents": 1351,
+   "excluded": [
+    221,
+    261,
+    359,
+    365,
+    492,
+    591,
+    700,
+    708,
+    731,
+    799,
+    1027,
+    1320
+   ],
+   "kept_answers": "658813b520aa534f"
+  },
+  "mmlu_prox_de_computer_science": {
+   "documents": 410,
+   "excluded": [
+    360
+   ],
+   "kept_answers": "8d3452faee8ed701"
+  },
+  "mmlu_prox_de_math": {
+   "documents": 1351,
+   "excluded": [
+    221,
+    261,
+    359,
+    365,
+    492,
+    591,
+    700,
+    708,
+    731,
+    799,
+    1027,
+    1320
+   ],
+   "kept_answers": "658813b520aa534f"
+  },
+  "mmlu_prox_en_computer_science": {
+   "documents": 410,
+   "excluded": [
+    360
+   ],
+   "kept_answers": "8d3452faee8ed701"
+  },
+  "mmlu_prox_en_math": {
+   "documents": 1351,
+   "excluded": [
+    221,
+    261,
+    359,
+    365,
+    492,
+    591,
+    700,
+    708,
+    731,
+    799,
+    1027,
+    1320
+   ],
+   "kept_answers": "658813b520aa534f"
+  },
+  "mmlu_prox_es_computer_science": {
+   "documents": 410,
+   "excluded": [
+    360
+   ],
+   "kept_answers": "8d3452faee8ed701"
+  },
+  "mmlu_prox_es_math": {
+   "documents": 1351,
+   "excluded": [
+    221,
+    261,
+    359,
+    365,
+    492,
+    591,
+    700,
+    708,
+    731,
+    799,
+    1027,
+    1320
+   ],
+   "kept_answers": "658813b520aa534f"
+  },
+  "mmlu_prox_fr_computer_science": {
+   "documents": 410,
+   "excluded": [
+    360
+   ],
+   "kept_answers": "8d3452faee8ed701"
+  },
+  "mmlu_prox_fr_math": {
+   "documents": 1351,
+   "excluded": [
+    221,
+    261,
+    359,
+    365,
+    492,
+    591,
+    700,
+    708,
+    731,
+    799,
+    1027,
+    1320
+   ],
+   "kept_answers": "658813b520aa534f"
+  },
+  "mmlu_prox_hu_computer_science": {
+   "documents": 410,
+   "excluded": [
+    360
+   ],
+   "kept_answers": "8d3452faee8ed701"
+  },
+  "mmlu_prox_hu_math": {
+   "documents": 1351,
+   "excluded": [
+    221,
+    261,
+    359,
+    365,
+    492,
+    591,
+    700,
+    708,
+    731,
+    799,
+    1027,
+    1320
+   ],
+   "kept_answers": "658813b520aa534f"
+  },
+  "mmlu_prox_it_computer_science": {
+   "documents": 410,
+   "excluded": [
+    360
+   ],
+   "kept_answers": "8d3452faee8ed701"
+  },
+  "mmlu_prox_it_math": {
+   "documents": 1351,
+   "excluded": [
+    221,
+    261,
+    359,
+    365,
+    492,
+    591,
+    700,
+    708,
+    731,
+    799,
+    1027,
+    1320
+   ],
+   "kept_answers": "658813b520aa534f"
+  },
+  "mmlu_prox_pt_computer_science": {
+   "documents": 410,
+   "excluded": [
+    360
+   ],
+   "kept_answers": "8d3452faee8ed701"
+  },
+  "mmlu_prox_pt_math": {
+   "documents": 1351,
+   "excluded": [
+    221,
+    261,
+    359,
+    365,
+    492,
+    591,
+    700,
+    708,
+    731,
+    799,
+    1027,
+    1320
+   ],
+   "kept_answers": "658813b520aa534f"
+  },
+  "mmlu_prox_sr_computer_science": {
+   "documents": 410,
+   "excluded": [
+    360
+   ],
+   "kept_answers": "8d3452faee8ed701"
+  },
+  "mmlu_prox_sr_math": {
+   "documents": 1351,
+   "excluded": [
+    221,
+    261,
+    359,
+    365,
+    492,
+    591,
+    700,
+    708,
+    731,
+    799,
+    1027,
+    1320
+   ],
+   "kept_answers": "658813b520aa534f"
+  },
+  "mmlu_prox_uk_computer_science": {
+   "documents": 410,
+   "excluded": [
+    360
+   ],
+   "kept_answers": "8d3452faee8ed701"
+  },
+  "mmlu_prox_uk_math": {
+   "documents": 1351,
+   "excluded": [
+    221,
+    261,
+    359,
+    365,
+    492,
+    591,
+    700,
+    708,
+    731,
+    799,
+    1027,
+    1320
+   ],
+   "kept_answers": "658813b520aa534f"
+  },
+  "mmmlu_de_de_college_computer_science": {
+   "documents": 100,
+   "excluded": [
+    64
+   ],
+   "kept_answers": "4d70630f0d6ab5b8"
+  },
+  "mmmlu_de_de_high_school_mathematics": {
+   "documents": 270,
+   "excluded": [
+    3,
+    45,
+    63,
+    101,
+    119,
+    132,
+    141,
+    146,
+    160,
+    257,
+    268
+   ],
+   "kept_answers": "ac4f04608f6fb7ba"
+  },
+  "mmmlu_de_de_high_school_statistics": {
+   "documents": 216,
+   "excluded": [
+    144
+   ],
+   "kept_answers": "86476405ca0c93fd"
+  },
+  "mmmlu_es_la_college_computer_science": {
+   "documents": 100,
+   "excluded": [
+    64
+   ],
+   "kept_answers": "4d70630f0d6ab5b8"
+  },
+  "mmmlu_es_la_high_school_mathematics": {
+   "documents": 270,
+   "excluded": [
+    3,
+    45,
+    63,
+    101,
+    119,
+    132,
+    141,
+    146,
+    160,
+    257,
+    268
+   ],
+   "kept_answers": "ac4f04608f6fb7ba"
+  },
+  "mmmlu_es_la_high_school_statistics": {
+   "documents": 216,
+   "excluded": [
+    144
+   ],
+   "kept_answers": "86476405ca0c93fd"
+  },
+  "mmmlu_fr_fr_college_computer_science": {
+   "documents": 100,
+   "excluded": [
+    64
+   ],
+   "kept_answers": "4d70630f0d6ab5b8"
+  },
+  "mmmlu_fr_fr_high_school_mathematics": {
+   "documents": 270,
+   "excluded": [
+    3,
+    45,
+    63,
+    101,
+    119,
+    132,
+    141,
+    146,
+    160,
+    257,
+    268
+   ],
+   "kept_answers": "ac4f04608f6fb7ba"
+  },
+  "mmmlu_fr_fr_high_school_statistics": {
+   "documents": 216,
+   "excluded": [
+    144
+   ],
+   "kept_answers": "86476405ca0c93fd"
+  },
+  "mmmlu_it_it_college_computer_science": {
+   "documents": 100,
+   "excluded": [
+    64
+   ],
+   "kept_answers": "4d70630f0d6ab5b8"
+  },
+  "mmmlu_it_it_high_school_mathematics": {
+   "documents": 270,
+   "excluded": [
+    3,
+    45,
+    63,
+    101,
+    119,
+    132,
+    141,
+    146,
+    160,
+    257,
+    268
+   ],
+   "kept_answers": "ac4f04608f6fb7ba"
+  },
+  "mmmlu_it_it_high_school_statistics": {
+   "documents": 216,
+   "excluded": [
+    144
+   ],
+   "kept_answers": "86476405ca0c93fd"
+  },
+  "mmmlu_pt_br_college_computer_science": {
+   "documents": 100,
+   "excluded": [
+    64
+   ],
+   "kept_answers": "4d70630f0d6ab5b8"
+  },
+  "mmmlu_pt_br_high_school_mathematics": {
+   "documents": 270,
+   "excluded": [
+    3,
+    45,
+    63,
+    101,
+    119,
+    132,
+    141,
+    146,
+    160,
+    257,
+    268
+   ],
+   "kept_answers": "ac4f04608f6fb7ba"
+  },
+  "mmmlu_pt_br_high_school_statistics": {
+   "documents": 216,
+   "excluded": [
+    144
+   ],
+   "kept_answers": "86476405ca0c93fd"
+  },
+  "openbookqa": {
+   "documents": 500,
+   "excluded": [
+    12,
+    26,
+    263
+   ],
+   "kept_answers": "b2578291003d3dfc"
+  },
+  "polymath_de_low": {
+   "documents": 125,
+   "excluded": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49
+   ],
+   "kept_answers": "6b6830472eb87a0d"
+  },
+  "polymath_de_medium": {
+   "documents": 125,
+   "excluded": [
+    82
+   ],
+   "kept_answers": "8e6bf8cea57c0b65"
+  },
+  "polymath_en_low": {
+   "documents": 125,
+   "excluded": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49
+   ],
+   "kept_answers": "6b6830472eb87a0d"
+  },
+  "polymath_en_medium": {
+   "documents": 125,
+   "excluded": [
+    82
+   ],
+   "kept_answers": "8e6bf8cea57c0b65"
+  },
+  "polymath_es_low": {
+   "documents": 125,
+   "excluded": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49
+   ],
+   "kept_answers": "6b6830472eb87a0d"
+  },
+  "polymath_es_medium": {
+   "documents": 125,
+   "excluded": [
+    82
+   ],
+   "kept_answers": "8e6bf8cea57c0b65"
+  },
+  "polymath_fr_low": {
+   "documents": 125,
+   "excluded": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49
+   ],
+   "kept_answers": "6b6830472eb87a0d"
+  },
+  "polymath_fr_medium": {
+   "documents": 125,
+   "excluded": [
+    82
+   ],
+   "kept_answers": "8e6bf8cea57c0b65"
+  },
+  "polymath_it_low": {
+   "documents": 125,
+   "excluded": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49
+   ],
+   "kept_answers": "6b6830472eb87a0d"
+  },
+  "polymath_it_medium": {
+   "documents": 125,
+   "excluded": [
+    82
+   ],
+   "kept_answers": "8e6bf8cea57c0b65"
+  },
+  "polymath_pt_low": {
+   "documents": 125,
+   "excluded": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49
+   ],
+   "kept_answers": "6b6830472eb87a0d"
+  },
+  "polymath_pt_medium": {
+   "documents": 125,
+   "excluded": [
+    82
+   ],
+   "kept_answers": "8e6bf8cea57c0b65"
+  }
+ }
+}

@@ -14,7 +14,7 @@ from string import Template
 import pandas as pd
 from jsonargparse import auto_cli
 
-from oellm import sample_exclusion
+from oellm import decontaminated, sample_exclusion
 from oellm.task_groups import (
     _build_task_suite_map,
     _collect_dataset_specs,
@@ -146,6 +146,8 @@ class EvaluationJob:
     task_path: str
     n_shot: int
     eval_suite: str
+    # The list of marked documents left out of the run (oellm/decontaminated.py).
+    decontaminated: str = ""
 
 
 @capture_third_party_output_from_kwarg("verbose")
@@ -309,6 +311,9 @@ def schedule_evals(
             df["eval_suite"] = "lm_eval"
         else:
             df["eval_suite"] = df["eval_suite"].fillna("lm_eval")
+        if "decontaminated" not in df.columns:
+            df["decontaminated"] = ""
+        df["decontaminated"] = df["decontaminated"].fillna("")
 
         # Always expand local model paths, even with skip_checks
         df["model_path"].unique()
@@ -319,6 +324,7 @@ def schedule_evals(
                     task_path=row["task_path"],
                     n_shot=row["n_shot"],
                     eval_suite=row["eval_suite"],
+                    decontaminated=row["decontaminated"],
                 )
                 for _, row in df.iterrows()
             ]
@@ -350,6 +356,7 @@ def schedule_evals(
                         task_path=result.task,
                         n_shot=result.n_shot,
                         eval_suite=result.suite,
+                        decontaminated=result.decontaminated or "",
                     )
                     for model in models
                     for result in expanded
@@ -369,6 +376,7 @@ def schedule_evals(
                         task_path=job.task_path,
                         n_shot=job.n_shot,
                         eval_suite=job.eval_suite,
+                        decontaminated=job.decontaminated,
                     )
                 )
 
@@ -392,6 +400,28 @@ def schedule_evals(
 
     df["eval_suite"] = df["eval_suite"].str.lower()
     judgearena_rows = df["eval_suite"].eq("judgearena")
+    decontaminated_rows = df["decontaminated"].ne("")
+    if decontaminated_rows.any():
+        if limit:
+            raise ValueError(
+                "Decontaminated task groups run lm-eval with --samples, which "
+                "cannot be combined with --limit."
+            )
+        not_lm_eval = df.loc[
+            decontaminated_rows
+            & ~df["eval_suite"].isin(["lm_eval", "lm-eval", "lm-eval-harness"]),
+            "task_path",
+        ]
+        if not not_lm_eval.empty:
+            raise ValueError(
+                "Only lm-eval tasks can run decontaminated: "
+                + ", ".join(sorted(set(not_lm_eval)))
+            )
+        for name in df.loc[decontaminated_rows, "decontaminated"].unique():
+            decontaminated.load(name)  # an unknown list fails here
+    else:
+        # jobs.csv keeps its columns when no task runs decontaminated.
+        df = df.drop(columns="decontaminated")
     df.loc[judgearena_rows, "n_shot"] = 0
 
     judgearena_values = judgearena_kwargs or {}
@@ -492,6 +522,9 @@ def schedule_evals(
     # of adjacent rows into a single lm_eval invocation, so keeping them
     # adjacent is what lets the model be loaded once instead of once per task.
     batch_key = ["model_path", "n_shot", "eval_suite"]
+    if "decontaminated" in df.columns:
+        # A decontaminated run gets its own lm-eval call, with --samples.
+        batch_key.append("decontaminated")
     group_order = (
         df[batch_key]
         .drop_duplicates()
@@ -511,6 +544,12 @@ def schedule_evals(
     )
 
     df.to_csv(csv_path, index=False)
+    if "decontaminated" in df.columns:
+        for name in df["decontaminated"].unique():
+            if name:
+                (evals_dir / f"samples-{name}.json").write_text(
+                    json.dumps(decontaminated.samples(name))
+                )
 
     sbatch_template = (files("oellm.resources") / "template.sbatch").read_text()
 
@@ -591,6 +630,7 @@ def schedule_evals(
         time_limit=time_limit,  # Dynamic time limit
         slurm_mem=slurm_mem,
         limit=limit if limit else "",  # Sample limit for quick testing
+        samples_dir=str(evals_dir),
         log_samples="true" if log_samples else "",
         venv_path=venv_path or "",
         lm_eval_include_path=str(
@@ -748,7 +788,11 @@ def _pair_clean_with_full(df: pd.DataFrame, key_columns: list[str]) -> pd.DataFr
             + ": the full score kept comes from another run of the same task, "
             "which cannot be filtered."
         )
-    return pd.concat([full, clean]).sort_index().drop(columns="_source")
+    # Runs that left out decontaminated samples, one score per list.
+    others = df[~df["subset"].isin(["full", "clean"])].drop_duplicates(
+        subset=[*key_columns, "subset"], keep="last"
+    )
+    return pd.concat([full, clean, others]).sort_index().drop(columns="_source")
 
 
 def collect_results(
@@ -784,12 +828,15 @@ def collect_results(
             declare no primary metric keep all of theirs.
         exclude_samples: Directory of blocklisted dataset rows, one
             ``<benchmark>.jsonl`` per benchmark (e.g. contaminated test rows).
-            Each lm-eval task that holds such rows is also reported with them
-            left out, recomputed from the samples saved with ``--log_samples``,
-            and so is MATH500, from the answers evalchemy keeps. The CSV then gets a ``subset`` column (``full`` or ``clean``) and an
+            Each lm-eval or lighteval task that holds such rows is also
+            reported with them left out, recomputed from the samples saved
+            with ``--log_samples`` (lighteval's ``--save-details``), and so is
+            MATH500, from the answers evalchemy keeps. The CSV then
+            gets a ``subset`` column (``full`` or ``clean``) and an
             ``n_excluded`` column. A run without saved samples or made with
-            ``--limit`` gets no clean rows and a warning; a score that cannot
-            be recomputed exactly is an error. See ``oellm/sample_exclusion.py``.
+            ``--limit`` gets no clean rows and a warning, and so do blocklisted
+            rows that match no document; a score that cannot be recomputed
+            exactly is an error. See ``oellm/sample_exclusion.py``.
         verbose: Enable verbose logging
     """
     import json
@@ -797,8 +844,12 @@ def collect_results(
     _setup_logging(verbose)
 
     if exclude_samples:
-        blocklist = sample_exclusion.load_blocklist(exclude_samples)
+        blocklist = sample_exclusion.load_blocklist(
+            exclude_samples, sample_exclusion.load_match_fields()
+        )
         exclusion_task_map = sample_exclusion.load_task_map()
+        exclusion_alignments = sample_exclusion.load_alignments()
+        exclusion_normalized = sample_exclusion.load_normalized()
         exclusion_targets = {t for tasks in exclusion_task_map.values() for t in tasks}
         unmapped = sorted(b for b in blocklist if b not in exclusion_task_map)
         if unmapped:
@@ -935,7 +986,8 @@ def collect_results(
 
     # Collect results
     rows = []
-    completed_jobs = set()  # Track (model, task, n_shot) tuples
+    # (model, task, n_shot, decontaminated list or "") of each result
+    completed_jobs = set()
 
     for json_file in json_files:
         with open(json_file) as f:
@@ -950,7 +1002,7 @@ def collect_results(
             metric_pairs = _flatten_numeric_metrics(report.get("metrics", {}))
             if metric_pairs:
                 if check:
-                    completed_jobs.add((model_name, task_name, 0))
+                    completed_jobs.add((model_name, task_name, 0, ""))
                 rows.extend(
                     {
                         "model_name": model_name,
@@ -964,6 +1016,12 @@ def collect_results(
             continue
 
         file_rows_start = len(rows)
+        try:
+            # The list of marked documents the run left out, if any.
+            decontaminated_by = decontaminated.run_of(json_file, data)
+        except ValueError as e:
+            logging.warning(f"Skipped {json_file}, a decontaminated run: {e}")
+            continue
 
         # Extract model name/path from a few common locations used in different
         # versions of the result JSON schema.
@@ -1031,7 +1089,9 @@ def collect_results(
                 task_metric_pairs = _resolve_primary_metric(group_name, task_metric_pairs)
             if task_metric_pairs:
                 if check:
-                    completed_jobs.add((model_name, group_name, n_shot))
+                    completed_jobs.add(
+                        (model_name, group_name, n_shot, decontaminated_by or "")
+                    )
                 for metric_name, performance in task_metric_pairs:
                     rows.append(
                         {
@@ -1113,7 +1173,9 @@ def collect_results(
             if task_metric_pairs:
                 # Track completed job for check mode (once per task, not per metric)
                 if check:
-                    completed_jobs.add((model_name, task_name_clean, n_shot))
+                    completed_jobs.add(
+                        (model_name, task_name_clean, n_shot, decontaminated_by or "")
+                    )
 
                 for metric_name, performance in task_metric_pairs:
                     rows.append(
@@ -1132,7 +1194,17 @@ def collect_results(
                         f"No performance metric found for {model_name} | {task_name} | n_shot={n_shot} in {json_file.name}"
                     )
 
-        if exclude_samples:
+        if decontaminated_by:
+            excluded_by_task = decontaminated.load(decontaminated_by)["tasks"]
+            for r in rows[file_rows_start:]:
+                r["subset"] = f"decontaminated:{decontaminated_by}"
+                r["n_excluded"] = sum(
+                    len(excluded_by_task[leaf]["excluded"])
+                    for leaf in sample_exclusion._leaves(r["task"], group_subtasks_map)
+                    if leaf in excluded_by_task
+                )
+
+        if exclude_samples and not decontaminated_by:
             # Report each task that loses blocklisted samples a second time,
             # with the same metrics recomputed without them.
             file_rows = rows[file_rows_start:]
@@ -1141,7 +1213,12 @@ def collect_results(
                 r["_source"] = str(json_file)
             try:
                 clean = sample_exclusion.clean_results(
-                    json_file, data, blocklist, exclusion_task_map
+                    json_file,
+                    data,
+                    blocklist,
+                    exclusion_task_map,
+                    exclusion_alignments,
+                    exclusion_normalized,
                 )
             except sample_exclusion.RunNotFilterable as e:
                 # No wrong number, just no clean one: e.g. an older run
@@ -1164,12 +1241,28 @@ def collect_results(
                 clean_metrics = {
                     m: v for m, v in _extract_all_metrics(clean_result) if m in wanted
                 }
-                if wanted - clean_metrics.keys():
+                missing = wanted - clean_metrics.keys()
+                # The harness bootstraps the stderr of some metrics (lm-eval's
+                # perplexity, lighteval's corpus translation metrics):
+                # their score is recomputed, the stderr is left out.
+                bootstrapped = {
+                    m
+                    for m in missing
+                    if m.endswith("_stderr")
+                    and m.removesuffix("_stderr") in clean_metrics
+                }
+                if missing - bootstrapped:
                     raise sample_exclusion.SampleExclusionError(
-                        f"{name}: {sorted(wanted - clean_metrics.keys())} cannot be "
+                        f"{name}: {sorted(missing - bootstrapped)} cannot be "
                         "recomputed without the blocklisted samples; only metrics "
-                        "averaged over samples, with a number saved for every "
-                        "sample, can."
+                        "aggregated from a number saved for every sample (a mean, "
+                        "perplexity, ifeval's instruction-level accuracy) can."
+                    )
+                if bootstrapped:
+                    logging.warning(
+                        f"{model_name} | {name}: no score without blocklisted samples "
+                        f"for {', '.join(sorted(bootstrapped))}, which the harness "
+                        "estimates by bootstrapping"
                     )
                 logging.info(
                     f"{model_name} | {name}: {n_excluded} blocklisted documents excluded"
@@ -1182,6 +1275,7 @@ def collect_results(
                         "n_excluded": n_excluded,
                     }
                     for r in full_rows
+                    if r["metric_name"] in clean_metrics
                 )
 
     if not rows and not check:
@@ -1194,6 +1288,11 @@ def collect_results(
         df = pd.DataFrame(rows)
         if exclude_samples:
             df = _pair_clean_with_full(df, key_columns)
+        elif "subset" in df:
+            # Decontaminated runs: one score per subset.
+            df["subset"] = df["subset"].fillna("full")
+            df["n_excluded"] = df["n_excluded"].fillna(0).astype(int)
+            df = df.drop_duplicates(subset=[*key_columns, "subset"], keep="last")
         else:
             df = df.drop_duplicates(subset=key_columns, keep="last")
         df.to_csv(output_csv, index=False)
@@ -1217,7 +1316,15 @@ def collect_results(
         missing_jobs = []
 
         for _, job in jobs_df.iterrows():
-            job_tuple = (job["model_path"], job["task_path"], job["n_shot"])
+            decontaminated_job = job.get("decontaminated")
+            if not isinstance(decontaminated_job, str):  # absent, or NaN
+                decontaminated_job = ""
+            job_tuple = (
+                job["model_path"],
+                job["task_path"],
+                job["n_shot"],
+                decontaminated_job,
+            )
 
             # Check if this job corresponds to one of our completed results
             is_completed = False
@@ -1228,11 +1335,17 @@ def collect_results(
             else:
                 # Try fuzzy matching for model names
                 for completed_job in completed_jobs:
-                    completed_model, completed_task, completed_n_shot = completed_job
+                    (
+                        completed_model,
+                        completed_task,
+                        completed_n_shot,
+                        completed_decontaminated,
+                    ) = completed_job
 
                     if (
                         job["n_shot"] == completed_n_shot
                         and job["task_path"] == completed_task
+                        and decontaminated_job == completed_decontaminated
                         and (
                             str(job["model_path"]).endswith(completed_model)
                             or completed_model in str(job["model_path"])

@@ -59,6 +59,7 @@ TEMPLATE_FIELDS = {
     "tasks_per_job": 8,
     "judgearena_args": "",
     "judgearena_data": "/tmp/judgearena-data",
+    "samples_dir": "/tmp",
 }
 
 requires_awk = pytest.mark.skipif(shutil.which("awk") is None, reason="awk not available")
@@ -94,9 +95,17 @@ def _batches(rows: list[str], tasks_per_job: int = 8) -> list[dict[str, str]]:
     )
     assert result.returncode == 0, result.stderr
     batches = []
-    for line in result.stdout.strip().split("\n"):
-        model, tasks, n_shot, suite = line.split("\t")
-        batches.append({"model": model, "tasks": tasks, "n_shot": n_shot, "suite": suite})
+    for line in result.stdout.rstrip("\n").split("\n"):
+        model, tasks, n_shot, suite, decontaminated = line.split("\t")
+        batches.append(
+            {
+                "model": model,
+                "tasks": tasks,
+                "n_shot": n_shot,
+                "suite": suite,
+                "decontaminated": decontaminated,
+            }
+        )
     return batches
 
 
@@ -181,3 +190,29 @@ def test_scheduled_csv_keeps_a_batch_adjacent(tmp_path: Path) -> None:
     keys = list(zip(df["model_path"], df["n_shot"], df["eval_suite"], strict=True))
     runs = [key for index, key in enumerate(keys) if index == 0 or key != keys[index - 1]]
     assert len(runs) == len(set(runs)), "rows sharing a batch key are not adjacent"
+
+
+@requires_awk
+def test_decontaminated_rows_get_calls_of_their_own() -> None:
+    """A decontaminated row runs with --samples, which applies to the whole
+    lm_eval call, so it cannot share one with rows on whole tasks."""
+    rows = [
+        f"{MODEL_A},mmlu,5,lm-eval-harness,",
+        f"{MODEL_A},mmlu,5,lm-eval-harness,agenttrove-0.0",
+        f"{MODEL_A},mmlu_prox_de,5,lm-eval-harness,agenttrove-0.0",
+        f"{MODEL_A},global_mmlu_full_de,5,lm-eval-harness",
+    ]
+    assert [(b["tasks"], b["decontaminated"]) for b in _batches(rows)] == [
+        ("mmlu", ""),
+        ("mmlu,mmlu_prox_de", "agenttrove-0.0"),
+        ("global_mmlu_full_de", ""),
+    ]
+
+
+def test_a_decontaminated_row_runs_lm_eval_with_its_samples() -> None:
+    script = _render(samples_dir="/evals/run")
+    assert '--samples "/evals/run/samples-$decontaminated.json"' in script
+    assert (
+        'RUN_NAME="$RUN_ID${decontaminated:+--decontaminated--$decontaminated}"' in script
+    )
+    assert '--output_path "$EVAL_OUT_DIR/$RUN_NAME.json"' in script
