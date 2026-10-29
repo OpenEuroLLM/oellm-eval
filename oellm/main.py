@@ -210,6 +210,9 @@ def schedule_evals(
             a single failure takes down; 1 restores one invocation per task.
         limit: If set, limit the number of samples per task (useful for quick testing).
             Passes --limit to lm_eval, --max_samples to lighteval, and
+            --generation.n_instructions to JudgeArena. evalchemy's own benchmarks
+            ignore the value: they get --debug, which runs a fixed subset (the first
+            2 questions, 10 for LiveCodeBench).
             --generation.n_instructions to JudgeArena.
         log_samples: If True, save every sample (prompt, model output, and
             per-sample metrics) instead of only the aggregated scores. Passes
@@ -390,6 +393,12 @@ def schedule_evals(
         return None
 
     df["eval_suite"] = df["eval_suite"].str.lower()
+    if limit and df["eval_suite"].eq("evalchemy").any():
+        logging.warning(
+            "evalchemy benchmarks ignore --limit %s and run their debug subset instead "
+            "(the first 2 questions, 10 for LiveCodeBench).",
+            limit,
+        )
     judgearena_rows = df["eval_suite"].eq("judgearena")
     df.loc[judgearena_rows, "n_shot"] = 0
 

@@ -32,6 +32,7 @@ it before comparing runs made with different versions.
 ### Fixed
 
 - `collect` no longer reports lm-eval's `sample_len` document count as a metric for tasks outside the task groups or with `--fetch_all_metrics`.
+- `--limit` now shortens evalchemy's benchmarks (`reasoning`: MATH500, GPQADiamond, AIME24, ...). They ignored it and ran in full; they now get `--debug`, which runs the first 2 questions (10 for LiveCodeBench) whatever the limit, and `schedule` warns about it (#154).
 
 ### Removed
 
