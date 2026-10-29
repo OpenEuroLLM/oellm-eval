@@ -1,0 +1,11 @@
+# lm-eval's mmmlu_es_la_high_school_mathematics, whose few-shot examples leave
+# out marked documents in a decontaminated run; see utils.py.
+include: _template_yaml
+dataset_name: ES_LA
+process_docs: !function utils.process_high_school_mathematics
+fewshot_config:
+  sampler: first_n
+  process_docs: !function utils.fewshot_es_la
+task: mmmlu_es_la_high_school_mathematics
+task_alias: "high school mathematics (Spanish)"
+description: "The following are multiple choice questions (with answers) about high school mathematics (Spanish).\n\n"

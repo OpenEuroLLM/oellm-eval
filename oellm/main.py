@@ -150,6 +150,26 @@ class EvaluationJob:
     decontaminated: str = ""
 
 
+def _holds_decontaminated_tasks(include_path: Path) -> bool:
+    """Whether lm-eval's *include_path* holds oellm's MMMLU tasks, whose few-shot
+    examples leave out the documents a decontaminated run leaves out
+    (custom_lm_eval_tasks/mmmlu_decontaminated); without them lm-eval runs its
+    own, which can show those documents as examples."""
+    bundled = Path(
+        str(files("oellm.resources") / "custom_lm_eval_tasks" / "mmmlu_decontaminated")
+    )
+    expected = {p.name: p.read_bytes() for p in bundled.iterdir() if p.is_file()}
+    marker = min(name for name in expected if name.endswith(".yaml"))
+    return any(
+        all(
+            (found.parent / name).is_file()
+            and (found.parent / name).read_bytes() == content
+            for name, content in expected.items()
+        )
+        for found in include_path.rglob(marker)
+    )
+
+
 @capture_third_party_output_from_kwarg("verbose")
 def schedule_evals(
     models: str | None = None,
@@ -416,6 +436,12 @@ def schedule_evals(
                 "Decontaminated task groups run lm-eval with --samples, which "
                 "cannot be combined with --limit."
             )
+        if not log_samples:
+            logging.info(
+                "Saving samples (--log_samples): collect checks that a decontaminated "
+                "run's samples are the documents its list keeps."
+            )
+            log_samples = True
         not_lm_eval = df.loc[
             decontaminated_rows
             & ~df["eval_suite"].isin(["lm_eval", "lm-eval", "lm-eval-harness"]),
@@ -428,6 +454,19 @@ def schedule_evals(
             )
         for name in df.loc[decontaminated_rows, "decontaminated"].unique():
             decontaminated.load(name)  # an unknown list fails here
+        include_path = Path(
+            lm_eval_include_path
+            or os.environ.get("LM_EVAL_INCLUDE_PATH")
+            or str(files("oellm.resources") / "custom_lm_eval_tasks")
+        )
+        if not _holds_decontaminated_tasks(include_path):
+            raise ValueError(
+                f"The lm-eval include path {include_path} lacks oellm's MMMLU tasks "
+                "for decontaminated runs (oellm/resources/custom_lm_eval_tasks/"
+                "mmmlu_decontaminated); copy them into it, or schedule "
+                "decontaminated task groups with oellm's own (neither "
+                "--lm_eval_include_path nor LM_EVAL_INCLUDE_PATH)."
+            )
     else:
         # jobs.csv keeps its columns when no task runs decontaminated.
         df = df.drop(columns="decontaminated")
@@ -853,12 +892,12 @@ def collect_results(
     _setup_logging(verbose)
 
     if exclude_samples:
-        blocklist = sample_exclusion.load_blocklist(
-            exclude_samples, sample_exclusion.load_match_fields()
-        )
+        match_fields = sample_exclusion.load_match_fields()
+        blocklist = sample_exclusion.load_blocklist(exclude_samples, match_fields)
         exclusion_task_map = sample_exclusion.load_task_map()
         exclusion_alignments = sample_exclusion.load_alignments()
         exclusion_normalized = sample_exclusion.load_normalized()
+        exclusion_match_on = set(match_fields)
         exclusion_targets = {t for tasks in exclusion_task_map.values() for t in tasks}
         unmapped = sorted(b for b in blocklist if b not in exclusion_task_map)
         if unmapped:
@@ -965,10 +1004,15 @@ def collect_results(
             f"Found {len(jobs_csv_paths)} jobs.csv file(s): {[str(p) for p in jobs_csv_paths]}"
         )
         jobs_frames = [pd.read_csv(p) for p in jobs_csv_paths]
-        # Concatenate and let later entries win for duplicate (model_path, task_path, n_shot).
+        # Concatenate and let later entries win for duplicate (model_path, task_path,
+        # n_shot, decontaminated): a decontaminated job is a job of its own.
         jobs_df = pd.concat(jobs_frames, ignore_index=True)
+        if "decontaminated" in jobs_df.columns:
+            jobs_df["decontaminated"] = jobs_df["decontaminated"].fillna("")
         dup_cols = [
-            c for c in ("model_path", "task_path", "n_shot") if c in jobs_df.columns
+            c
+            for c in ("model_path", "task_path", "n_shot", "decontaminated")
+            if c in jobs_df.columns
         ]
         if dup_cols:
             jobs_df = jobs_df.drop_duplicates(subset=dup_cols, keep="last")
@@ -1228,6 +1272,7 @@ def collect_results(
                     exclusion_task_map,
                     exclusion_alignments,
                     exclusion_normalized,
+                    exclusion_match_on,
                 )
             except sample_exclusion.RunNotFilterable as e:
                 # No wrong number, just no clean one: e.g. an older run
@@ -1260,9 +1305,18 @@ def collect_results(
                     if m.endswith("_stderr")
                     and m.removesuffix("_stderr") in clean_metrics
                 }
-                if missing - bootstrapped:
+                # lighteval computes its corpus chrF(++) and TER from the first
+                # sample alone, so they have no score without any (None).
+                first_sample_only = {
+                    m
+                    for m in missing
+                    if m.removesuffix("_stderr") in clean_result
+                    and clean_result[m.removesuffix("_stderr")] is None
+                }
+                unrecomputable = missing - bootstrapped - first_sample_only
+                if unrecomputable:
                     raise sample_exclusion.SampleExclusionError(
-                        f"{name}: {sorted(missing - bootstrapped)} cannot be "
+                        f"{name}: {sorted(unrecomputable)} cannot be "
                         "recomputed without the blocklisted samples; only metrics "
                         "aggregated from a number saved for every sample (a mean, "
                         "perplexity, ifeval's instruction-level accuracy) can."
@@ -1272,6 +1326,12 @@ def collect_results(
                         f"{model_name} | {name}: no score without blocklisted samples "
                         f"for {', '.join(sorted(bootstrapped))}, which the harness "
                         "estimates by bootstrapping"
+                    )
+                if first_sample_only:
+                    logging.warning(
+                        f"{model_name} | {name}: no score without blocklisted samples "
+                        f"for {', '.join(sorted(first_sample_only))}, which lighteval "
+                        "computes from its first sample alone"
                     )
                 logging.info(
                     f"{model_name} | {name}: {n_excluded} blocklisted documents excluded"

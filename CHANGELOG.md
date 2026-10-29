@@ -22,8 +22,8 @@ it before comparing runs made with different versions.
 ### Added
 
 - lm-eval runs pass `--write_out` by default, and `--log_samples` saves every sample when requested.
-- `collect --exclude_samples` also reports scores without blocklisted (e.g. contaminated) test rows, recomputed from the saved samples, for the lm-eval and lighteval benchmarks the decontamination pipeline covers and evalchemy's MATH500, in every language oellm evaluates them in.
-- Task group `decontaminated-agenttrove-0.0`: the lm-eval tasks holding test rows the decontamination pipeline marked, in every language, run without those rows (lm-eval `--samples`); `collect` reports them as `subset` `decontaminated:agenttrove-0.0`.
+- `collect --exclude_samples` also reports scores without blocklisted (e.g. contaminated) test rows, recomputed from the saved samples, for the lm-eval and lighteval benchmarks the decontamination pipeline covers and evalchemy's MATH500, in every language oellm evaluates them in (but XWinograd's non-English ones) and in other benchmarks holding copies of their items.
+- Task group `decontaminated-agenttrove-0.0`: the lm-eval tasks holding test rows the decontamination pipeline marked, in every language, run without those rows (lm-eval `--samples`, saving the samples); `collect` reports them as `subset` `decontaminated:agenttrove-0.0`.
 
 ### Changed
 

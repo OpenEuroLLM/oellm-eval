@@ -1,11 +1,13 @@
-# The lm-eval tasks or groups, or evalchemy benchmarks, whose documents each
-# blocklist benchmark holds, for `oellm-eval collect --exclude_samples`. Keys are
+# The lm-eval tasks or groups, lighteval tasks, or evalchemy benchmarks whose
+# documents each blocklist benchmark holds, for `oellm-eval collect
+# --exclude_samples`. Keys are
 # blocklist file names without `.jsonl`, as the decontamination pipeline
 # (pretraining-decontamination) names its benchmarks. Rows of a benchmark not
 # listed here are ignored.
 #
 # A blocklisted row excludes its item in every language oellm evaluates it in,
-# so an entry lists every task holding a translation of the benchmark. A row is
+# so an entry lists every task holding a translation of the benchmark, or a copy
+# of its items in another benchmark. A row is
 # matched on the fields it shares with a task's documents, or on the fields the
 # entry names (`match_on`): ones the harness keeps unchanged, and that identify
 # the item in every language (PAWS-X's id). With `normalize`, text is compared
@@ -18,17 +20,23 @@
 #
 # Checked against the pipeline's agenttrove-0.0 rows (every row of the whole
 # benchmark, not only the blocklisted ones), lm-eval 0.4.13, lighteval
-# 0.13.1.dev0 and evalchemy 54ac976. Not translated here: XWinograd's languages
-# are separate collections; XCOPA translates COPA's test split, the pipeline's
-# rows are its validation split. Of evalchemy's benchmarks only MATH500 keeps a
-# result per question, so HumanEval and LiveCodeBench cannot be listed.
+# 0.13.1.dev0 and evalchemy 54ac976. Not translated here: XWinograd's other
+# languages translate some of WSC's items, but keep no field that identifies
+# them, leave some out (pt and ru follow WSC's order with gaps) and mix in
+# schemas of their own, so a WSC or XWinograd row excludes only its English
+# copies; XCOPA translates COPA's test split, the pipeline's rows are its
+# validation split. Of evalchemy's benchmarks only MATH500 keeps a result per
+# question, so HumanEval and LiveCodeBench cannot be listed.
 benchmarks:
-  # MGSM translates 250 of GSM8K's test questions, and Global-MGSM MGSM's.
+  # MGSM translates GSM8K's first 250 test questions, and Global-MGSM MGSM's;
+  # PolyMath's low level is the first 125 of them.
   GSM8K:
     [gsm8k, mgsm_native_cot_en, mgsm_native_cot_de, mgsm_native_cot_es,
      mgsm_native_cot_fr, global_mgsm_de, global_mgsm_fr, global_mgsm_es,
      global_mgsm_el, global_mgsm_cs, global_mgsm_hu, global_mgsm_en,
-     global_mgsm_ca, global_mgsm_eu, global_mgsm_gl, global_mgsm_sr]
+     global_mgsm_ca, global_mgsm_eu, global_mgsm_gl, global_mgsm_sr,
+     polymath_de_low, polymath_en_low, polymath_es_low, polymath_fr_low,
+     polymath_it_low, polymath_pt_low]
   # Global-MMLU's English is MMLU's test split; MMMLU translates it too.
   MMLU:
     [mmlu, global_mmlu_full_cs, global_mmlu_full_de, global_mmlu_full_el,
@@ -51,7 +59,9 @@ benchmarks:
     [global_mgsm_de, global_mgsm_fr, global_mgsm_es, global_mgsm_el,
      global_mgsm_cs, global_mgsm_hu, global_mgsm_en, global_mgsm_ca,
      global_mgsm_eu, global_mgsm_gl, global_mgsm_sr, mgsm_native_cot_en,
-     mgsm_native_cot_de, mgsm_native_cot_es, mgsm_native_cot_fr]
+     mgsm_native_cot_de, mgsm_native_cot_es, mgsm_native_cot_fr, gsm8k,
+     polymath_de_low, polymath_en_low, polymath_es_low, polymath_fr_low,
+     polymath_it_low, polymath_pt_low]
   PolyMath:
     [polymath_de_low, polymath_en_low, polymath_es_low, polymath_fr_low,
      polymath_it_low, polymath_pt_low, polymath_de_medium, polymath_en_medium,
@@ -59,7 +69,11 @@ benchmarks:
      polymath_pt_medium, polymath_de_high, polymath_en_high, polymath_es_high,
      polymath_fr_high, polymath_it_high, polymath_pt_high, polymath_de_top,
      polymath_en_top, polymath_es_top, polymath_fr_top, polymath_it_top,
-     polymath_pt_top]
+     polymath_pt_top, gsm8k, mgsm_native_cot_en, mgsm_native_cot_de,
+     mgsm_native_cot_es, mgsm_native_cot_fr, global_mgsm_de, global_mgsm_fr,
+     global_mgsm_es, global_mgsm_el, global_mgsm_cs, global_mgsm_hu,
+     global_mgsm_en, global_mgsm_ca, global_mgsm_eu, global_mgsm_gl,
+     global_mgsm_sr]
   # openeurollm/jeopardy keeps 2,117 questions with 3 of the original fields,
   # its category renamed, and apostrophes and some spaces dropped.
   Jeopardy:
@@ -98,24 +112,29 @@ benchmarks:
   PIQA: [piqa]
   SocialIQA: [social_iqa]
   WinoGrande: [winogrande]
-  # lm-eval's wsc273 rewrites the options (lowercase, possessive 's).
+  # lm-eval's wsc273 rewrites the options (lowercase, possessive 's). XWinograd's
+  # English holds most of its items, as sentences with a pronoun blanked; they
+  # are in the alignment tables of both.
   WinogradSchemaChallenge:
-    tasks: [wsc273]
+    tasks: [wsc273, xwinograd_en]
     match_on: [pronoun, pronoun_loc, quote, quote_loc, label, source]
   XStoryCloze:
     tasks: [xstorycloze]
     match_on: [story_id]
-  XWinograd: [xwinograd]
+  XWinograd: [xwinograd, wsc273]
   XNLI: [xnli_bul_Cyrl, xnli_deu_Latn, xnli_ell_Grek, xnli_eng_Latn, xnli_spa_Latn, xnli_fra_Latn]
   # oellm's pawsx tasks rewrite the sentences (detokenized, lowercased).
   PAWS_x:
     tasks: [pawsx_deu_Latn, pawsx_eng_Latn, pawsx_spa_Latn, pawsx_fra_Latn]
     match_on: [id]
   # agenttrove-0.0's rows are X-CSQA's test split; oellm evaluates validation.
+  # Some of its questions are CommonsenseQA's validation ones, in its alignment
+  # table.
   Xcsqa:
     tasks:
       [xcsqa_deu_Latn, xcsqa_eng_Latn, xcsqa_spa_Latn, xcsqa_fra_Latn,
-       xcsqa_ita_Latn, xcsqa_nld_Latn, xcsqa_pol_Latn, xcsqa_por_Latn]
+       xcsqa_ita_Latn, xcsqa_nld_Latn, xcsqa_pol_Latn, xcsqa_por_Latn,
+       commonsense_qa]
     match_on: [id]
   # Belebele runs on lm-eval and, as its cf formulation, on lighteval, whose
   # tasks are in its alignment table: each language orders its questions.
@@ -152,6 +171,8 @@ benchmarks:
     match_on: [sen, wrong_sen]
   # lighteval: facebook/flores keeps each sentence pair in one row; a row of
   # the pipeline holds one language's sentence, in the prompt or the reference.
+  # SIB-200 (lm-eval) labels FLORES sentences with a topic; its tasks are in the
+  # alignment table.
   Flores200:
     tasks:
       ["flores200:bul_Cyrl-eng_Latn", "flores200:hrv_Latn-eng_Latn",
@@ -188,7 +209,16 @@ benchmarks:
        "flores200:eng_Latn-kat_Geor", "flores200:eng_Latn-mkd_Cyrl",
        "flores200:eng_Latn-als_Latn", "flores200:eng_Latn-srp_Cyrl",
        "flores200:eng_Latn-tur_Latn", "flores200:eng_Latn-ukr_Cyrl",
-       "flores200:eng_Latn-isl_Latn", "flores200:eng_Latn-nob_Latn"]
+       "flores200:eng_Latn-isl_Latn", "flores200:eng_Latn-nob_Latn",
+       sib200_als_Latn, sib200_bos_Latn, sib200_bul_Cyrl, sib200_cat_Latn,
+       sib200_ces_Latn, sib200_dan_Latn, sib200_deu_Latn, sib200_ell_Grek,
+       sib200_eng_Latn, sib200_est_Latn, sib200_eus_Latn, sib200_fin_Latn,
+       sib200_fra_Latn, sib200_gle_Latn, sib200_glg_Latn, sib200_hrv_Latn,
+       sib200_hun_Latn, sib200_isl_Latn, sib200_ita_Latn, sib200_kat_Geor,
+       sib200_lit_Latn, sib200_lvs_Latn, sib200_mkd_Cyrl, sib200_mlt_Latn,
+       sib200_nld_Latn, sib200_nob_Latn, sib200_pol_Latn, sib200_por_Latn,
+       sib200_ron_Latn, sib200_slk_Latn, sib200_slv_Latn, sib200_spa_Latn,
+       sib200_srp_Cyrl, sib200_swe_Latn, sib200_tur_Latn, sib200_ukr_Cyrl]
     match_on: [sentence]
   # lighteval: gpqa_diamond is a subset of the pipeline's gpqa_extended.
   GPQA:

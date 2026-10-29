@@ -214,6 +214,22 @@ do
             # lm-eval does not record --samples in its results, so the file
             # name tells collect which documents the run left out.
             RUN_NAME="$RUN_ID${{decontaminated:+--decontaminated--$decontaminated}}"
+            # oellm's MMMLU high_school_mathematics tasks take their few-shot
+            # examples from the documents a decontaminated run keeps. Passed
+            # through SINGULARITYENV_ too, for a container with a clean env.
+            # lm-eval's request cache ignores --samples: a decontaminated run
+            # would score the requests of every document a full run cached.
+            CACHE_ARGS="${{CACHE_REQUESTS:+--cache_requests $CACHE_REQUESTS}}"
+            if [ -n "$decontaminated" ]; then
+                export OELLM_DECONTAMINATED_SAMPLES="{samples_dir}/samples-$decontaminated.json"
+                export SINGULARITYENV_OELLM_DECONTAMINATED_SAMPLES="$$OELLM_DECONTAMINATED_SAMPLES"
+                if [ -n "$$CACHE_ARGS" ]; then
+                    echo "Not caching requests: the run leaves out documents ($decontaminated)"
+                    CACHE_ARGS=""
+                fi
+            else
+                unset OELLM_DECONTAMINATED_SAMPLES SINGULARITYENV_OELLM_DECONTAMINATED_SAMPLES
+            fi
             run_python -m lm_eval --model hf \
                 --model_args pretrained="$model_path",trust_remote_code=True \
                 --tasks "$task_path" \
@@ -223,7 +239,7 @@ do
                 ${{LM_EVAL_INCLUDE_PATH:+--include_path $$LM_EVAL_INCLUDE_PATH}} \
                 --batch_size auto \
                 --write_out \
-                ${{CACHE_REQUESTS:+--cache_requests $CACHE_REQUESTS}} \
+                $$CACHE_ARGS \
                 ${{LIMIT:+--limit $LIMIT}} \
                 ${{decontaminated:+--samples "{samples_dir}/samples-$decontaminated.json"}} \
                 ${{LOG_SAMPLES:+--log_samples}}

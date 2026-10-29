@@ -29,7 +29,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from oellm.sample_exclusion import _canonical, item_key  # noqa: E402
+from oellm.sample_exclusion import _canonical, _normalized, item_key  # noqa: E402
 
 TABLES = REPO / "oellm/resources/sample-exclusion-alignments"
 
@@ -53,14 +53,15 @@ def items_of(
     return items
 
 
-def entry(positions: list[int | None], gold: list[str]) -> dict:
+def entry(positions: list[int | None], gold: list[str], shared=False) -> dict:
     """A task's table entry, from the position of each item among its documents
-    (None where it lacks the item) and the answer of each document."""
+    (None where it lacks the item) and the answer of each document; items can
+    be the same document only where they are *shared* (WSC and XWinograd)."""
     held = [(i, p) for i, p in enumerate(positions) if p is not None]
     taken = [p for _, p in held]
     if (
         not held
-        or len(set(taken)) != len(taken)
+        or (not shared and len(set(taken)) != len(taken))
         or not all(0 <= p < len(gold) for p in taken)
     ):
         raise AlignmentError("positions must be distinct documents of the task")
@@ -186,22 +187,47 @@ def xnli(lm: LmEval) -> dict:
 
 MGSM_LANGS = ["en", "de", "es", "fr"]
 GLOBAL_MGSM_LANGS = ["de", "fr", "es", "el", "cs", "hu", "en", "ca", "eu", "gl", "sr"]
+MGSM_TASKS = [f"mgsm_native_cot_{lang}" for lang in MGSM_LANGS] + [
+    f"global_mgsm_{lang}" for lang in GLOBAL_MGSM_LANGS
+]
+POLYMATH_LANGS = ["de", "en", "es", "fr", "it", "pt"]
+POLYMATH_LEVELS = ["low", "medium", "high", "top"]
 
 
 def mgsm_answer(doc: dict) -> str:
-    # MGSM gives the answer as answer_number, Global-MGSM as answer.
-    return number(doc["answer_number"] if "answer_number" in doc else doc["answer"])
+    # MGSM gives the answer as answer_number, Global-MGSM and PolyMath as
+    # answer, GSM8K at the end of its answer, after "####".
+    answer = doc["answer_number"] if "answer_number" in doc else doc["answer"]
+    return number(str(answer).rsplit("####", 1)[-1])
+
+
+def first_items(
+    benchmark: str, anchor: list[dict], task: str, docs: list[dict], n: int
+) -> list[int | None]:
+    """Positions of the first *n* items of *anchor* among *docs*, which are
+    other copies of GSM8K's first test questions, in the same order: checked
+    by their answers."""
+    if len(docs) < n:
+        raise AlignmentError(f"{benchmark}: {task} has {len(docs)} documents, not {n}")
+    differ = [i for i in range(n) if mgsm_answer(anchor[i]) != mgsm_answer(docs[i])]
+    if differ:
+        raise AlignmentError(
+            f"{benchmark}: {task}'s documents {differ[:10]} have another answer "
+            f"than the same position of the anchor's ({len(differ)} in all)"
+        )
+    return list(range(n)) + [None] * (len(anchor) - n)
 
 
 def _mgsm_tasks(lm: LmEval, benchmark: str, anchor: list[dict]) -> dict:
-    # MGSM translates 250 of GSM8K's test questions, and Global-MGSM MGSM's, in
-    # the same order.
+    # MGSM translates GSM8K's first 250 test questions, and Global-MGSM MGSM's,
+    # in the same order; PolyMath's low level is the first 125 of them.
     tasks = {}
-    for task in [f"mgsm_native_cot_{lang}" for lang in MGSM_LANGS] + [
-        f"global_mgsm_{lang}" for lang in GLOBAL_MGSM_LANGS
-    ]:
+    for task in MGSM_TASKS:
         docs, gold = lm.docs(task)
         tasks[task] = entry(by_position(benchmark, anchor, task, docs, mgsm_answer), gold)
+    for task in [f"polymath_{lang}_low" for lang in POLYMATH_LANGS]:
+        docs, gold = lm.docs(task)
+        tasks[task] = entry(first_items(benchmark, anchor, task, docs, len(docs)), gold)
     return tasks
 
 
@@ -222,21 +248,20 @@ def global_mgsm(lm: LmEval) -> dict:
     key = ["question"]
     anchor, _ = lm.docs("global_mgsm_en")
     tasks = _mgsm_tasks(lm, "GlobalMGSM", anchor)
+    docs, gold = lm.docs("gsm8k")
+    positions = first_items("GlobalMGSM", anchor, "gsm8k", docs, len(anchor))
+    tasks["gsm8k"] = entry(positions, gold)
     return {"key": key, "items": items_of(key, anchor, "GlobalMGSM"), "tasks": tasks}
-
-
-POLYMATH_LANGS = ["de", "en", "es", "fr", "it", "pt"]
-POLYMATH_LEVELS = ["low", "medium", "high", "top"]
 
 
 def polymath(lm: LmEval) -> dict:
     # Qwen/PolyMath's ids name the language (low-en-50), so its levels'
-    # languages are put together by position.
+    # languages are put together by position. Its low level is GSM8K's first
+    # 125 test questions, which MGSM and Global-MGSM translate too.
     key = ["id"]
     anchors = {level: lm.docs(f"polymath_en_{level}")[0] for level in POLYMATH_LEVELS}
-    items = items_of(
-        key, [d for level in POLYMATH_LEVELS for d in anchors[level]], "PolyMath"
-    )
+    every = [d for level in POLYMATH_LEVELS for d in anchors[level]]
+    items = items_of(key, every, "PolyMath")
     tasks = {}
     start = 0
     for level in POLYMATH_LEVELS:
@@ -249,6 +274,10 @@ def polymath(lm: LmEval) -> dict:
             positions[start : start + len(anchor)] = within
             tasks[task] = entry(positions, gold)
         start += len(anchor)
+    for task in ["gsm8k", *MGSM_TASKS]:
+        docs, gold = lm.docs(task)
+        positions = first_items("PolyMath", every, task, docs, len(anchors["low"]))
+        tasks[task] = entry(positions, gold)
     return {"key": key, "items": items, "tasks": tasks}
 
 
@@ -302,6 +331,100 @@ def commonsense_qa(lm: LmEval) -> dict:
             )
         tasks[f"xcsqa_{lang}"] = entry(positions, gold)
     return {"key": key, "items": items_of(key, anchor, "CommonsenseQA"), "tasks": tasks}
+
+
+def xcsqa(lm: LmEval) -> dict:
+    # The pipeline's X-CSQA rows are its test split, which oellm does not
+    # evaluate; some of its questions are CommonsenseQA's validation ones,
+    # which commonsense_qa evaluates. Its test split has no answers.
+    key = ["id"]
+    task = lm.manager.load_task_or_group(["xcsqa_eng_Latn"])["xcsqa_eng_Latn"]
+    test = [json.loads(json.dumps(d, default=str)) for d in task.dataset["test"]]
+    anchor, gold = lm.docs("commonsense_qa")
+    def question(stem: str, choices: list[str]) -> tuple:
+        return " ".join(stem.split()), tuple(sorted(choices))
+
+    where = {}
+    for p, a in enumerate(anchor):
+        where.setdefault(question(a["question"], a["choices"]["text"]), []).append(p)
+    positions = []
+    for d in test:
+        found = where.get(
+            question(d["question"]["stem"], d["question"]["choices"]["text"]), []
+        )
+        if len(found) > 1:
+            raise AlignmentError(f"Xcsqa: {d['id']} is commonsense_qa {found}")
+        positions.append(found[0] if found else None)
+    tasks = {"commonsense_qa": entry(positions, gold)}
+    return {"key": key, "items": items_of(key, test, "Xcsqa"), "tasks": tasks}
+
+
+def flores200(lm: LmEval) -> dict:
+    # SIB-200 labels FLORES-200 sentences with a topic, every language at the
+    # same position (index_id, not FLORES' id): a FLORES row is one of its
+    # items when it is the same English sentence.
+    key = ["sentence"]
+    anchor, _ = lm.docs("sib200_eng_Latn")
+    tasks = {}
+    sib200 = REPO / "oellm/resources/custom_lm_eval_tasks/sib200"
+    for path in sorted(sib200.glob("*.yaml")):
+        task = path.stem
+        docs, gold = lm.docs(task)
+        positions = by_field(
+            "Flores200", anchor, "index_id", task, docs, lambda d: d["category"]
+        )
+        tasks[task] = entry(positions, gold)
+    sentences = [{"sentence": d["text"]} for d in anchor]
+    return {"key": key, "items": items_of(key, sentences, "Flores200"), "tasks": tasks}
+
+
+def winograd_pairs(lm: LmEval) -> list[tuple[int, int]]:
+    """(wsc273 position, xwinograd_en position) of each XWinograd English
+    sentence that is a WSC one with one of its words blanked. XWinograd holds
+    most WSC items, some twice with the options swapped, and sometimes blanks
+    another pronoun of the sentence (one WSC text can be two items)."""
+    wsc, _ = lm.docs("wsc273")
+    english, _ = lm.docs("xwinograd_en")
+    texts = [_normalized(d["text"]) for d in wsc]
+    words = [{_normalized(w) for w in d["text"].split()} for d in wsc]
+    pairs = []
+    for x, doc in enumerate(english):
+        before, _, after = (_normalized(s) for s in doc["sentence"].partition("_"))
+        found = [
+            w
+            for w, text in enumerate(texts)
+            if len(text) > len(before) + len(after)
+            and text.startswith(before)
+            and text.endswith(after)
+            and text[len(before) : len(text) - len(after)] in words[w]
+        ]
+        if len({texts[w] for w in found}) > 1:
+            raise AlignmentError(f"XWinograd: xwinograd_en {x} is several WSC sentences")
+        pairs += [(w, x) for w in found]
+    return pairs
+
+
+def winograd_schema_challenge(lm: LmEval) -> dict:
+    # Rows keep only the fields they are matched on (sample-exclusion.yaml).
+    key = ["pronoun", "pronoun_loc", "quote", "quote_loc", "label", "source"]
+    wsc, _ = lm.docs("wsc273")
+    _, gold = lm.docs("xwinograd_en")
+    pairs = winograd_pairs(lm)
+    items = items_of(
+        key, [wsc[w] for w, _ in pairs], "WinogradSchemaChallenge", repeats=True
+    )
+    tasks = {"xwinograd_en": entry([x for _, x in pairs], gold, shared=True)}
+    return {"key": key, "items": items, "tasks": tasks}
+
+
+def xwinograd(lm: LmEval) -> dict:
+    key = ["sentence", "option1", "option2", "answer"]
+    english, _ = lm.docs("xwinograd_en")
+    _, gold = lm.docs("wsc273")
+    pairs = winograd_pairs(lm)
+    items = items_of(key, [english[x] for _, x in pairs], "XWinograd", repeats=True)
+    tasks = {"wsc273": entry([w for w, _ in pairs], gold, shared=True)}
+    return {"key": key, "items": items, "tasks": tasks}
 
 
 GLOBAL_MMLU_LANGS = [
@@ -403,6 +526,10 @@ LM_EVAL_TABLES = {
     "GlobalMGSM": global_mgsm,
     "PolyMath": polymath,
     "CommonsenseQA": commonsense_qa,
+    "Xcsqa": xcsqa,
+    "Flores200": flores200,
+    "WinogradSchemaChallenge": winograd_schema_challenge,
+    "XWinograd": xwinograd,
 }
 
 

@@ -30,9 +30,14 @@ from oellm.sample_exclusion import item_key  # noqa: E402
 LISTS = REPO / "oellm/resources/decontaminated"
 
 
-def held_by(table: dict, task: str) -> list[str]:
-    """The tasks of alignment *table* that are *task* or its subtasks."""
-    return [t for t in table["tasks"] if t == task or t.startswith(f"{task}_")]
+def held_by(table: dict, task: str, lm_eval_tasks) -> list[str]:
+    """The lm-eval tasks of alignment *table* that are *task* or its subtasks;
+    not lighteval's (belebele_bul_Cyrl_cf is no subtask of belebele_bul_Cyrl)."""
+    return [
+        t
+        for t in table["tasks"]
+        if t in lm_eval_tasks and (t == task or t.startswith(f"{task}_"))
+    ]
 
 
 def leaves(manager, task: str) -> dict:
@@ -58,7 +63,8 @@ def build(name: str, rows_dir: Path) -> tuple[dict, list[str]]:
     from lm_eval.tasks import TaskManager
 
     manager = TaskManager(include_path=str(REPO / "oellm/resources/custom_lm_eval_tasks"))
-    blocklist = se.load_blocklist(rows_dir, se.load_match_fields())
+    match_fields = se.load_match_fields()
+    blocklist = se.load_blocklist(rows_dir, match_fields)
     task_map = se.load_task_map()
     alignments = se.load_alignments()
     normalized = se.load_normalized()
@@ -74,7 +80,7 @@ def build(name: str, rows_dir: Path) -> tuple[dict, list[str]]:
         table = alignments.get(benchmark, {"tasks": {}})
         matched = [False] * len(rows)
 
-        aligned = [leaf for t in mapped for leaf in held_by(table, t)]
+        aligned = [leaf for t in mapped for leaf in held_by(table, t, manager.task_index)]
         items = se.table_items(table, rows) if aligned else []
         for leaf in aligned:
             held = se.held_items(table["tasks"][leaf])
@@ -86,7 +92,7 @@ def build(name: str, rows_dir: Path) -> tuple[dict, list[str]]:
 
         direct = {}
         for t in mapped:
-            if not held_by(table, t):
+            if not held_by(table, t, manager.task_index):
                 direct |= leaves(manager, t)
         loaded |= direct
         if direct:
@@ -98,7 +104,11 @@ def build(name: str, rows_dir: Path) -> tuple[dict, list[str]]:
                 for leaf, task in direct.items()
             }
             found, flags = se._excluded_docs(
-                rows, samples, benchmark, benchmark in normalized
+                rows,
+                samples,
+                benchmark,
+                benchmark in normalized,
+                benchmark in match_fields,
             )
             for leaf, doc_ids in found.items():
                 excluded[leaf] |= doc_ids

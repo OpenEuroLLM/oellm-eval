@@ -14,6 +14,7 @@ import math
 import os
 import statistics
 import sys
+import types
 from pathlib import Path
 
 import pandas as pd
@@ -480,6 +481,17 @@ def test_a_row_without_a_field_it_is_matched_on_is_refused(tmp_path):
         sample_exclusion.load_blocklist(tmp_path, {"Toy": ["question", "answer"]})
 
 
+def test_documents_without_a_field_their_benchmark_is_matched_on_are_refused(tmp_path):
+    """HellaSwag's ind repeats without source_id: matching on ind alone would
+    exclude other documents than the blocklisted ones."""
+    docs = [{"question": f"q{i}", "ind": i % 2} for i in range(4)]
+    run = _write_run(tmp_path, {"toy": _task(docs, {"none": [1, 0, 1, 0]})})
+    data = json.loads(run.read_text())
+    rows = {"Toy": [{"ind": 1, "source_id": "s1"}]}
+    with pytest.raises(RunNotFilterable, match="toy have no source_id"):
+        clean_results(run, data, rows, {"Toy": ["toy"]}, match_on={"Toy"})
+
+
 def test_match_fields_come_from_the_task_map():
     assert sample_exclusion.load_match_fields()["Jeopardy"] == ["context", "continuation"]
     assert sample_exclusion.load_task_map()["Jeopardy"] == ["jeopardy"]
@@ -569,6 +581,35 @@ def test_a_run_without_saved_samples_is_refused(tmp_path):
     (tmp_path / f"samples_toy_{TS}.jsonl").unlink()
     with pytest.raises(RunNotFilterable, match="--log_samples"):
         _clean(run, {"Toy": [docs[0]]})
+
+
+@pytest.mark.parametrize("cut", ["mid-line", "whole lines"])
+def test_a_run_cut_short_while_saving_samples_gets_no_clean_rows(
+    tmp_path, monkeypatch, cut
+):
+    """lm-eval writes the results before the samples, so a job stopped by its
+    time limit can leave them incomplete; the other runs keep their clean rows."""
+    docs = _docs(5)
+    _write_run(tmp_path / "a", {"toy": _task(docs, {"none": [1, 0, 1, 1, 0]})})
+    _write_run(tmp_path / "b", {"toy2": _task(docs, {"none": [1, 1, 1, 1, 0]})})
+    samples = tmp_path / "b" / f"samples_toy2_{TS}.jsonl"
+    text = samples.read_text()
+    samples.write_text(text[:-20] if cut == "mid-line" else text.split("\n", 1)[1])
+    with pytest.raises(RunNotFilterable, match="toy2"):
+        _clean(
+            tmp_path / "b" / f"results_{TS}.json", {"Toy": [docs[0]]}, {"Toy": ["toy2"]}
+        )
+    (tmp_path / "blocklist").mkdir()
+    (tmp_path / "blocklist" / "Toy.jsonl").write_text(json.dumps(docs[0]) + "\n")
+    monkeypatch.setattr(
+        sample_exclusion, "load_task_map", lambda: {"Toy": ["toy", "toy2"]}
+    )
+    out = tmp_path / "out.csv"
+    collect_results(str(tmp_path), str(out), exclude_samples=str(tmp_path / "blocklist"))
+    df = pd.read_csv(out).set_index(["task", "subset"])
+    assert ("toy", "clean") in df.index
+    assert ("toy2", "full") in df.index
+    assert ("toy2", "clean") not in df.index
 
 
 def test_a_run_without_document_counts_is_refused(tmp_path):
@@ -696,6 +737,52 @@ def test_a_group_from_lm_eval_before_0_4_12_is_refused(tmp_path):
         _clean(run, {"Toy": [a["samples"][0]["doc"]]})
 
 
+def _fewshot_from_scored(tmp_path, sampler, shots=5, n=8):
+    """A task whose few-shot examples come from the split it scores, as MMMLU's."""
+    docs = _docs(n)
+    task = _task(docs, {"none": [1, 0] * (n // 2)})
+    task["config"] |= {
+        "test_split": "test",
+        "fewshot_split": "test",
+        "fewshot_config": {"sampler": sampler},
+    }
+    run = _write_run(tmp_path, {"toy": task})
+    data = json.loads(run.read_text())
+    data["n-shot"]["toy"] = shots
+    run.write_text(json.dumps(data))
+    return run, docs
+
+
+@pytest.mark.parametrize(
+    "sampler, excluded, shown",
+    [
+        ("first_n", 3, True),  # one of the first 5
+        ("first_n", 5, True),  # the 6th, for the first 5 documents' prompts
+        ("first_n", 6, False),
+        ("default", 6, True),  # drawn at random from all
+    ],
+)
+def test_blocklisted_few_shot_examples_are_reported(
+    tmp_path, caplog, sampler, excluded, shown
+):
+    """MMMLU takes its examples from the first test questions of a subject; a
+    clean score from a full run still shows a blocklisted one among them."""
+    run, docs = _fewshot_from_scored(tmp_path, sampler)
+    with caplog.at_level(logging.WARNING):
+        _clean(run, {"Toy": [docs[excluded]]})
+    assert ("toy: its few-shot examples come from" in caplog.text) == shown
+
+
+def test_few_shot_examples_from_another_split_are_not_reported(tmp_path, caplog):
+    run, docs = _fewshot_from_scored(tmp_path, "first_n")
+    data = json.loads(run.read_text())
+    data["configs"]["toy"]["fewshot_split"] = "dev"
+    run.write_text(json.dumps(data))
+    with caplog.at_level(logging.WARNING):
+        _clean(run, {"Toy": [docs[0]]})
+    assert "few-shot examples" not in caplog.text
+
+
 # --- translations ------------------------------------------------------------
 
 
@@ -786,6 +873,70 @@ def _translated_run(tmp_path, german=GERMAN, german_values=(0, 0, 1, 1, 1)):
 def _clean_translated(run, rows, table=IDENTITY, task_map=TRANSLATED):
     data = json.loads(run.read_text())
     return clean_results(run, data, {"Toy": rows}, task_map, {"Toy": table})
+
+
+def _collect_with_settings(tmp_path, monkeypatch, tasks, rows, task_map, **settings):
+    """collect over one run, with the task map and the yaml's other settings
+    (alignments, match_fields, normalized) as given."""
+    _write_run(tmp_path / "run", tasks)
+    (tmp_path / "blocklist").mkdir()
+    for benchmark, benchmark_rows in rows.items():
+        (tmp_path / "blocklist" / f"{benchmark}.jsonl").write_text(
+            "".join(json.dumps(r) + "\n" for r in benchmark_rows)
+        )
+    monkeypatch.setattr(sample_exclusion, "load_task_map", lambda: task_map)
+    for name, value in settings.items():
+        monkeypatch.setattr(sample_exclusion, f"load_{name}", lambda v=value: v)
+    out = tmp_path / "out.csv"
+    collect_results(
+        str(tmp_path / "run"), str(out), exclude_samples=str(tmp_path / "blocklist")
+    )
+    return pd.read_csv(out)
+
+
+def test_collect_matches_by_the_yaml_s_tables_fields_and_normalization(
+    tmp_path, monkeypatch
+):
+    """Each row excludes its document only through its benchmark's setting: a
+    table (toy_de shares no field with the row), match_on (the row's answer
+    differs) or normalize (the text differs in spaces and apostrophes)."""
+    jeopardy = [{"context": f"A  {i}", "continuation": f"x's {i}"} for i in range(3)]
+    df = _collect_with_settings(
+        tmp_path,
+        monkeypatch,
+        {
+            "toy_en": _translated_task(ENGLISH, [1, 0, 1, 1, 0]),
+            "toy_de": _translated_task(GERMAN, [0, 0, 1, 1, 1]),
+            "toy_m": _task(_docs(4), {"none": [1, 0, 1, 0]}),
+            "toy_j": _task(jeopardy, {"none": [1, 0, 1]}),
+        },
+        {
+            "Tab": [ENGLISH[1]],
+            "Match": [{"question": "q1", "answer": 99}],
+            "Norm": [{"context": "A 1", "continuation": "xs 1"}],
+        },
+        {"Tab": ["toy_en", "toy_de"], "Match": ["toy_m"], "Norm": ["toy_j"]},
+        alignments={"Tab": IDENTITY},
+        match_fields={"Match": ["question"]},
+        normalized={"Norm"},
+    )
+    clean = df[df.subset == "clean"].groupby("task")["n_excluded"].first()
+    assert clean.to_dict() == {"toy_de": 1, "toy_en": 1, "toy_j": 1, "toy_m": 1}
+
+
+def test_collect_skips_a_run_whose_documents_lack_a_match_on_field(
+    tmp_path, monkeypatch
+):
+    docs = [{"question": f"q{i}", "ind": i % 2} for i in range(4)]
+    df = _collect_with_settings(
+        tmp_path,
+        monkeypatch,
+        {"toy": _task(docs, {"none": [1, 0, 1, 0]})},
+        {"Toy": [{"ind": 1, "source_id": "s1"}]},
+        {"Toy": ["toy"]},
+        match_fields={"Toy": ["ind", "source_id"]},
+    )
+    assert set(df.subset) == {"full"}
 
 
 def test_a_row_excludes_its_translations_by_their_position(tmp_path):
@@ -1222,6 +1373,30 @@ def test_every_text_field_of_a_lighteval_row_must_be_in_the_prompt(tmp_path, cap
     assert "there are no samples to exclude" in caplog.text
 
 
+@pytest.mark.parametrize("in_choices", [False, True])
+def test_a_sentence_part_of_another_document_s_matches_its_own(in_choices):
+    """FLORES' 33rd sentence is part of its 32nd; English is in the query
+    (eng_Latn-deu_Latn) or the choices (deu_Latn-eng_Latn)."""
+    english = ["The cat sat on the mat, and then it slept.", "The cat sat on the mat."]
+    english.append(english[1])  # a sentence a benchmark repeats
+    samples = {
+        "t": [
+            {
+                "doc_id": i,
+                "doc": {"query": f"DE: {i} EN:", "choices": [f" {e}"]}
+                if in_choices
+                else {"query": f"EN: {e} DE:", "choices": [f" {i}"]},
+            }
+            for i, e in enumerate(english)
+        ]
+    }
+    rows = [{"sentence": english[1]}, {"sentence": english[0]}]
+    excluded, _ = sample_exclusion._contained_docs(rows[:1], samples)
+    assert excluded == {"t": {1, 2}}
+    excluded, _ = sample_exclusion._contained_docs(rows[1:], samples)
+    assert excluded == {"t": {0}}
+
+
 def test_a_lighteval_run_with_max_samples_is_refused(tmp_path):
     run = _write_lighteval_run(tmp_path, [1, 1, 1, 0, 1], max_samples=5)
     with pytest.raises(RunNotFilterable, match="scored at most 5 samples"):
@@ -1249,13 +1424,26 @@ def test_a_lighteval_results_file_moved_out_of_its_directory_is_refused(tmp_path
         _clean_lighteval(moved, [{"premise": PREMISES[0]}])
 
 
-def test_lighteval_details_that_do_not_reproduce_the_score_are_refused(tmp_path):
+@pytest.mark.parametrize("key", ["acc", "acc_stderr"])
+def test_lighteval_details_that_do_not_reproduce_the_score_are_refused(tmp_path, key):
     run = _write_lighteval_run(tmp_path, [1, 1, 1, 0, 1])
     data = json.loads(run.read_text())
-    data["results"]["toy:it|0"]["acc"] = 0.6
+    data["results"]["toy:it|0"][key] = 0.6
     run.write_text(json.dumps(data))
     with pytest.raises(SampleExclusionError, match="lighteval reported 0.6"):
         _clean_lighteval(run, [{"premise": PREMISES[0]}])
+
+
+def test_a_lighteval_row_in_more_than_10_prompts_is_refused():
+    """Its text then does not identify a document."""
+    samples = {
+        "t": [
+            {"doc_id": i, "doc": {"query": f"EN: The cat sat {i}. DE:", "choices": []}}
+            for i in range(11)
+        ]
+    }
+    with pytest.raises(SampleExclusionError, match="text is in 11 prompts of t"):
+        sample_exclusion._contained_docs([{"sentence": "The cat sat"}], samples, "Toy")
 
 
 def test_collect_reports_full_and_clean_lighteval_scores(tmp_path, monkeypatch):
@@ -1278,6 +1466,41 @@ def test_collect_reports_full_and_clean_lighteval_scores(tmp_path, monkeypatch):
     assert ("toy:it", "clean", "acc_stderr") in df.index
 
 
+def test_collect_leaves_out_lighteval_s_corpus_chrf_and_says_so(
+    tmp_path, monkeypatch, capfd
+):
+    """flores reports chrF++ next to BLEU; the other metrics keep their clean
+    scores."""
+    run = _write_lighteval_run(tmp_path / "run", [1, 1, 1, 0, 1])
+    data = json.loads(run.read_text())
+    data["results"]["toy:it|0"] |= {"chrf++": 50.0, "chrf++_stderr": 1.0}
+    data["config_tasks"]["toy:it|0"]["metrics"].append(
+        {
+            "metric_name": "chrf++",
+            "corpus_level_fn": "CorpusLevelTranslationMetric(metric_type=chrf++, lang=)",
+        }
+    )
+    run.write_text(json.dumps(data))
+    (tmp_path / "blocklist").mkdir()
+    (tmp_path / "blocklist" / "Toy.jsonl").write_text(
+        json.dumps({"premise": PREMISES[3]}) + "\n"
+    )
+    monkeypatch.setattr(sample_exclusion, "load_task_map", lambda: {"Toy": ["toy:it"]})
+    out = tmp_path / "out.csv"
+    collect_results(
+        str(tmp_path / "run"),
+        str(out),
+        fetch_all_metrics=True,
+        exclude_samples=str(tmp_path / "blocklist"),
+    )
+    df = pd.read_csv(out).set_index(["task", "subset", "metric_name"])["performance"]
+    assert df["toy:it", "full", "chrf++"] == 50.0
+    assert df["toy:it", "clean", "acc"] == 1.0
+    assert ("toy:it", "clean", "chrf++") not in df.index
+    logged = " ".join(capfd.readouterr().out.split())
+    assert "chrf++, chrf++_stderr, which lighteval computes from its first" in logged
+
+
 TRANSLATIONS = [
     ({"golds": ["Das Haus ist rot."], "preds": ["Das Haus ist rot."]}),
     ({"golds": ["Der Hund schläft."], "preds": ["Ein Hund schläft gern."]}),
@@ -1290,24 +1513,34 @@ def test_corpus_bleu_is_scored_as_lighteval_scores_it():
     preds = [t["preds"][0] for t in TRANSLATIONS]
     golds = [t["golds"][0] for t in TRANSLATIONS]
     expected = sacrebleu.BLEU().corpus_score(preds, [golds]).score
-    assert sample_exclusion._translation_score("bleu", "", TRANSLATIONS) == expected
+    assert sample_exclusion._corpus_bleu("", TRANSLATIONS) == expected
 
 
-def test_corpus_chrf_is_scored_as_lighteval_scores_it():
-    """lighteval passes each sentence's references as a reference stream, so
-    sacrebleu scores the first translation alone, against every reference."""
-    sacrebleu = pytest.importorskip("sacrebleu")
-    first = TRANSLATIONS[0]["preds"][0]
-    alone = sacrebleu.CHRF(word_order=2).corpus_score(
-        [first], [t["golds"] for t in TRANSLATIONS]
-    )
-    assert sample_exclusion._translation_score("chrf++", "", TRANSLATIONS) == alone.score
-
-
-def test_corpus_translation_metrics_need_sacrebleu(monkeypatch):
+def test_corpus_bleu_needs_sacrebleu(monkeypatch):
     monkeypatch.setitem(sys.modules, "sacrebleu", None)  # import fails
     with pytest.raises(RunNotFilterable, match="needs sacrebleu"):
-        sample_exclusion._translation_score("chrf++", "", TRANSLATIONS)
+        sample_exclusion._corpus_bleu("", TRANSLATIONS)
+
+
+@pytest.mark.parametrize("metric_type", ["chrf++", "chrf", "ter"])
+def test_corpus_chrf_and_ter_have_no_score_without_blocklisted_samples(metric_type):
+    """lighteval passes each sentence's references as a reference set of their
+    own, so sacrebleu scores the first translation alone."""
+    config = {
+        "metrics": [
+            {
+                "metric_name": "chrf++",
+                "corpus_level_fn": f"CorpusLevelTranslationMetric(metric_type={metric_type}, lang=)",
+            }
+        ]
+    }
+    samples = [
+        {"doc_id": i, "doc": {}, "metric": {"chrf++": t}}
+        for i, t in enumerate(TRANSLATIONS)
+    ]
+    result = {"chrf++": 50.0, "chrf++_stderr": 1.0}
+    clean = sample_exclusion._lighteval_scores("t", result, config, samples, {1})
+    assert clean == {"chrf++": None}
 
 
 # --- evalchemy's MATH500 -----------------------------------------------------
@@ -1410,7 +1643,7 @@ def test_collect_reports_full_and_clean_math500_scores(tmp_path, monkeypatch):
     df = pd.read_csv(out).set_index(["subset", "metric_name"])
     assert set(df.task) == {"MATH500"}
     assert df.loc[("full", "accuracy"), "performance"] == 10 / 500
-    assert df.loc[("clean", "accuracy"), "performance"] == 9 / 499
+    assert df.loc[("clean", "accuracy"), "performance"] == pytest.approx(9 / 499)
     assert df.loc[("clean", "num_solved"), "performance"] == 9
     assert df.loc[("clean", "num_total"), "performance"] == 499
     assert set(df.loc["clean", "n_excluded"]) == {1}
@@ -1422,6 +1655,8 @@ def test_collect_reports_full_and_clean_math500_scores(tmp_path, monkeypatch):
 def test_every_mapped_task_is_in_the_task_groups():
     groups = _load_task_groups_data()["task_groups"]
     tasks = {t["task"] for g in groups.values() for t in g.get("tasks") or []}
+    # WSC's items are in xwinograd_en alone, of the group xwinograd.
+    tasks.add("xwinograd_en")
     for benchmark, mapped in sample_exclusion.load_task_map().items():
         assert set(mapped) <= tasks, benchmark
 
@@ -1476,7 +1711,9 @@ def test_an_alignment_table_is_well_formed(benchmark):
             assert len(e["positions"]) == len(table["items"]), task
             taken = [p for p in e["positions"] if p is not None]
             assert taken, task
-            assert len(set(taken)) == len(taken), task
+            # XWinograd repeats WSC items, so their tables share documents.
+            if benchmark not in {"WinogradSchemaChallenge", "XWinograd"}:
+                assert len(set(taken)) == len(taken), task
             assert all(isinstance(p, int) and 0 <= p < e["documents"] for p in taken), (
                 task
             )
@@ -1558,6 +1795,77 @@ def test_a_table_entry_lists_positions_only_where_items_are_not_in_a_row():
     for positions in ([1, 1], [2, 0], [None, None]):
         with pytest.raises(build.AlignmentError):
             build.entry(positions, ["a", "b"])
+    # XWinograd repeats WSC items, so their tables share documents.
+    assert build.entry([1, 1], ["a", "b"], shared=True)["positions"] == [1, 1]
+
+
+def test_other_copies_of_gsm8k_s_first_questions_are_found_by_their_answers():
+    """PolyMath's low level is GSM8K's first 125 test questions, MGSM's first
+    250; GSM8K gives its answer after "####", MGSM as answer_number."""
+    build = _builder()
+    mgsm = [{"answer_number": n} for n in (18, 3, 70000, 540)]
+    gsm8k = [{"answer": f"So it is {n:,}.\n#### {n:,}"} for n in (18, 3, 70000, 540, 20)]
+    polymath = [{"answer": str(n)} for n in (18, 3)]
+    assert build.first_items("X", mgsm, "gsm8k", gsm8k, 4) == [0, 1, 2, 3]
+    assert build.first_items("X", mgsm, "p", polymath, 2) == [0, 1, None, None]
+    with pytest.raises(build.AlignmentError, match=r"p's documents \[0, 1\]"):
+        build.first_items("X", mgsm, "p", polymath[::-1], 2)
+    with pytest.raises(build.AlignmentError, match="has 2 documents, not 3"):
+        build.first_items("X", mgsm, "p", polymath, 3)
+
+
+def test_x_csqa_s_test_questions_are_found_in_commonsense_qa():
+    """By their question and choices, in any order; the test split has no
+    answers."""
+    build = _builder()
+    csqa = [
+        {"question": "Where is a cat?", "choices": {"text": ["home", "zoo"]}},
+        {"question": "Where  is a dog?", "choices": {"text": ["park", "home"]}},
+    ]
+    test = [
+        {"id": "x0", "question": {"stem": "Where is a dog?", "choices": {"text": ["home", "park"]}}},
+        {"id": "x1", "question": {"stem": "Where is a cat?", "choices": {"text": ["home", "car"]}}},
+    ]  # fmt: skip
+
+    class Lm:
+        manager = types.SimpleNamespace(
+            load_task_or_group=lambda names: {
+                "xcsqa_eng_Latn": types.SimpleNamespace(dataset={"test": test})
+            }
+        )
+
+        def docs(self, name):
+            assert name == "commonsense_qa"
+            return csqa, ["0", "1"]
+
+    table = build.xcsqa(Lm())
+    assert table["items"] == [sample_exclusion.item_key([i]) for i in ("x0", "x1")]
+    assert table["tasks"]["commonsense_qa"]["positions"] == [1, None]
+
+
+def test_wsc_items_are_xwinograd_sentences_with_one_word_blanked():
+    build = _builder()
+    wsc = [
+        {"text": "The cup broke the vase because it was hard."},
+        {"text": "The cup broke the vase because it was fragile."},
+        {"text": "Since it rained, Ann kept the book dry in her bag."},
+    ]
+    english = [
+        {"sentence": "The cup broke the vase because _ was hard."},
+        {"sentence": "The cup broke the vase because _ was hard."},  # swapped options
+        {"sentence": "Since _ rained, Ann kept the book dry in her bag."},
+        {"sentence": "The vase broke because _ was fragile."},
+    ]
+
+    class Docs:
+        def docs(self, name):
+            return {"wsc273": wsc, "xwinograd_en": english}[name], []
+
+    assert build.winograd_pairs(Docs()) == [(0, 0), (0, 1), (2, 2)]
+    # A blanked word that tells two WSC sentences apart would pair both.
+    english.append({"sentence": "The cup broke the vase because it was _."})
+    with pytest.raises(build.AlignmentError, match="xwinograd_en 4 is several"):
+        build.winograd_pairs(Docs())
 
 
 def test_items_must_be_told_apart_by_the_key():
@@ -1678,19 +1986,18 @@ def test_every_mapped_row_matches_its_lm_eval_documents():
                             aggregation.__name__,
                         } & sample_exclusion._AGGREGATIONS.keys():
                             assert ours == aggregation.__name__, (name, metric)
-        for name, task_samples in samples.items():
-            assert all(
-                f in s["doc"]
-                for s in task_samples
-                for f in match_fields.get(benchmark, [])
-            ), (name, match_fields[benchmark])
         rows = blocklist[benchmark]
         table = alignments.get(benchmark, {"tasks": {}})
         aligned = {n: s for n, s in samples.items() if n in table["tasks"]}
         others = {n: s for n, s in samples.items() if n not in aligned}
         found = [
+            # With match_on, also checks that the documents have its fields.
             sample_exclusion._excluded_docs(
-                rows, others, benchmark, benchmark in normalized
+                rows,
+                others,
+                benchmark,
+                benchmark in normalized,
+                benchmark in match_fields,
             )
         ]
         if aligned:

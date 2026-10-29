@@ -329,6 +329,36 @@
    "documents": 250,
    "answers": "afbad27cdbdc8c02",
    "first": 0
+  },
+  "polymath_de_low": {
+   "documents": 125,
+   "answers": "0129089133b8395f",
+   "first": 0
+  },
+  "polymath_en_low": {
+   "documents": 125,
+   "answers": "0129089133b8395f",
+   "first": 0
+  },
+  "polymath_es_low": {
+   "documents": 125,
+   "answers": "0129089133b8395f",
+   "first": 0
+  },
+  "polymath_fr_low": {
+   "documents": 125,
+   "answers": "0129089133b8395f",
+   "first": 0
+  },
+  "polymath_it_low": {
+   "documents": 125,
+   "answers": "0129089133b8395f",
+   "first": 0
+  },
+  "polymath_pt_low": {
+   "documents": 125,
+   "answers": "0129089133b8395f",
+   "first": 0
   }
  }
 }

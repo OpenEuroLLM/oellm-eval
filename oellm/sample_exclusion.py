@@ -4,16 +4,17 @@ A blocklist is a directory with one ``<benchmark>.jsonl`` file per benchmark,
 each line an original row of that benchmark's dataset, for example the rows a
 decontamination run found in the training data. Fields starting with ``_`` are
 annotations and ignored. ``resources/sample-exclusion.yaml`` maps each
-benchmark to the lm-eval tasks or groups, or evalchemy benchmarks, that hold
-its documents, and names the fields to match on when the evaluated copy of a
+benchmark to the lm-eval tasks or groups, lighteval tasks, or evalchemy
+benchmarks that hold its documents, in any language or as copies in other
+benchmarks, and names the fields to match on when the evaluated copy of a
 benchmark does not keep all of the original's.
 
 The samples lm-eval saves with ``--log_samples`` are matched against the rows
 by content (a row that matches nothing is logged and not excluded), lighteval's
-by the text of their prompts, and a row excludes its item in every language a
-benchmark is evaluated in: through a field all languages share, or through an
-alignment table (``resources/sample-exclusion-alignments``) giving the item's
-position in each task. Every per-sample mean metric is recomputed without them,
+by the text of their prompts, and a row excludes its item in every task the map
+lists: through a field all languages share, or through an alignment table
+(``resources/sample-exclusion-alignments``) giving the item's position in each
+task. Every per-sample mean metric is recomputed without them,
 the way the harness computes it. evalchemy saves no samples, but MATH500 keeps
 every question and model answer in its results file, so its questions are
 re-scored the way evalchemy scores them. Before anything is excluded the recomputation
@@ -332,10 +333,14 @@ def _read_samples(results_file: Path, task: str, data: dict) -> list[dict]:
             f"{counts.get('original')} documents (a --limit or --samples run?). Excluding "
             "samples needs a run over the whole benchmark."
         )
+    # A run stopped while saving its samples leaves them incomplete.
     with open(path, encoding="utf-8") as f:
-        samples = [json.loads(line) for line in f if line.strip()]
+        try:
+            samples = [json.loads(line) for line in f if line.strip()]
+        except json.JSONDecodeError as e:
+            raise RunNotFilterable(f"{task}: {path.name} is cut short ({e}).") from e
     if len({s["doc_id"] for s in samples}) != counts.get("effective"):
-        raise SampleExclusionError(
+        raise RunNotFilterable(
             f"{task}: {path.name} holds {len({s['doc_id'] for s in samples})} "
             f"documents, but lm-eval scored {counts.get('effective')}."
         )
@@ -395,14 +400,17 @@ def _excluded_docs(
     samples_by_task: dict[str, list[dict]],
     benchmark: str = "",
     normalize: bool = False,
+    match_on: bool = False,
 ) -> tuple[dict[str, set[int]], list[bool]]:
     """Doc ids per task whose document equals a blocklist row on the fields both
     have, and whether each row matches a document.
 
     A row's fields that a task's documents lack are left out of the comparison
     (the evaluated copy of a dataset may drop some); a row sharing no field with
-    them matches none of them. With *normalize*, text is compared by its letters
-    and digits only (openeurollm/jeopardy drops apostrophes and spaces).
+    them matches none of them. With *match_on*, the rows hold only the fields
+    that identify a document, which every task's documents must have. With
+    *normalize*, text is compared by its letters and digits only
+    (openeurollm/jeopardy drops apostrophes and spaces).
     """
 
     def comparable(values: dict) -> str:
@@ -417,6 +425,15 @@ def _excluded_docs(
         task: set.intersection(*(set(s["doc"]) for s in samples)) if samples else set()
         for task, samples in samples_by_task.items()
     }
+    if match_on:
+        for task in samples_by_task:
+            missing = sorted({f for row in rows for f in row} - shared[task])
+            if missing:
+                raise RunNotFilterable(
+                    f"{benchmark}: the documents of {task} have no "
+                    f"{', '.join(missing)}, which sample-exclusion.yaml matches its "
+                    "rows on, so its blocklisted documents cannot be found."
+                )
     index: dict[tuple, dict[str, list[int]]] = {}
     excluded: dict[str, set[int]] = {}
     matched = []
@@ -646,19 +663,23 @@ def _contained_docs(
 ) -> tuple[dict[str, set[int]], list[bool]]:
     """Doc ids per task whose prompt holds every text field of a blocklist row,
     and whether each row matches a document; for lighteval, which saves the
-    prompt it built from a row (query and choices) instead of the row."""
+    prompt it built from a row (query and choices) instead of the row.
+
+    Where several documents of a task hold a row's text, only those holding it
+    with the least other text are its own: a sentence can be part of another
+    document's (FLORES' 33rd is part of its 32nd).
+    """
     texts = {
         task: [
             (
                 s["doc_id"],
-                _normalized(
-                    "\n".join(
-                        [
-                            s["doc"].get("query") or "",
-                            *map(str, s["doc"].get("choices") or []),
-                        ]
-                    )
-                ),
+                [
+                    _normalized(part)
+                    for part in [
+                        s["doc"].get("query") or "",
+                        *map(str, s["doc"].get("choices") or []),
+                    ]
+                ],
             )
             for s in samples
         ]
@@ -672,18 +693,20 @@ def _contained_docs(
         ]
         hits = []
         for task, docs in texts.items():
-            doc_ids = [
-                doc_id
-                for doc_id, text in docs
-                if needles and all(n in text for n in needles)
-            ]
-            if len(doc_ids) > _MAX_MATCHES_PER_TASK:
+            # The text around each needle in the shortest part holding it.
+            around = {}
+            for doc_id, parts in docs:
+                lengths = [[len(p) - len(n) for p in parts if n in p] for n in needles]
+                if needles and all(lengths):
+                    around[doc_id] = sum(min(ls) for ls in lengths)
+            if len(around) > _MAX_MATCHES_PER_TASK:
                 raise SampleExclusionError(
-                    f"{benchmark}: a blocklist row's text is in {len(doc_ids)} prompts "
+                    f"{benchmark}: a blocklist row's text is in {len(around)} prompts "
                     f"of {task}; name the fields that identify a document with "
                     "match_on in sample-exclusion.yaml."
                 )
-            hits += [(task, doc_id) for doc_id in doc_ids]
+            least = min(around.values(), default=None)
+            hits += [(task, doc_id) for doc_id, a in around.items() if a == least]
         matched.append(bool(hits))
         for task, doc_id in hits:
             excluded.setdefault(task, set()).add(doc_id)
@@ -776,30 +799,23 @@ def _lighteval_aggregation(metric: str, config: dict) -> str | None:
     return None
 
 
-def _translation_score(metric_type: str, lang: str, items: list[dict]) -> float:
-    """lighteval's CorpusLevelTranslationMetric: sacrebleu over the samples'
-    saved golds and preds, called exactly as lighteval calls it."""
+def _corpus_bleu(lang: str, items: list[dict]) -> float:
+    """lighteval's CorpusLevelTranslationMetric for BLEU: sacrebleu over the
+    samples' saved golds and preds, called exactly as lighteval calls it."""
     try:
         import sacrebleu
     except ImportError as e:
         raise RunNotFilterable(
-            f"Recomputing lighteval's corpus {metric_type} needs sacrebleu, which "
-            "lighteval scores it with: pip install sacrebleu"
+            "Recomputing lighteval's corpus BLEU needs sacrebleu, which lighteval "
+            "scores it with: pip install sacrebleu"
         ) from e
-    metric = {
-        "bleu": lambda: sacrebleu.BLEU(trg_lang=lang),
-        "chrf": lambda: sacrebleu.CHRF(),
-        "chrf++": lambda: sacrebleu.CHRF(word_order=2),
-        "ter": lambda: sacrebleu.TER(asian_support=lang != ""),
-    }[metric_type]()
-    golds = [item["golds"] for item in items]
+    golds = [[item["golds"][0] for item in items]]
     preds = [
         item["preds"][0] if isinstance(item["preds"], list) else item["preds"]
         for item in items
     ]
-    if metric_type == "bleu":
-        golds = [[gold[0] for gold in golds]]
-    return float(metric.corpus_score(hypotheses=preds, references=golds).score)
+    bleu = sacrebleu.BLEU(trg_lang=lang)
+    return float(bleu.corpus_score(hypotheses=preds, references=golds).score)
 
 
 _TRANSLATION_METRIC = re.compile(
@@ -811,8 +827,9 @@ def _lighteval_scores(
     task: str, result: dict, config: dict, samples: list[dict], excluded: set[int]
 ) -> dict:
     """*result* of a lighteval task recomputed without *excluded*, for every
-    metric that is a mean over the samples' saved values, or a corpus
-    translation metric (flores' chrF++ and BLEU) over their golds and preds."""
+    metric that is a mean over the samples' saved values, or corpus BLEU
+    (flores') over their golds and preds; corpus chrF(++) and TER, which
+    lighteval computes from the first sample alone, are None."""
     if len({s["doc_id"] for s in samples} - excluded) < 2:
         raise SampleExclusionError(f"{task}: fewer than 2 samples remain after exclusion")
     scores = {}
@@ -822,20 +839,28 @@ def _lighteval_scores(
         aggregation = _lighteval_aggregation(key, config) or ""
         translation = _TRANSLATION_METRIC.fullmatch(aggregation)
         if translation:
+            metric_type, lang = translation.groups()
+            if metric_type != "bleu":
+                # lighteval passes each sample's references to sacrebleu as a
+                # reference set of their own, so chrF(++) and TER score the first
+                # sample alone: without blocklisted ones, another single sample.
+                # None: left out of the clean scores, which collect says.
+                scores[key] = None
+                continue
             # Its stderr is bootstrapped, and left out.
             full = [s["metric"].get(key) for s in samples]
             if not all(
                 isinstance(v, dict) and {"golds", "preds"} <= v.keys() for v in full
             ):
                 continue
-            score = _translation_score(*translation.groups(), full)
+            score = _corpus_bleu(lang, full)
             if not _close(score, value):
                 raise SampleExclusionError(
                     f"{task}: the saved details give {key} = {score}, but lighteval "
                     f"reported {value}; refusing to recompute it."
                 )
             kept = [s["metric"][key] for s in samples if s["doc_id"] not in excluded]
-            scores[key] = _translation_score(*translation.groups(), kept)
+            scores[key] = _corpus_bleu(lang, kept)
             continue
         if aggregation != "mean":
             continue
@@ -860,6 +885,20 @@ def _lighteval_scores(
     return {k: scores[k] for k in result if k in scores}
 
 
+def _fewshot_shows(data: dict, task: str, excluded: set[int]) -> bool:
+    """Whether lm-eval's few-shot examples for *task* can be *excluded*
+    documents: they come from the split it scores (MMMLU's), and are its first
+    ones (n of them, n + 1 when the document scored is among them), or drawn
+    at random from all."""
+    config = data.get("configs", {}).get(task, {})
+    shots = data.get("n-shot", {}).get(task)
+    scored = config.get("test_split") or config.get("validation_split")
+    if not excluded or not shots or config.get("fewshot_split") != scored:
+        return False
+    sampler = (config.get("fewshot_config") or {}).get("sampler", "default")
+    return sampler != "first_n" or min(excluded) <= shots
+
+
 def clean_results(
     results_file: Path,
     data: dict,
@@ -867,6 +906,7 @@ def clean_results(
     task_map: dict[str, list[str]],
     alignments: dict[str, dict] | None = None,
     normalized: set[str] | frozenset[str] = frozenset(),
+    match_on: set[str] | frozenset[str] = frozenset(),
 ) -> dict[str, tuple[dict, int]]:
     """Results of the tasks and groups in *data* that lose blocklisted samples.
 
@@ -877,7 +917,9 @@ def clean_results(
 
     The documents of a task in a benchmark's alignment table (*alignments*,
     see :func:`load_alignments`) are found by position, those of other tasks by
-    content; the text of a benchmark in *normalized* by its letters and digits.
+    content; the text of a benchmark in *normalized* by its letters and digits,
+    and those of a benchmark in *match_on* (see :func:`load_match_fields`) by
+    the fields its rows keep, which the documents must have.
     """
     alignments = alignments or {}
     lighteval = _is_lighteval(data)
@@ -935,7 +977,13 @@ def clean_results(
             found.append(
                 _contained_docs(rows, others, benchmark)
                 if lighteval
-                else _excluded_docs(rows, others, benchmark, benchmark in normalized)
+                else _excluded_docs(
+                    rows,
+                    others,
+                    benchmark,
+                    benchmark in normalized,
+                    benchmark in match_on,
+                )
             )
         matched = [False] * len(rows)
         for doc_ids_by_leaf, flags in found:
@@ -959,6 +1007,15 @@ def clean_results(
                 f"{benchmark}: {len(rows)} blocklisted rows, {what} "
                 f"({tasks} in {results_file})."
             )
+
+    if not lighteval:
+        for leaf in leaves:
+            if _fewshot_shows(data, leaf, excluded[leaf]):
+                logging.warning(
+                    f"{leaf}: its few-shot examples come from the documents it "
+                    "scores and include blocklisted ones, so its score without "
+                    f"them still shows them as examples ({results_file})."
+                )
 
     full = {leaf: results[leaf] for leaf in leaves}
     clean = {

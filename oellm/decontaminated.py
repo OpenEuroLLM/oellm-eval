@@ -5,7 +5,7 @@ it found in the training data. ``resources/decontaminated/<name>.json`` lists,
 for every lm-eval task holding one of those rows in any language, the positions
 of its documents to leave out; a task group with ``decontaminated: <name>``
 runs its tasks on all other documents, through lm-eval's ``--samples``, and
-``collect`` reports those results with ``subset`` ``decontaminated``. The list
+``collect`` reports those results with ``subset`` ``decontaminated:<name>``. The list
 ships with oellm-eval, so neither scheduling nor collecting needs the marked
 rows; ``scripts/build_decontaminated_samples.py`` builds it from them, with the
 matching of ``collect --exclude_samples``.
@@ -65,16 +65,24 @@ def run_of(results_file: Path, data: dict) -> str | None:
     """The list an lm-eval run left out documents by, from its results file's
     name, or None for a run on whole tasks.
 
-    Its tasks must have as many documents as the list was built from, and have
-    run on as many as it keeps; with saved samples, on exactly those, with the
-    answers it lists. Otherwise it raises ValueError.
+    The results must record the documents of each task (n-samples): as many as
+    the list was built from, and run on as many as it keeps (a task the list
+    does not hold, on all); its saved samples, which the run must have
+    (--log_samples), on exactly those, with the answers it lists. Otherwise it
+    raises ValueError.
     """
     stem = results_file.stem.rsplit("_", 1)[0]
     if MARK not in stem:
         return None
     name = stem.split(MARK, 1)[1]
     tasks = load(name)["tasks"]
-    for task, counts in data.get("n-samples", {}).items():
+    if not data.get("n-samples"):
+        raise ValueError(
+            f"{results_file} records no number of documents its tasks ran on "
+            "(n-samples), so it cannot be checked against the decontaminated "
+            f"list {name}."
+        )
+    for task, counts in data["n-samples"].items():
         entry = tasks.get(task)
         original = counts.get("original")
         expected = (
@@ -99,7 +107,10 @@ def _check_samples(results_file: Path, task: str, entry: dict, name: str) -> Non
     timestamp = results_file.stem.rsplit("_", 1)[-1]
     path = results_file.with_name(f"samples_{task}_{timestamp}.jsonl")
     if not path.exists():
-        return
+        raise ValueError(
+            f"{task}: no saved samples next to {results_file} (expected {path.name}), "
+            f"so its documents cannot be checked against the decontaminated list {name}."
+        )
     answers = {}
     with open(path, encoding="utf-8") as f:
         for line in f:
