@@ -467,11 +467,11 @@ task_groups:
         subset: "{lang}"
 
   reasoning:
-    description: "Reasoning tasks: GSM8k (4-shot), IFEval (0-shot), MBPP (3-shot), GPQA-Diamond (0-shot), MATH500 (0-shot), LiveCodeBench (0-shot), HumanEval (0-shot), AIME24 (0-shot), AIME25 (0-shot), AMC23 (0-shot)"
+    description: "Reasoning tasks: GSM8k (8-shot), IFEval (0-shot), MBPP (3-shot), GPQA-Diamond (0-shot), MATH500 (0-shot), LiveCodeBench (0-shot), HumanEval (0-shot), AIME24 (0-shot), AIME25 (0-shot), AMC23 (0-shot)"
     suite: lm-eval-harness
     tasks:
       - task: gsm8k
-        n_shots: [4]
+        n_shots: [8]
         dataset: openai/gsm8k
         subset: main
       - task: ifeval
