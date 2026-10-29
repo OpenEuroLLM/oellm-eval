@@ -1,25 +1,17 @@
 """Scores recomputed without blocklisted samples, for ``collect --exclude_samples``.
 
-A blocklist is a directory with one ``<benchmark>.jsonl`` file per benchmark,
-each line an original row of that benchmark's dataset, for example the rows a
-decontamination run found in the training data. Fields starting with ``_`` are
-annotations and ignored. ``resources/sample-exclusion.yaml`` maps each
-benchmark to the lm-eval tasks or groups, lighteval tasks, or evalchemy
-benchmarks that hold its documents, in any language or as copies in other
-benchmarks, and names the fields to match on when the evaluated copy of a
-benchmark does not keep all of the original's.
+A blocklist is a directory with one ``<benchmark>.jsonl`` per benchmark, one
+original dataset row per line; fields starting with ``_`` are ignored.
+``resources/sample-exclusion.yaml`` maps each benchmark to the lm-eval,
+lighteval or evalchemy tasks holding its documents, in any language or as
+copies in other benchmarks.
 
-The samples lm-eval saves with ``--log_samples`` are matched against the rows
-by content (a row that matches nothing is logged and not excluded), lighteval's
-by the text of their prompts, and a row excludes its item in every task the map
-lists: through a field all languages share, or through an alignment table
-(``resources/sample-exclusion-alignments``) giving the item's position in each
-task. Every per-sample mean metric is recomputed without them,
-the way the harness computes it. evalchemy saves no samples, but MATH500 keeps
-every question and model answer in its results file, so its questions are
-re-scored the way evalchemy scores them. Before anything is excluded the recomputation
-has to reproduce the reported scores, and anything that cannot be recomputed
-exactly is an error rather than an approximate number.
+Rows are matched to lm-eval's saved samples by content, to lighteval's by their
+prompt text, or through an alignment table
+(``resources/sample-exclusion-alignments``) giving an item's position in each
+task. MATH500 is re-scored from the answers in evalchemy's results file. The
+recomputation must first reproduce the reported scores; a score that cannot be
+recomputed exactly is an error.
 """
 
 import hashlib
@@ -35,9 +27,8 @@ import yaml
 
 from oellm.hendrycks_math import is_equiv
 
-# The aggregation lm-eval registers for a metric, which it uses when a
-# metric_list entry gives none (boolq's acc), or when a task has no metric_list
-# and gets its output type's default metrics.
+# lm-eval's registered aggregations, used when a metric_list entry names none
+# (boolq's acc) or a task has no metric_list.
 _REGISTERED_AGGREGATIONS = {
     "acc": "mean",
     "acc_norm": "mean",
@@ -64,29 +55,25 @@ def _perplexity(items: list) -> float:
     return math.exp(-_mean(items))
 
 
-# Aggregations that can be recomputed from the per-sample values lm-eval saves:
-# (score, stderr, whether a sample's value is a list). A stderr of None is one
-# lm-eval bootstraps, which is not recomputed (lambada's perplexity: about a
-# minute per score); ifeval's instruction-level accuracy has none at all.
+# Aggregations recomputable from lm-eval's per-sample values: (score, stderr,
+# whether a value is a list). A None stderr is bootstrapped (perplexity) or
+# absent (ifeval), and not recomputed.
 _AGGREGATIONS = {
     "mean": (lambda items: _mean(items), lambda items: _mean_stderr(items), False),
     "agg_inst_level_acc": (_flat_mean, None, True),
     "perplexity": (_perplexity, None, False),
 }
 
-# A row is matched on the fields it shares with a task's documents. If they
-# share only fields like a label, a row matches many of them; a few are
-# duplicates (MMLU repeats some questions), more mean the fields do not identify
-# one. The limit is per task, as a row matches its item in every language.
+# More matches in one task mean a row's fields do not identify a document
+# (a few are duplicates: MMLU repeats some questions).
 _MAX_MATCHES_PER_TASK = 10
 
-# Alignment tables, for benchmarks whose translations keep no field identifying
-# an item (XNLI) or are evaluated with lighteval, which saves no dataset row.
+# Alignment tables, for translations with no field identifying an item (XNLI)
+# and for lighteval, which saves no dataset row.
 _ALIGNMENTS = "sample-exclusion-alignments"
 
-# evalchemy benchmarks whose results keep every question and model answer
-# (``examples``): their number of questions, and whether a question is solved,
-# as evalchemy decides it.
+# evalchemy benchmarks whose results keep every question and answer
+# (``examples``): their size, and whether a question is solved.
 _EVALCHEMY_BENCHMARKS = {
     "MATH500": (500, lambda ex: is_equiv(str(ex["answer"]), ex["model_answer"])),
 }
@@ -97,8 +84,8 @@ class SampleExclusionError(ValueError):
 
 
 class RunNotFilterable(SampleExclusionError):
-    """A run that cannot give scores without blocklisted samples at all: it has
-    no saved samples, or scored only part of a benchmark. collect skips it."""
+    """A run that cannot be filtered at all (no saved samples, or only part of a
+    benchmark). collect skips it."""
 
 
 def load_blocklist(
@@ -181,15 +168,12 @@ def load_normalized() -> set[str]:
 def load_alignments() -> dict[str, dict]:
     """Benchmark name -> its alignment table.
 
-    A table lists a benchmark's items (``items``), as :func:`item_key` of the
-    values of its ``key`` fields, and for each task holding them (``tasks``)
-    where they are among its documents: item ``first + i`` is the i-th document,
-    or item i is document ``positions[i]`` (``null`` when the task lacks it).
-    It gives the number of documents the table was built from and
-    :func:`item_key` of their answers, as the harness saves them, in order
-    (``documents``, ``answers``), which a run's documents must match.
-    ``scripts/build_sample_exclusion_alignments.py`` builds the tables from the
-    evaluated datasets.
+    ``items`` holds :func:`item_key` of each item's ``key`` fields. For each
+    task, ``tasks`` says where the items are: item ``first + i`` is document i,
+    or item i is document ``positions[i]`` (``null`` if absent). ``documents``
+    and ``answers`` (:func:`item_key` of the answers in order) describe the
+    documents it was built from, which a run must match. Built by
+    ``scripts/build_sample_exclusion_alignments.py``.
     """
     directory = files("oellm.resources") / _ALIGNMENTS
     if not directory.is_dir():
@@ -287,10 +271,8 @@ def _metric_keys(result: dict) -> list[str]:
 
 
 def _in_order_of(result: dict, scores: dict) -> dict:
-    # collect keeps the first of several filters' numeric values for a metric,
-    # so the recomputed keys must come in the order of the reported ones. A
-    # metric whose first filter was not recomputed is left out, rather than
-    # paired with another filter's value.
+    # collect keeps a metric's first numeric filter, so keys keep the reported
+    # order. A metric whose first filter was not recomputed is left out.
     first: dict[str, str] = {}
     for key, value in result.items():
         if _is_number(value):
@@ -311,10 +293,8 @@ def _leaves(name: str, group_subtasks: dict) -> list[str]:
 
 
 def _read_samples(results_file: Path, task: str, data: dict) -> list[dict]:
-    # lm-eval names the results results_<date>.json when --output_path is a
-    # directory and <name>_<date>.json when it is <name>.json, as in oellm's
-    # job template. The samples are samples_<task>_<date>.jsonl either way, and
-    # the date (an ISO timestamp with "-" for ":") has no underscore.
+    # Results are <name>_<date>.json (results_<date>.json for a directory
+    # --output_path), samples samples_<task>_<date>.jsonl; the date has no "_".
     timestamp = results_file.stem.rsplit("_", 1)[-1]
     path = results_file.with_name(f"samples_{task}_{timestamp}.jsonl")
     if not path.exists():
@@ -402,14 +382,12 @@ def _excluded_docs(
     normalize: bool = False,
     match_on: bool = False,
 ) -> tuple[dict[str, set[int]], list[bool]]:
-    """Doc ids per task whose document equals a blocklist row on the fields both
-    have, and whether each row matches a document.
+    """Doc ids per task whose document equals a blocklist row, and whether each
+    row matched.
 
-    A row's fields that a task's documents lack are left out of the comparison
-    (the evaluated copy of a dataset may drop some); a row sharing no field with
-    them matches none of them. With *match_on*, the rows hold only the fields
-    that identify a document, which every task's documents must have. With
-    *normalize*, text is compared by its letters and digits only
+    Only fields the documents have are compared (an evaluated copy may drop
+    some). With *match_on*, the documents must have all of the row's fields.
+    With *normalize*, text is compared by letters and digits only
     (openeurollm/jeopardy drops apostrophes and spaces).
     """
 
@@ -469,8 +447,8 @@ def _excluded_docs(
 def _task_scores(
     task: str, result: dict, config: dict, samples: list[dict], excluded: set[int]
 ) -> dict:
-    """*result* recomputed without *excluded*, for every metric whose
-    aggregation can be recomputed from the per-sample values."""
+    """*result* recomputed without *excluded*, for metrics with a recomputable
+    aggregation."""
     remaining = {s["doc_id"] for s in samples} - excluded
     if len(remaining) < 2:
         raise SampleExclusionError(
@@ -520,10 +498,9 @@ def _group_scores(
 ) -> dict:
     """*result* of a group recomputed from its recomputed leaf tasks.
 
-    lm-eval scores a group as the mean of its leaf tasks, weighted by their
-    size or not. The results file does not say which, so the weighting is the
-    one that reproduces the reported score and stderr. If both do, they must
-    also agree once the blocklisted samples are gone.
+    lm-eval averages the leaves weighted by size or not, and the results do not
+    say which: the weighting that reproduces the reported score and stderr is
+    used. If both do, they must agree without the blocklisted samples.
     """
     if not all("sample_len" in full[leaf] for leaf in leaves):
         raise SampleExclusionError(
@@ -661,13 +638,11 @@ def _normalized(text: str) -> str:
 def _contained_docs(
     rows: list[dict], samples_by_task: dict[str, list[dict]], benchmark: str = ""
 ) -> tuple[dict[str, set[int]], list[bool]]:
-    """Doc ids per task whose prompt holds every text field of a blocklist row,
-    and whether each row matches a document; for lighteval, which saves the
-    prompt it built from a row (query and choices) instead of the row.
+    """Doc ids per task whose lighteval prompt (query and choices) holds every
+    text field of a blocklist row, and whether each row matched.
 
-    Where several documents of a task hold a row's text, only those holding it
-    with the least other text are its own: a sentence can be part of another
-    document's (FLORES' 33rd is part of its 32nd).
+    If several documents hold it, only those with the least other text match:
+    a sentence can be part of another (FLORES' 33rd is in its 32nd).
     """
     texts = {
         task: [
@@ -738,12 +713,11 @@ def _aligned_docs(
     benchmark: str,
     lighteval: bool,
 ) -> tuple[dict[str, set[int]], list[bool]]:
-    """Doc ids per task of the items of alignment *table* that blocklist rows
-    are, and whether each row is one of its items held by these tasks.
+    """Doc ids per task of the *table* items the blocklist rows are, and whether
+    each row matched.
 
-    A task's documents are found by their position in its dataset (lm-eval's
-    doc_id, lighteval's doc id), which holds only for the documents the table
-    was built from: all of them must be there, with the same answers.
+    Documents are found by position (lm-eval's doc_id, lighteval's id), so a run
+    must have all the documents the table was built from, with the same answers.
     """
     doc_ids = {}
     for task, samples in samples_by_task.items():
@@ -826,10 +800,8 @@ _TRANSLATION_METRIC = re.compile(
 def _lighteval_scores(
     task: str, result: dict, config: dict, samples: list[dict], excluded: set[int]
 ) -> dict:
-    """*result* of a lighteval task recomputed without *excluded*, for every
-    metric that is a mean over the samples' saved values, or corpus BLEU
-    (flores') over their golds and preds; corpus chrF(++) and TER, which
-    lighteval computes from the first sample alone, are None."""
+    """*result* of a lighteval task recomputed without *excluded*, for means
+    over the samples and corpus BLEU; chrF(++) and TER are None."""
     if len({s["doc_id"] for s in samples} - excluded) < 2:
         raise SampleExclusionError(f"{task}: fewer than 2 samples remain after exclusion")
     scores = {}
@@ -841,10 +813,9 @@ def _lighteval_scores(
         if translation:
             metric_type, lang = translation.groups()
             if metric_type != "bleu":
-                # lighteval passes each sample's references to sacrebleu as a
-                # reference set of their own, so chrF(++) and TER score the first
-                # sample alone: without blocklisted ones, another single sample.
-                # None: left out of the clean scores, which collect says.
+                # lighteval passes each sample's references as a reference set
+                # of their own, so chrF(++) and TER score the first sample alone.
+                # collect leaves None out and warns.
                 scores[key] = None
                 continue
             # Its stderr is bootstrapped, and left out.
@@ -886,10 +857,9 @@ def _lighteval_scores(
 
 
 def _fewshot_shows(data: dict, task: str, excluded: set[int]) -> bool:
-    """Whether lm-eval's few-shot examples for *task* can be *excluded*
-    documents: they come from the split it scores (MMMLU's), and are its first
-    ones (n of them, n + 1 when the document scored is among them), or drawn
-    at random from all."""
+    """Whether *task*'s few-shot examples can be *excluded* documents: they come
+    from the scored split (MMMLU's) and are its first n (n + 1 when the scored
+    document is among them) or drawn at random."""
     config = data.get("configs", {}).get(task, {})
     shots = data.get("n-shot", {}).get(task)
     scored = config.get("test_split") or config.get("validation_split")
@@ -910,16 +880,13 @@ def clean_results(
 ) -> dict[str, tuple[dict, int]]:
     """Results of the tasks and groups in *data* that lose blocklisted samples.
 
-    Returns ``{name: (result, n_excluded)}``, where ``result`` has the layout of
-    the reported one (lm-eval's ``metric,filter`` keys, or evalchemy's
-    ``accuracy``, ``num_solved`` and ``num_total``) and holds only the
-    recomputed metrics. Tasks without blocklisted documents are left out.
+    Returns ``{name: (result, n_excluded)}``; ``result`` has the reported
+    layout and only the recomputed metrics. Tasks without blocklisted documents
+    are left out.
 
-    The documents of a task in a benchmark's alignment table (*alignments*,
-    see :func:`load_alignments`) are found by position, those of other tasks by
-    content; the text of a benchmark in *normalized* by its letters and digits,
-    and those of a benchmark in *match_on* (see :func:`load_match_fields`) by
-    the fields its rows keep, which the documents must have.
+    Documents of a task in *alignments* are found by position, others by
+    content: by letters and digits for a benchmark in *normalized*, by its
+    ``match_on`` fields for one in *match_on*.
     """
     alignments = alignments or {}
     lighteval = _is_lighteval(data)
@@ -933,8 +900,8 @@ def clean_results(
         group_subtasks = data.get("group_subtasks", {})
 
     leaves_by_benchmark: dict[str, list[str]] = {}
-    # A benchmark split over tasks run separately (polymath_en_low and _medium)
-    # may be only partly in this run; its other rows belong to the other tasks.
+    # A benchmark split over separate runs (polymath_en_low and _medium): rows
+    # matching nothing here belong to the other runs.
     partial: set[str] = set()
     for benchmark, rows in blocklist.items():
         mapped = task_map.get(benchmark, [])
@@ -992,8 +959,7 @@ def clean_results(
             matched = [a or b for a, b in zip(matched, flags, strict=True)]
         unmatched = matched.count(False)
         if unmatched:
-            # Rows outside the evaluated copy (oellm's Jeopardy is a subset of
-            # the original), or of a task not in this run.
+            # Rows outside oellm's copy (Jeopardy is a subset) or another run's.
             tasks = ", ".join(
                 t for t in task_map[benchmark] if t in results or t in groups
             )

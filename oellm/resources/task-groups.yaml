@@ -705,12 +705,10 @@ task_groups:
         dataset: LumiOpen/GPQA-FI
         subset: default
 
-  # The tasks holding a test row the decontamination pipeline marked as
-  # contaminated (agenttrove-0.0's dropped/), in every language, run on all
-  # their documents but the marked ones; see oellm/decontaminated.py. Each
-  # task keeps the shots and dataset of the group it comes from.
+  # Every task holding a test row agenttrove-0.0 marked, in every language, run
+  # without the marked rows (oellm/decontaminated.py), with its usual shots.
   decontaminated-agenttrove-0.0:
-    description: "Every task holding a test row agenttrove-0.0 marked as contaminated, in every language, without those rows (lm-eval --samples)."
+    description: "Tasks holding test rows agenttrove-0.0 marked as contaminated, run without those rows."
     suite: lm-eval-harness
     decontaminated: agenttrove-0.0
     tasks:

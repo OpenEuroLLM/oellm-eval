@@ -605,8 +605,7 @@ def _select_tasks(group_names: Iterable[str]) -> list[tuple[str, _Task]]:
         # De-duplicate tasks shared by several groups (e.g. the `all` super_group
         # spans groups whose benchmarks overlap), so they are scheduled once.
         for suite, t in kept:
-            # A decontaminated run of a task is another evaluation than a
-            # run of the whole task.
+            # A decontaminated run is a separate evaluation.
             key = (suite, t.name, t.decontaminated)
             if key not in seen:
                 seen.add(key)

@@ -1,23 +1,18 @@
 """Build the alignment tables of ``oellm-eval collect --exclude_samples``.
 
-A blocklisted row excludes its item in every language a benchmark is evaluated
-in. Where every language's documents keep a field identifying the item
-(PAWS-X's id, XStoryCloze's story_id), sample-exclusion.yaml matches on it.
-Where they keep none (XNLI), or the harness saves no dataset row (lighteval),
-an alignment table in oellm/resources/sample-exclusion-alignments/ lists the
-benchmark's items and where each one is among every task's documents; see
-oellm.sample_exclusion.load_alignments. This script builds those tables from
-the datasets the harnesses evaluate, and checks that each language's documents
-are the translations it puts together: in the same order with the same answers,
-or with the same identifying field.
+For benchmarks whose translations keep no field identifying an item (XNLI), or
+that lighteval runs, a table in oellm/resources/sample-exclusion-alignments/
+gives each item's position in every task (see
+oellm.sample_exclusion.load_alignments). The tables are built from the
+evaluated datasets, checking that each language's documents are translations
+of the same items, in the same order with the same answers or by a shared id.
 
 Run in the eval container, with lm-eval's Python for the lm-eval tables and
 lighteval's for the lighteval ones:
     python scripts/build_sample_exclusion_alignments.py lm-eval [--check] [benchmark ...]
     /opt/uv-tools/lighteval/bin/python scripts/build_sample_exclusion_alignments.py \\
         lighteval [--check] [benchmark ...]
-With --check, the tables are rebuilt and compared with the ones in the
-repository instead of written.
+With --check, the rebuilt tables are compared with the repository's, not written.
 """
 
 import argparse
@@ -255,9 +250,8 @@ def global_mgsm(lm: LmEval) -> dict:
 
 
 def polymath(lm: LmEval) -> dict:
-    # Qwen/PolyMath's ids name the language (low-en-50), so its levels'
-    # languages are put together by position. Its low level is GSM8K's first
-    # 125 test questions, which MGSM and Global-MGSM translate too.
+    # Qwen/PolyMath's ids name the language (low-en-50), so languages are
+    # aligned by position. Its low level is GSM8K's first 125 test questions.
     key = ["id"]
     anchors = {level: lm.docs(f"polymath_en_{level}")[0] for level in POLYMATH_LEVELS}
     every = [d for level in POLYMATH_LEVELS for d in anchors[level]]
@@ -334,9 +328,8 @@ def commonsense_qa(lm: LmEval) -> dict:
 
 
 def xcsqa(lm: LmEval) -> dict:
-    # The pipeline's X-CSQA rows are its test split, which oellm does not
-    # evaluate; some of its questions are CommonsenseQA's validation ones,
-    # which commonsense_qa evaluates. Its test split has no answers.
+    # The pipeline's X-CSQA rows are its test split (no answers), which oellm
+    # does not evaluate; some are CommonsenseQA validation questions.
     key = ["id"]
     task = lm.manager.load_task_or_group(["xcsqa_eng_Latn"])["xcsqa_eng_Latn"]
     test = [json.loads(json.dumps(d, default=str)) for d in task.dataset["test"]]

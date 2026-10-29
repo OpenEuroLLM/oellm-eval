@@ -151,10 +151,9 @@ class EvaluationJob:
 
 
 def _holds_decontaminated_tasks(include_path: Path) -> bool:
-    """Whether lm-eval's *include_path* holds oellm's MMMLU tasks, whose few-shot
-    examples leave out the documents a decontaminated run leaves out
-    (custom_lm_eval_tasks/mmmlu_decontaminated); without them lm-eval runs its
-    own, which can show those documents as examples."""
+    """Whether *include_path* holds oellm's MMMLU tasks
+    (custom_lm_eval_tasks/mmmlu_decontaminated), whose few-shot examples skip
+    the documents a decontaminated run leaves out; lm-eval's own do not."""
     bundled = Path(
         str(files("oellm.resources") / "custom_lm_eval_tasks" / "mmmlu_decontaminated")
     )
@@ -795,10 +794,8 @@ def schedule_evals(
 def _pair_clean_with_full(df: pd.DataFrame, key_columns: list[str]) -> pd.DataFrame:
     """Deduplicate the rows of ``collect --exclude_samples``.
 
-    Of several runs of one model, task and n_shot the last full score is kept,
-    as without the flag. A clean score is kept only if it comes from that same
-    run, so the two rows never describe different evaluations, e.g. a rerun
-    without saved samples next to an older run with them.
+    The last full score is kept, as without the flag, and a clean score only if
+    it comes from the same run.
     """
     df = df.copy()
     for column, default in (("subset", "full"), ("n_excluded", 0), ("_source", "")):
@@ -876,15 +873,9 @@ def collect_results(
             declare no primary metric keep all of theirs.
         exclude_samples: Directory of blocklisted dataset rows, one
             ``<benchmark>.jsonl`` per benchmark (e.g. contaminated test rows).
-            Each lm-eval or lighteval task that holds such rows is also
-            reported with them left out, recomputed from the samples saved
-            with ``--log_samples`` (lighteval's ``--save-details``), and so is
-            MATH500, from the answers evalchemy keeps. The CSV then
-            gets a ``subset`` column (``full`` or ``clean``) and an
-            ``n_excluded`` column. A run without saved samples or made with
-            ``--limit`` gets no clean rows and a warning, and so do blocklisted
-            rows that match no document; a score that cannot be recomputed
-            exactly is an error. See ``oellm/sample_exclusion.py``.
+            Tasks holding such rows are also reported without them, recomputed
+            from the samples saved with ``--log_samples``, in rows with
+            ``subset`` ``clean`` and ``n_excluded`` set. See the README.
         verbose: Enable verbose logging
     """
     import json
@@ -1005,7 +996,7 @@ def collect_results(
         )
         jobs_frames = [pd.read_csv(p) for p in jobs_csv_paths]
         # Concatenate and let later entries win for duplicate (model_path, task_path,
-        # n_shot, decontaminated): a decontaminated job is a job of its own.
+        # n_shot, decontaminated).
         jobs_df = pd.concat(jobs_frames, ignore_index=True)
         if "decontaminated" in jobs_df.columns:
             jobs_df["decontaminated"] = jobs_df["decontaminated"].fillna("")
@@ -1258,11 +1249,10 @@ def collect_results(
                 )
 
         if exclude_samples and not decontaminated_by:
-            # Report each task that loses blocklisted samples a second time,
-            # with the same metrics recomputed without them.
+            # Report each task that loses blocklisted samples again, without them.
             file_rows = rows[file_rows_start:]
             for r in file_rows:
-                # Pairs each clean score with the full score of the same run.
+                # Pairs each clean score with its run's full score.
                 r["_source"] = str(json_file)
             try:
                 clean = sample_exclusion.clean_results(
@@ -1275,15 +1265,14 @@ def collect_results(
                     exclusion_match_on,
                 )
             except sample_exclusion.RunNotFilterable as e:
-                # No wrong number, just no clean one: e.g. an older run
-                # without --log_samples in the same results directory.
+                # E.g. an older run without --log_samples: no clean rows.
                 logging.warning(f"No scores without blocklisted samples: {e}")
                 clean = {}
             for name, (clean_result, n_excluded) in clean.items():
                 full_rows = [r for r in file_rows if r["task"] == name]
                 if not full_rows:
-                    # An MMLU subject is reported through its group, silently.
-                    # A mapped task should have a row of its own.
+                    # MMLU subjects are reported through their group; only a
+                    # mapped task without a row is logged.
                     if name in exclusion_targets:
                         logging.info(
                             f"{model_name} | {name}: {n_excluded} blocklisted "
@@ -1296,17 +1285,14 @@ def collect_results(
                     m: v for m, v in _extract_all_metrics(clean_result) if m in wanted
                 }
                 missing = wanted - clean_metrics.keys()
-                # The harness bootstraps the stderr of some metrics (lm-eval's
-                # perplexity, lighteval's corpus translation metrics):
-                # their score is recomputed, the stderr is left out.
+                # Bootstrapped stderrs (perplexity, corpus BLEU) are left out.
                 bootstrapped = {
                     m
                     for m in missing
                     if m.endswith("_stderr")
                     and m.removesuffix("_stderr") in clean_metrics
                 }
-                # lighteval computes its corpus chrF(++) and TER from the first
-                # sample alone, so they have no score without any (None).
+                # lighteval's chrF(++) and TER score the first sample alone (None).
                 first_sample_only = {
                     m
                     for m in missing

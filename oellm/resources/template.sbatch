@@ -97,8 +97,7 @@ FAILED_EVALS=0
 # the whole invocation if one task raises, so the cap bounds what a single
 # failure takes down. Suites other than lm_eval pass through one row at a time.
 # The output is tab-separated because a joined task list contains commas. The
-# optional fifth column names the list of marked documents a decontaminated
-# run leaves out; such rows get calls of their own.
+# optional fifth column names a decontaminated list; such rows get their own calls.
 BATCH_ROWS_AWK='
     function flush() {{ if (tasks != "") print model, tasks, shots, suite, decon }}
     {{
@@ -211,16 +210,14 @@ do
             RUN_ID=$(openssl rand -hex 5)
             EVAL_OUT_DIR="{evals_dir}"
             EVAL_OUT_PAT="$RUN_ID*.json"
-            # lm-eval does not record --samples in its results, so the file
-            # name tells collect which documents the run left out.
+            # lm-eval does not record --samples, so the file name tells collect
+            # which documents the run left out.
             RUN_NAME="$RUN_ID${{decontaminated:+--decontaminated--$decontaminated}}"
-            # oellm's MMMLU high_school_mathematics tasks take their few-shot
-            # examples from the documents a decontaminated run keeps. Passed
-            # through SINGULARITYENV_ too, for a container with a clean env.
-            # lm-eval's request cache ignores --samples: a decontaminated run
-            # would score the requests of every document a full run cached.
+            # lm-eval's request cache ignores --samples.
             CACHE_ARGS="${{CACHE_REQUESTS:+--cache_requests $CACHE_REQUESTS}}"
             if [ -n "$decontaminated" ]; then
+                # For the few-shot examples of oellm's MMMLU high_school_mathematics
+                # tasks; SINGULARITYENV_ for a container with a clean env.
                 export OELLM_DECONTAMINATED_SAMPLES="{samples_dir}/samples-$decontaminated.json"
                 export SINGULARITYENV_OELLM_DECONTAMINATED_SAMPLES="$$OELLM_DECONTAMINATED_SAMPLES"
                 if [ -n "$$CACHE_ARGS" ]; then

@@ -1,32 +1,21 @@
-# The lm-eval tasks or groups, lighteval tasks, or evalchemy benchmarks whose
-# documents each blocklist benchmark holds, for `oellm-eval collect
-# --exclude_samples`. Keys are
-# blocklist file names without `.jsonl`, as the decontamination pipeline
-# (pretraining-decontamination) names its benchmarks. Rows of a benchmark not
-# listed here are ignored.
+# The tasks holding each blocklist benchmark's documents, for `oellm-eval
+# collect --exclude_samples`. Keys are blocklist file names without `.jsonl`,
+# as the decontamination pipeline names its benchmarks; other files are ignored.
 #
-# A blocklisted row excludes its item in every language oellm evaluates it in,
-# so an entry lists every task holding a translation of the benchmark, or a copy
-# of its items in another benchmark. A row is
-# matched on the fields it shares with a task's documents, or on the fields the
-# entry names (`match_on`): ones the harness keeps unchanged, and that identify
-# the item in every language (PAWS-X's id). With `normalize`, text is compared
-# by its letters and digits only. A task in the benchmark's alignment table
-# (sample-exclusion-alignments/<benchmark>.json, built by
-# scripts/build_sample_exclusion_alignments.py) is matched by position instead:
-# where translations share no such field, or lighteval saves no dataset row.
-# A row that matches no document is logged and not excluded: it can lie outside
-# the copy evaluated here, or belong to a task the run does not hold.
+# An entry lists every task holding a translation or copy of the benchmark's
+# items, since a row is excluded in all of them. Rows are matched on the fields
+# they share with a task's documents, or on `match_on` (fields that identify
+# the item in every language, like PAWS-X's id); `normalize` compares text by
+# letters and digits only. Tasks in sample-exclusion-alignments/<benchmark>.json
+# (built by scripts/build_sample_exclusion_alignments.py) are matched by
+# position. A row matching no document is logged and not excluded.
 #
-# Checked against the pipeline's agenttrove-0.0 rows (every row of the whole
-# benchmark, not only the blocklisted ones), lm-eval 0.4.13, lighteval
-# 0.13.1.dev0 and evalchemy 54ac976. Not translated here: XWinograd's other
-# languages translate some of WSC's items, but keep no field that identifies
-# them, leave some out (pt and ru follow WSC's order with gaps) and mix in
-# schemas of their own, so a WSC or XWinograd row excludes only its English
-# copies; XCOPA translates COPA's test split, the pipeline's rows are its
-# validation split. Of evalchemy's benchmarks only MATH500 keeps a result per
-# question, so HumanEval and LiveCodeBench cannot be listed.
+# Checked against agenttrove-0.0's rows with lm-eval 0.4.13, lighteval
+# 0.13.1.dev0 and evalchemy 54ac976. Not listed: XWinograd's other languages,
+# which keep no field identifying WSC's items, skip some and add their own (a
+# WSC or XWinograd row excludes only English copies); XCOPA, which translates
+# COPA's test split while the rows are its validation split; and evalchemy
+# benchmarks other than MATH500, which keep no per-question results.
 benchmarks:
   # MGSM translates GSM8K's first 250 test questions, and Global-MGSM MGSM's;
   # PolyMath's low level is the first 125 of them.
@@ -112,9 +101,8 @@ benchmarks:
   PIQA: [piqa]
   SocialIQA: [social_iqa]
   WinoGrande: [winogrande]
-  # lm-eval's wsc273 rewrites the options (lowercase, possessive 's). XWinograd's
-  # English holds most of its items, as sentences with a pronoun blanked; they
-  # are in the alignment tables of both.
+  # wsc273 rewrites the options (lowercase, possessive 's). XWinograd's English
+  # holds most of its items with the pronoun blanked (alignment tables of both).
   WinogradSchemaChallenge:
     tasks: [wsc273, xwinograd_en]
     match_on: [pronoun, pronoun_loc, quote, quote_loc, label, source]
@@ -127,17 +115,16 @@ benchmarks:
   PAWS_x:
     tasks: [pawsx_deu_Latn, pawsx_eng_Latn, pawsx_spa_Latn, pawsx_fra_Latn]
     match_on: [id]
-  # agenttrove-0.0's rows are X-CSQA's test split; oellm evaluates validation.
-  # Some of its questions are CommonsenseQA's validation ones, in its alignment
-  # table.
+  # The rows are X-CSQA's test split (oellm evaluates validation); some are
+  # CommonsenseQA validation questions, found by the alignment table.
   Xcsqa:
     tasks:
       [xcsqa_deu_Latn, xcsqa_eng_Latn, xcsqa_spa_Latn, xcsqa_fra_Latn,
        xcsqa_ita_Latn, xcsqa_nld_Latn, xcsqa_pol_Latn, xcsqa_por_Latn,
        commonsense_qa]
     match_on: [id]
-  # Belebele runs on lm-eval and, as its cf formulation, on lighteval, whose
-  # tasks are in its alignment table: each language orders its questions.
+  # The lighteval (cf) tasks are in the alignment table, as each language orders
+  # its questions differently.
   Belebele:
     tasks:
       [belebele_bul_Cyrl, belebele_hrv_Latn, belebele_ces_Latn,

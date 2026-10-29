@@ -1,12 +1,10 @@
-"""lm-eval's MMMLU high_school_mathematics tasks (openai-mmmlu), with few-shot
-examples that leave out marked documents in a decontaminated run.
+"""lm-eval's MMMLU high_school_mathematics tasks (openai-mmmlu), whose few-shot
+examples skip marked documents in a decontaminated run.
 
-MMMLU takes its 5 few-shot examples from the first test questions of a
-subject, and in high_school_mathematics one of them is a question
-agenttrove-0.0 marked as contaminated. In a decontaminated run (oellm's job
-template sets OELLM_DECONTAMINATED_SAMPLES to the run's lm-eval --samples
-file), the examples are taken from the documents the run keeps, so the next
-question takes its place. Otherwise the tasks are lm-eval's, unchanged.
+MMMLU's 5 few-shot examples are a subject's first test questions, and
+agenttrove-0.0 marked one of them in high_school_mathematics. When the job
+template sets OELLM_DECONTAMINATED_SAMPLES (the run's --samples file), the
+examples come from the kept documents. Otherwise the tasks are lm-eval's.
 """
 
 import json

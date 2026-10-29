@@ -1,18 +1,13 @@
 """Task groups that leave out the test documents a decontamination run marked.
 
-The decontamination pipeline (pretraining-decontamination) marks the test rows
-it found in the training data. ``resources/decontaminated/<name>.json`` lists,
-for every lm-eval task holding one of those rows in any language, the positions
-of its documents to leave out; a task group with ``decontaminated: <name>``
-runs its tasks on all other documents, through lm-eval's ``--samples``, and
-``collect`` reports those results with ``subset`` ``decontaminated:<name>``. The list
-ships with oellm-eval, so neither scheduling nor collecting needs the marked
-rows; ``scripts/build_decontaminated_samples.py`` builds it from them, with the
-matching of ``collect --exclude_samples``.
-
-For each task the list gives the number of its documents (``documents``), the
-positions left out (``excluded``) and :func:`oellm.sample_exclusion.item_key`
-of the answers of the documents run, in order (``kept_answers``).
+``resources/decontaminated/<name>.json`` lists, for every lm-eval task holding
+a marked row in any language, its number of documents (``documents``), the
+positions to leave out (``excluded``) and :func:`oellm.sample_exclusion.item_key`
+of the kept documents' answers (``kept_answers``). A task group with
+``decontaminated: <name>`` runs the other documents through lm-eval's
+``--samples``, and ``collect`` reports them with ``subset``
+``decontaminated:<name>``. ``scripts/build_decontaminated_samples.py`` builds
+the list from the marked rows.
 """
 
 import json
@@ -55,21 +50,16 @@ def names() -> list[str]:
     )
 
 
-# The job template names the results of such a run
-# <run id>--decontaminated--<name>_<date>.json: lm-eval does not record
-# --samples in them.
+# The job template names such results <run id>--decontaminated--<name>_<date>.json,
+# as lm-eval does not record --samples.
 MARK = "--decontaminated--"
 
 
 def run_of(results_file: Path, data: dict) -> str | None:
-    """The list an lm-eval run left out documents by, from its results file's
-    name, or None for a run on whole tasks.
+    """The list a run left documents out by, from its file name, or None.
 
-    The results must record the documents of each task (n-samples): as many as
-    the list was built from, and run on as many as it keeps (a task the list
-    does not hold, on all); its saved samples, which the run must have
-    (--log_samples), on exactly those, with the answers it lists. Otherwise it
-    raises ValueError.
+    Raises ValueError unless each task ran on the documents the list keeps
+    (n-samples, and the saved samples with their answers).
     """
     stem = results_file.stem.rsplit("_", 1)[0]
     if MARK not in stem:
@@ -102,8 +92,7 @@ def run_of(results_file: Path, data: dict) -> str | None:
 
 
 def _check_samples(results_file: Path, task: str, entry: dict, name: str) -> None:
-    # lm-eval saves samples_<task>_<date>.jsonl next to the results with
-    # --log_samples; the date has no underscore.
+    # The date has no underscore.
     timestamp = results_file.stem.rsplit("_", 1)[-1]
     path = results_file.with_name(f"samples_{task}_{timestamp}.jsonl")
     if not path.exists():

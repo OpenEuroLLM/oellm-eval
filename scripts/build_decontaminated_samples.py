@@ -1,18 +1,13 @@
 """Build the list of documents a decontaminated task group leaves out.
 
-The decontamination pipeline marks the test rows it found in the training data
-(agenttrove-0.0's dropped/). A task group with ``decontaminated: <name>`` runs
-lm-eval on every other document of the tasks holding one of them, in every
-language; see oellm/decontaminated.py. This script finds those documents with
-the matching of ``collect --exclude_samples`` (sample-exclusion.yaml and the
-alignment tables) and writes oellm/resources/decontaminated/<name>.json, so
-that nobody else needs the marked rows.
+Finds the documents matching the marked rows (agenttrove-0.0's dropped/) with
+the matching of ``collect --exclude_samples`` and writes
+oellm/resources/decontaminated/<name>.json; see oellm/decontaminated.py.
 
 Run in the eval container, with lm-eval's Python and HF_ALLOW_CODE_EVAL=1
 (loading lm-eval's mbpp checks HF's code_eval metric):
     python scripts/build_decontaminated_samples.py <name> <marked rows dir> [--check]
-With --check, the list is rebuilt and compared with the repository's instead
-of written.
+With --check, the rebuilt list is compared with the repository's, not written.
 """
 
 import argparse
@@ -139,8 +134,7 @@ def build(name: str, rows_dir: Path) -> tuple[dict, list[str]]:
             "excluded": sorted(excluded[leaf]),
             "kept_answers": item_key([answers[i] for i in kept]),
         }
-        # lm-eval draws few-shot examples from the fewshot split; from the
-        # split it scores, they can be marked documents.
+        # Few-shot examples from the scored split can be marked documents.
         config = task.config
         scored = config.test_split or config.validation_split
         if config.fewshot_split == scored:
