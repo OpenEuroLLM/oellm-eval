@@ -159,6 +159,7 @@ def schedule_evals(
     max_array_len: int = 128,
     tasks_per_job: int = 8,
     limit: int | None = None,
+    log_samples: bool = False,
     verbose: bool = False,
     download_only: bool = False,
     dry_run: bool = False,
@@ -210,6 +211,12 @@ def schedule_evals(
         limit: If set, limit the number of samples per task (useful for quick testing).
             Passes --limit to lm_eval, --max_samples to lighteval, and
             --generation.n_instructions to JudgeArena.
+        log_samples: If True, save every sample (prompt, model output, and
+            per-sample metrics) instead of only the aggregated scores. Passes
+            --log_samples to lm-eval-harness and --save-details to lighteval,
+            but nothing to evalchemy, whose benchmarks crash on it. Off by
+            default. lm-eval-harness always gets --write_out, which logs each
+            task's first sample either way.
         download_only: If True, only download the datasets and models and exit.
         dry_run: If True, generate the SLURM script but don't submit it to the scheduler.
         skip_checks: If True, skip container image, model validation, and dataset pre-download checks for faster execution.
@@ -583,6 +590,7 @@ def schedule_evals(
         time_limit=time_limit,  # Dynamic time limit
         slurm_mem=slurm_mem,
         limit=limit if limit else "",  # Sample limit for quick testing
+        log_samples="true" if log_samples else "",
         venv_path=venv_path or "",
         lm_eval_include_path=str(
             Path(

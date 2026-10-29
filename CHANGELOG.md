@@ -25,6 +25,7 @@ it before comparing runs made with different versions.
 - `bpb-flores-eu` task group: bits-per-byte on FLORES-200 devtest in the 36 OpenEuroLLM target languages.
 - `bpb-mc-en` task group: gold-answer bits-per-byte on seven English multiple-choice tasks.
 - Template and docs for bits-per-byte on your own text (`custom_lm_eval_tasks/corpus_bpb`).
+- lm-eval runs pass `--write_out` by default, and `--log_samples` saves every sample when requested.
 
 ### Changed
 
