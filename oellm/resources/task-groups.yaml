@@ -397,10 +397,10 @@ task_groups:
         dataset: openeurollm/jeopardy
 
   opensubtitles-eu-en-xx:
-    description: "OpenSubtitles Multi40 English->EU translation (0-shot, BLEU)."
+    description: "OpenSubtitles Multi40 English->EU translation (5-shot, chrF)."
     suite: lm-eval-harness
-    metric: bleu
-    n_shots: [0]
+    metric: chrf
+    n_shots: [5]
     dataset: Helsinki-NLP/OpenSubtitles2024-40-langs-15-movies
     valid_langs: [bg, hr, cs, da, nl, et, fi, fr, de, el, hu, it, lv, lt, pl,
                   pt, ro, sk, sl, es, sv, sr, tr, uk, "no"]
@@ -408,10 +408,10 @@ task_groups:
       - task: "opensubtitles_multi40_en_to_{lang}"
 
   opensubtitles-eu-xx-en:
-    description: "OpenSubtitles Multi40 EU->English translation (0-shot, BLEU)."
+    description: "OpenSubtitles Multi40 EU->English translation (5-shot, chrF)."
     suite: lm-eval-harness
-    metric: bleu
-    n_shots: [0]
+    metric: chrf
+    n_shots: [5]
     dataset: Helsinki-NLP/OpenSubtitles2024-40-langs-15-movies
     valid_langs: [bg, hr, cs, da, nl, et, fi, fr, de, el, hu, it, lv, lt, pl,
                   pt, ro, sk, sl, es, sv, sr, tr, uk, "no"]

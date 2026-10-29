@@ -5,6 +5,7 @@ custom_dataset: !function utils.load_opensubtitles_parallel
 doc_to_text: !function utils.doc_to_text
 doc_to_target: !function utils.doc_to_target
 test_split: devtest
+fewshot_split: fewshot
 target_delimiter: ''
 generation_kwargs:
   until:
