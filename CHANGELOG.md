@@ -21,6 +21,8 @@ it before comparing runs made with different versions.
 
 ### Added
 
+- lm-eval runs pass `--write_out` by default, and `--log_samples` saves every sample when requested.
+
 ### Changed
 
 ### Fixed

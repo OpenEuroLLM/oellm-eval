@@ -54,3 +54,39 @@ def test_lm_eval_request_cache_is_opt_in(script):
     it stays off unless CACHE_REQUESTS is set."""
     assert "${CACHE_REQUESTS:+--cache_requests $CACHE_REQUESTS}" in script
     assert "--cache_requests true" not in script
+
+
+def test_lm_eval_writes_out_the_first_sample(script):
+    """--write_out logs the first prompt of each task. It is always passed."""
+    assert "--write_out" in script
+
+
+def test_full_sample_logging_is_opt_in(script):
+    """Saving every sample fills disk, so the flags stay off unless requested."""
+    assert 'LOG_SAMPLES=""' in script
+    assert script.count("--log_samples") == script.count("${LOG_SAMPLES:+--log_samples}")
+    assert script.count("--save-details") == script.count(
+        "${LOG_SAMPLES:+--save-details}"
+    )
+    # lm-eval only: evalchemy crashes on --log_samples (see template.sbatch)
+    assert script.count("${LOG_SAMPLES:+--log_samples}") == 1
+    assert script.count("${LOG_SAMPLES:+--save-details}") == 2  # venv and container
+
+
+def test_log_samples_enables_harness_sample_dumps(tmp_path):
+    with (
+        patch("oellm.main._load_cluster_env"),
+        patch("oellm.main._num_jobs_in_queue", return_value=0),
+        patch.dict(os.environ, {"EVAL_OUTPUT_DIR": str(tmp_path), "HF_HOME": HF_HOME}),
+    ):
+        schedule_evals(
+            models="EleutherAI/pythia-70m",
+            tasks="hellaswag",
+            n_shot=0,
+            skip_checks=True,
+            venv_path=str(tmp_path / "venv"),
+            dry_run=True,
+            log_samples=True,
+        )
+    script = next(iter(tmp_path.glob("**/submit_evals.sbatch"))).read_text()
+    assert 'LOG_SAMPLES="true"' in script

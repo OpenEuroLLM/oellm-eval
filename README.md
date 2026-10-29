@@ -155,6 +155,8 @@ oellm-eval schedule \
 
 Results are written to `./oellm-output/<timestamp>/results/`.
 
+lm-eval-harness runs always pass `--write_out`, so the job log includes the prompt and gold target for the first sample of each task. To also save every sample, pass `--log_samples`. That writes `samples_*.jsonl` for lm-eval-harness and passes `--save-details` to lighteval. It is off by default because those files are large. evalchemy does not get the flag, because its benchmarks crash on it. Most of them (not HumanEval or LiveCodeBench) keep every question and model output in their results file anyway.
+
 **Air-gapped cluster nodes (no internet):** batch jobs set `HF_HUB_OFFLINE=1` and get `HF_HOME` from your cluster env. With `--local`, the CLI defaults `HF_HOME` to `~/.cache/huggingface` if unset and would otherwise allow Hub access—so on a compute node without network, export your real cache and offline flag before running, for example:
 
 ```bash
