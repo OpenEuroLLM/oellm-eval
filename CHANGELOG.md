@@ -17,7 +17,7 @@ it before comparing runs made with different versions.
 ### Changed results
 
 - SIB-200 (`sib200-eu`) runs 10-shot instead of 0-shot, with few-shot examples taken from the start of the train split. Few-shot runs previously drew them from the label-sorted test split, so every example was science/technology and scores sat at 0.25, that label's share (#137).
-- OpenSubtitles (`opensubtitles-eu-en-xx`, `opensubtitles-eu-xx-en`) runs 5-shot instead of 0-shot and reports chrF instead of BLEU. Few-shot examples come from one held-out movie, which leaves the scored set (6,005 → 5,694 sentences). At 0-shot, scores swung between checkpoints with the share of empty and wrong-language outputs (#PR).
+- OpenSubtitles (`opensubtitles-eu-en-xx`, `opensubtitles-eu-xx-en`) runs 5-shot instead of 0-shot and reports chrF instead of BLEU. Few-shot examples come from one held-out movie, which leaves the scored set (6,005 → 5,694 sentences). At 0-shot, scores swung between checkpoints with the share of empty and wrong-language outputs (#158).
 - LUMI container: `lm-eval[api,tasks]` 0.4.13 with `datasets>=4` and `transformers<5.20`, PolyMath's scoring dependencies, and patches so `dclm-core-22`'s `agieval_lsat_ar`, `squadv2` and `coqa` run at n_shot>0. Applies once the image is rebuilt (#130).
 
 ### Added
