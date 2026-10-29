@@ -367,9 +367,7 @@ def test_a_decontaminated_group_needs_oellm_s_mmmlu_tasks(tmp_path, toy_list):
             tmp_path, {"toy-decontaminated": GROUP}, lm_eval_include_path=str(other)
         )
     shutil.copy(bundled / "mmmlu_decontaminated/utils.py", other / "mmmlu/utils.py")
-    _schedule(
-        tmp_path, {"toy-decontaminated": GROUP}, lm_eval_include_path=str(other)
-    )
+    _schedule(tmp_path, {"toy-decontaminated": GROUP}, lm_eval_include_path=str(other))
 
 
 def test_a_group_naming_an_unknown_list_is_refused(tmp_path, toy_list):

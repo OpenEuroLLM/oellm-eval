@@ -341,6 +341,7 @@ def xcsqa(lm: LmEval) -> dict:
     task = lm.manager.load_task_or_group(["xcsqa_eng_Latn"])["xcsqa_eng_Latn"]
     test = [json.loads(json.dumps(d, default=str)) for d in task.dataset["test"]]
     anchor, gold = lm.docs("commonsense_qa")
+
     def question(stem: str, choices: list[str]) -> tuple:
         return " ".join(stem.split()), tuple(sorted(choices))
 

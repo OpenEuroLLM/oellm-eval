@@ -924,9 +924,7 @@ def test_collect_matches_by_the_yaml_s_tables_fields_and_normalization(
     assert clean.to_dict() == {"toy_de": 1, "toy_en": 1, "toy_j": 1, "toy_m": 1}
 
 
-def test_collect_skips_a_run_whose_documents_lack_a_match_on_field(
-    tmp_path, monkeypatch
-):
+def test_collect_skips_a_run_whose_documents_lack_a_match_on_field(tmp_path, monkeypatch):
     docs = [{"question": f"q{i}", "ind": i % 2} for i in range(4)]
     df = _collect_with_settings(
         tmp_path,
