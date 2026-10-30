@@ -513,6 +513,16 @@ task_groups:
     tasks:
       - task: crows_pairs_english
 
+  toxigen:
+    description: "ToxiGen hate speech detection benchmark (English, 0-shot)."
+    suite: lm-eval-harness
+    metric: acc
+    n_shots: [0]
+    dataset: skg/toxigen-data
+    subset: annotated
+    tasks:
+      - task: toxigen
+
   global-piqa-eu-completions:
     description: "Global PIQA European languages — multiple-choice completions (0-shot, mrlbenchmarks/global-piqa-nonparallel)"
     suite: lm-eval-harness
