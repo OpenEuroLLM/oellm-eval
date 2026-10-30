@@ -1,0 +1,7 @@
+tag:
+  - bpb_mc
+task: piqa_bpb
+class: !function bpb_task.BPBTask
+base_task: piqa
+metadata:
+  version: 0.0

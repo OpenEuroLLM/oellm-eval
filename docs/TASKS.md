@@ -131,6 +131,37 @@ lighteval fork, so the two languages are scored the same way. Both fix the
 answer order per question from a hash of the question; the built-in draws it
 from the process-global RNG, so it depends on the other tasks in the same run.
 
+## Bits-per-byte on your own text
+
+To measure bits-per-byte (BPB) on held-out text of your own, for example a
+validation split of your training data, wrap it in a task built from the
+template `oellm/resources/custom_lm_eval_tasks/corpus_bpb/_corpus_bpb_template`:
+
+1. Put the text in a folder of your own as JSONL, Parquet or CSV, one document
+   per row. BPB needs raw text: data that only exists as token ids must first
+   be decoded with the tokenizer it was made with.
+2. Copy the template into that folder as `<task name>.yaml` and fill in the
+   three marked parts: the task name, the absolute path of the data file(s), and
+   the column holding the text.
+3. Schedule it 0-shot with that folder as the task folder:
+
+```bash
+oellm-eval schedule --models "my-model" --tasks bpb_my_corpus --n_shot 0 \
+    --lm_eval_include_path /path/to/my_bpb_tasks
+```
+
+`oellm-eval collect` then reports `bits_per_byte` for the task; lower is better.
+lm-eval splits documents longer than the model's context into windows itself.
+
+- `--lm_eval_include_path` replaces the bundled custom tasks for that run, so
+  schedule your corpus in a run of its own.
+- The task folder is mounted into the container, so keep the data inside it.
+  Data elsewhere needs its own mount, e.g.
+  `SINGULARITY_ARGS="--rocm --bind /data:/data"` on LUMI.
+- Local files need no pre-download. A Hugging Face dataset is not pre-downloaded
+  for a task outside `task-groups.yaml`: load it once on the login node with the
+  same `HF_HOME` (`datasets.load_dataset(...)`) before scheduling.
+
 ## Important: Dataset Requirement
 
 **Except for JudgeArena, you must provide the `dataset` field** (at group or task level) for:

@@ -1,0 +1,213 @@
+# The tasks holding each blocklist benchmark's documents, for `oellm-eval
+# collect --exclude_samples`. Keys are blocklist file names without `.jsonl`,
+# as the decontamination pipeline names its benchmarks; other files are ignored.
+#
+# An entry lists every task holding a translation or copy of the benchmark's
+# items, since a row is excluded in all of them. Rows are matched on the fields
+# they share with a task's documents, or on `match_on` (fields that identify
+# the item in every language, like PAWS-X's id); `normalize` compares text by
+# letters and digits only. Tasks in sample-exclusion-alignments/<benchmark>.json
+# (built by scripts/build_sample_exclusion_alignments.py) are matched by
+# position. A row matching no document is logged and not excluded.
+#
+# Checked against agenttrove-0.0's rows with lm-eval 0.4.13, lighteval
+# 0.13.1.dev0 and evalchemy 54ac976. Not listed: XWinograd's other languages,
+# which keep no field identifying WSC's items, skip some and add their own (a
+# WSC or XWinograd row excludes only English copies); XCOPA, which translates
+# COPA's test split while the rows are its validation split; and evalchemy
+# benchmarks other than MATH500, which keep no per-question results.
+benchmarks:
+  # MGSM translates GSM8K's first 250 test questions, and Global-MGSM MGSM's;
+  # PolyMath's low level is the first 125 of them.
+  GSM8K:
+    [gsm8k, mgsm_native_cot_en, mgsm_native_cot_de, mgsm_native_cot_es,
+     mgsm_native_cot_fr, global_mgsm_de, global_mgsm_fr, global_mgsm_es,
+     global_mgsm_el, global_mgsm_cs, global_mgsm_hu, global_mgsm_en,
+     global_mgsm_ca, global_mgsm_eu, global_mgsm_gl, global_mgsm_sr,
+     polymath_de_low, polymath_en_low, polymath_es_low, polymath_fr_low,
+     polymath_it_low, polymath_pt_low]
+  # Global-MMLU's English is MMLU's test split; MMMLU translates it too.
+  MMLU:
+    [mmlu, global_mmlu_full_cs, global_mmlu_full_de, global_mmlu_full_el,
+     global_mmlu_full_en, global_mmlu_full_es, global_mmlu_full_fr,
+     global_mmlu_full_it, global_mmlu_full_lt, global_mmlu_full_nl,
+     global_mmlu_full_pl, global_mmlu_full_pt, global_mmlu_full_ro,
+     global_mmlu_full_sr, global_mmlu_full_sv, global_mmlu_full_tr,
+     global_mmlu_full_uk, mmmlu_de_de, mmmlu_es_la, mmmlu_fr_fr, mmmlu_it_it,
+     mmmlu_pt_br]
+  OpenBookQA: [openbookqa]
+  BoolQ: [boolq]
+  MBPP: [mbpp]
+  Math500: [MATH500]
+  MMLUProX:
+    tasks:
+      [mmlu_prox_cs, mmlu_prox_de, mmlu_prox_en, mmlu_prox_es, mmlu_prox_fr,
+       mmlu_prox_hu, mmlu_prox_it, mmlu_prox_pt, mmlu_prox_sr, mmlu_prox_uk]
+    match_on: [question_id]
+  GlobalMGSM:
+    [global_mgsm_de, global_mgsm_fr, global_mgsm_es, global_mgsm_el,
+     global_mgsm_cs, global_mgsm_hu, global_mgsm_en, global_mgsm_ca,
+     global_mgsm_eu, global_mgsm_gl, global_mgsm_sr, mgsm_native_cot_en,
+     mgsm_native_cot_de, mgsm_native_cot_es, mgsm_native_cot_fr, gsm8k,
+     polymath_de_low, polymath_en_low, polymath_es_low, polymath_fr_low,
+     polymath_it_low, polymath_pt_low]
+  PolyMath:
+    [polymath_de_low, polymath_en_low, polymath_es_low, polymath_fr_low,
+     polymath_it_low, polymath_pt_low, polymath_de_medium, polymath_en_medium,
+     polymath_es_medium, polymath_fr_medium, polymath_it_medium,
+     polymath_pt_medium, polymath_de_high, polymath_en_high, polymath_es_high,
+     polymath_fr_high, polymath_it_high, polymath_pt_high, polymath_de_top,
+     polymath_en_top, polymath_es_top, polymath_fr_top, polymath_it_top,
+     polymath_pt_top, gsm8k, mgsm_native_cot_en, mgsm_native_cot_de,
+     mgsm_native_cot_es, mgsm_native_cot_fr, global_mgsm_de, global_mgsm_fr,
+     global_mgsm_es, global_mgsm_el, global_mgsm_cs, global_mgsm_hu,
+     global_mgsm_en, global_mgsm_ca, global_mgsm_eu, global_mgsm_gl,
+     global_mgsm_sr]
+  # openeurollm/jeopardy keeps 2,117 questions with 3 of the original fields,
+  # its category renamed, and apostrophes and some spaces dropped.
+  Jeopardy:
+    tasks: [jeopardy]
+    match_on: [context, continuation]
+    normalize: true
+  ArcChallenge:
+    tasks:
+      [arc_challenge, arc_challenge_mt_bg, arc_challenge_mt_cs, arc_challenge_mt_da,
+       arc_challenge_mt_nl, arc_challenge_mt_et, arc_challenge_mt_fi,
+       arc_challenge_mt_fr, arc_challenge_mt_de, arc_challenge_mt_el,
+       arc_challenge_mt_hu, arc_challenge_mt_it, arc_challenge_mt_lv,
+       arc_challenge_mt_lt, arc_challenge_mt_pl, arc_challenge_mt_pt,
+       arc_challenge_mt_ro, arc_challenge_mt_sk, arc_challenge_mt_sl,
+       arc_challenge_mt_es, arc_challenge_mt_sv, arc_challenge_mt_nb,
+       arc_challenge_mt_is]
+    match_on: [id]
+  ArcEasy: [arc_easy]
+  COPA: [copa]
+  CoQA: [coqa]
+  # X-CSQA translates some of CommonsenseQA's validation questions.
+  CommonsenseQA:
+    [commonsense_qa, xcsqa_deu_Latn, xcsqa_eng_Latn, xcsqa_spa_Latn,
+     xcsqa_fra_Latn, xcsqa_ita_Latn, xcsqa_nld_Latn, xcsqa_pol_Latn,
+     xcsqa_por_Latn]
+  # ind repeats in HellaSwag's validation split; with source_id it does not.
+  HellaSwag:
+    tasks:
+      [hellaswag, hellaswag_da, hellaswag_nl, hellaswag_fr, hellaswag_de,
+       hellaswag_hu, hellaswag_it, hellaswag_pt, hellaswag_ro, hellaswag_sk,
+       hellaswag_es, hellaswag_sv, hellaswag_hr, hellaswag_ca, hellaswag_eu,
+       hellaswag_sr, hellaswag_uk]
+    match_on: [ind, source_id]
+  IFEval: [ifeval]
+  Lambada: [lambada_openai]
+  PIQA: [piqa]
+  SocialIQA: [social_iqa]
+  WinoGrande: [winogrande]
+  # wsc273 rewrites the options (lowercase, possessive 's). XWinograd's English
+  # holds most of its items with the pronoun blanked (alignment tables of both).
+  WinogradSchemaChallenge:
+    tasks: [wsc273, xwinograd_en]
+    match_on: [pronoun, pronoun_loc, quote, quote_loc, label, source]
+  XStoryCloze:
+    tasks: [xstorycloze]
+    match_on: [story_id]
+  XWinograd: [xwinograd, wsc273]
+  XNLI: [xnli_bul_Cyrl, xnli_deu_Latn, xnli_ell_Grek, xnli_eng_Latn, xnli_spa_Latn, xnli_fra_Latn]
+  # oellm's pawsx tasks rewrite the sentences (detokenized, lowercased).
+  PAWS_x:
+    tasks: [pawsx_deu_Latn, pawsx_eng_Latn, pawsx_spa_Latn, pawsx_fra_Latn]
+    match_on: [id]
+  # The rows are X-CSQA's test split (oellm evaluates validation); some are
+  # CommonsenseQA validation questions, found by the alignment table.
+  Xcsqa:
+    tasks:
+      [xcsqa_deu_Latn, xcsqa_eng_Latn, xcsqa_spa_Latn, xcsqa_fra_Latn,
+       xcsqa_ita_Latn, xcsqa_nld_Latn, xcsqa_pol_Latn, xcsqa_por_Latn,
+       commonsense_qa]
+    match_on: [id]
+  # The lighteval (cf) tasks are in the alignment table, as each language orders
+  # its questions differently.
+  Belebele:
+    tasks:
+      [belebele_bul_Cyrl, belebele_hrv_Latn, belebele_ces_Latn,
+       belebele_dan_Latn, belebele_nld_Latn, belebele_eng_Latn,
+       belebele_est_Latn, belebele_fin_Latn, belebele_fra_Latn,
+       belebele_deu_Latn, belebele_ell_Grek, belebele_hun_Latn,
+       belebele_ita_Latn, belebele_lvs_Latn, belebele_lit_Latn,
+       belebele_mlt_Latn, belebele_pol_Latn, belebele_por_Latn,
+       belebele_ron_Latn, belebele_slk_Latn, belebele_slv_Latn,
+       belebele_spa_Latn, belebele_swe_Latn, belebele_nob_Latn,
+       belebele_bul_Cyrl_cf, belebele_hrv_Latn_cf, belebele_ces_Latn_cf,
+       belebele_dan_Latn_cf, belebele_nld_Latn_cf, belebele_eng_Latn_cf,
+       belebele_est_Latn_cf, belebele_fin_Latn_cf, belebele_fra_Latn_cf,
+       belebele_deu_Latn_cf, belebele_ell_Grek_cf, belebele_hun_Latn_cf,
+       belebele_ita_Latn_cf, belebele_lvs_Latn_cf, belebele_lit_Latn_cf,
+       belebele_mlt_Latn_cf, belebele_pol_Latn_cf, belebele_por_Latn_cf,
+       belebele_ron_Latn_cf, belebele_slk_Latn_cf, belebele_slv_Latn_cf,
+       belebele_spa_Latn_cf, belebele_swe_Latn_cf, belebele_nob_Latn_cf,
+       belebele_eus_Latn_cf, belebele_cat_Latn_cf]
+    match_on: [link, question_number]
+  # sample_weight, a float, differs in its last digit between copies.
+  MultiBlimp:
+    tasks:
+      [multiblimp_bul, multiblimp_ces, multiblimp_dan, multiblimp_nld, multiblimp_eng,
+       multiblimp_est, multiblimp_fin, multiblimp_fra, multiblimp_deu, multiblimp_ell,
+       multiblimp_hun, multiblimp_gle, multiblimp_ita, multiblimp_lav, multiblimp_lit,
+       multiblimp_pol, multiblimp_por, multiblimp_ron, multiblimp_slk, multiblimp_slv,
+       multiblimp_spa, multiblimp_swe, multiblimp_cat, multiblimp_eus, multiblimp_glg,
+       multiblimp_kat, multiblimp_mkd, multiblimp_sqi, multiblimp_hbs, multiblimp_tur,
+       multiblimp_ukr, multiblimp_isl]
+    match_on: [sen, wrong_sen]
+  # lighteval: facebook/flores keeps each sentence pair in one row; a row of
+  # the pipeline holds one language's sentence, in the prompt or the reference.
+  # SIB-200 (lm-eval) labels FLORES sentences with a topic; its tasks are in the
+  # alignment table.
+  Flores200:
+    tasks:
+      ["flores200:bul_Cyrl-eng_Latn", "flores200:hrv_Latn-eng_Latn",
+       "flores200:ces_Latn-eng_Latn", "flores200:dan_Latn-eng_Latn",
+       "flores200:nld_Latn-eng_Latn", "flores200:est_Latn-eng_Latn",
+       "flores200:fin_Latn-eng_Latn", "flores200:fra_Latn-eng_Latn",
+       "flores200:deu_Latn-eng_Latn", "flores200:ell_Grek-eng_Latn",
+       "flores200:hun_Latn-eng_Latn", "flores200:gle_Latn-eng_Latn",
+       "flores200:ita_Latn-eng_Latn", "flores200:lvs_Latn-eng_Latn",
+       "flores200:lit_Latn-eng_Latn", "flores200:mlt_Latn-eng_Latn",
+       "flores200:pol_Latn-eng_Latn", "flores200:por_Latn-eng_Latn",
+       "flores200:ron_Latn-eng_Latn", "flores200:slk_Latn-eng_Latn",
+       "flores200:slv_Latn-eng_Latn", "flores200:spa_Latn-eng_Latn",
+       "flores200:swe_Latn-eng_Latn", "flores200:cat_Latn-eng_Latn",
+       "flores200:eus_Latn-eng_Latn", "flores200:glg_Latn-eng_Latn",
+       "flores200:bos_Latn-eng_Latn", "flores200:kat_Geor-eng_Latn",
+       "flores200:mkd_Cyrl-eng_Latn", "flores200:als_Latn-eng_Latn",
+       "flores200:srp_Cyrl-eng_Latn", "flores200:tur_Latn-eng_Latn",
+       "flores200:ukr_Cyrl-eng_Latn", "flores200:isl_Latn-eng_Latn",
+       "flores200:nob_Latn-eng_Latn", "flores200:eng_Latn-bul_Cyrl",
+       "flores200:eng_Latn-hrv_Latn", "flores200:eng_Latn-ces_Latn",
+       "flores200:eng_Latn-dan_Latn", "flores200:eng_Latn-nld_Latn",
+       "flores200:eng_Latn-est_Latn", "flores200:eng_Latn-fin_Latn",
+       "flores200:eng_Latn-fra_Latn", "flores200:eng_Latn-deu_Latn",
+       "flores200:eng_Latn-ell_Grek", "flores200:eng_Latn-hun_Latn",
+       "flores200:eng_Latn-gle_Latn", "flores200:eng_Latn-ita_Latn",
+       "flores200:eng_Latn-lvs_Latn", "flores200:eng_Latn-lit_Latn",
+       "flores200:eng_Latn-mlt_Latn", "flores200:eng_Latn-pol_Latn",
+       "flores200:eng_Latn-por_Latn", "flores200:eng_Latn-ron_Latn",
+       "flores200:eng_Latn-slk_Latn", "flores200:eng_Latn-slv_Latn",
+       "flores200:eng_Latn-spa_Latn", "flores200:eng_Latn-swe_Latn",
+       "flores200:eng_Latn-cat_Latn", "flores200:eng_Latn-eus_Latn",
+       "flores200:eng_Latn-glg_Latn", "flores200:eng_Latn-bos_Latn",
+       "flores200:eng_Latn-kat_Geor", "flores200:eng_Latn-mkd_Cyrl",
+       "flores200:eng_Latn-als_Latn", "flores200:eng_Latn-srp_Cyrl",
+       "flores200:eng_Latn-tur_Latn", "flores200:eng_Latn-ukr_Cyrl",
+       "flores200:eng_Latn-isl_Latn", "flores200:eng_Latn-nob_Latn",
+       sib200_als_Latn, sib200_bos_Latn, sib200_bul_Cyrl, sib200_cat_Latn,
+       sib200_ces_Latn, sib200_dan_Latn, sib200_deu_Latn, sib200_ell_Grek,
+       sib200_eng_Latn, sib200_est_Latn, sib200_eus_Latn, sib200_fin_Latn,
+       sib200_fra_Latn, sib200_gle_Latn, sib200_glg_Latn, sib200_hrv_Latn,
+       sib200_hun_Latn, sib200_isl_Latn, sib200_ita_Latn, sib200_kat_Geor,
+       sib200_lit_Latn, sib200_lvs_Latn, sib200_mkd_Cyrl, sib200_mlt_Latn,
+       sib200_nld_Latn, sib200_nob_Latn, sib200_pol_Latn, sib200_por_Latn,
+       sib200_ron_Latn, sib200_slk_Latn, sib200_slv_Latn, sib200_spa_Latn,
+       sib200_srp_Cyrl, sib200_swe_Latn, sib200_tur_Latn, sib200_ukr_Cyrl]
+    match_on: [sentence]
+  # lighteval: gpqa_diamond is a subset of the pipeline's gpqa_extended.
+  GPQA:
+    tasks: ["gpqa_diamond:en", "gpqa_diamond:fi"]
+    match_on: [Question, Correct Answer]

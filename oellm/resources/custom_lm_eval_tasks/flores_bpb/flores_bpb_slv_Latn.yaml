@@ -1,0 +1,3 @@
+dataset_name: slv_Latn
+include: _default_template_yaml
+task: flores_bpb_slv_Latn

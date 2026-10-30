@@ -22,11 +22,21 @@ it before comparing runs made with different versions.
 
 ### Added
 
+- `bpb-corpus` task group: bits-per-byte on WikiText-2 for comparing small models.
+- `bpb-flores-eu` task group: bits-per-byte on FLORES-200 devtest in the 36 OpenEuroLLM target languages.
+- `bpb-mc-en` task group: gold-answer bits-per-byte on seven English multiple-choice tasks.
+- Template and docs for bits-per-byte on your own text (`custom_lm_eval_tasks/corpus_bpb`).
+- lm-eval runs pass `--write_out` by default, and `--log_samples` saves every sample when requested.
+- `collect --exclude_samples` also reports scores without blocklisted (e.g. contaminated) test rows, recomputed from the saved samples, in every language and in benchmarks holding copies of them (lm-eval, lighteval and evalchemy's MATH500).
+- Task group `decontaminated-agenttrove-0.0` runs the lm-eval tasks holding rows the decontamination pipeline marked, without those rows (`--samples`); `collect` reports them with `subset` `decontaminated:agenttrove-0.0`.
+
 ### Changed
 
 ### Fixed
 
 - `xcsqa-eu` names `acc` as its primary metric. It still named `acc_norm`, which #142 stopped computing, so `collect` kept every metric for XCSQA.
+- `collect` no longer reports lm-eval's `sample_len` document count as a metric for tasks outside the task groups or with `--fetch_all_metrics`.
+- `--limit` now shortens evalchemy's benchmarks (`reasoning`: MATH500, GPQADiamond, AIME24, ...). They ignored it and ran in full; they now get `--debug`, which runs the first 2 questions (10 for LiveCodeBench) whatever the limit, and `schedule` warns about it (#154).
 
 ### Removed
 

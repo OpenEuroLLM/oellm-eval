@@ -123,6 +123,31 @@ def test_schedule_evals_no_nodelist(tmp_path):
     assert "--nodelist" not in sbatch_content
 
 
+def test_schedule_evals_limit_runs_evalchemy_debug_subset(tmp_path):
+    """evalchemy's own benchmarks ignore --limit, so a limited run also passes --debug."""
+    with (
+        patch("oellm.main._load_cluster_env"),
+        patch("oellm.main._num_jobs_in_queue", return_value=0),
+        patch.dict(os.environ, {"EVAL_OUTPUT_DIR": str(tmp_path)}),
+        patch("oellm.main.logging.warning") as warning,  # oellm replaces caplog's handler
+    ):
+        schedule_evals(
+            models="EleutherAI/pythia-70m",
+            tasks="MATH500",
+            n_shot=0,
+            limit=2,
+            skip_checks=True,
+            venv_path=str(Path(sys.prefix)),
+            dry_run=True,
+        )
+
+    sbatch_content = next(tmp_path.glob("**/submit_evals.sbatch")).read_text()
+    assert "${LIMIT:+--limit $LIMIT --debug}" in sbatch_content
+    assert any(
+        "evalchemy benchmarks ignore --limit" in c.args[0] for c in warning.call_args_list
+    )
+
+
 def test_schedule_evals_passes_bundled_lighteval_custom_tasks(tmp_path):
     """lighteval runs load the bundled custom tasks file, which is also bound
     into the container."""
