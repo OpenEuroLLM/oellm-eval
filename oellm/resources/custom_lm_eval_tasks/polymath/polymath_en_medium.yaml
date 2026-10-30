@@ -2,6 +2,7 @@ include: _default_template_yaml
 task: polymath_en_medium
 dataset_name: en
 test_split: medium
+fewshot_split: low
 tag:
   - polymath
   - polymath_en
