@@ -598,12 +598,16 @@ task_groups:
 
   # PolyMath ships 4 difficulty tiers (low/medium/high/top); each is a
   # separate group so a tier can be run in isolation. EU languages only
-  # (de/en/es/fr/it/pt); 0-shot generative, \boxed{} answer + exact_match.
+  # (de/en/es/fr/it/pt); 5-shot generative, \boxed{} answer + exact_match.
+  # Base models rarely box an answer at 0 shots, so they score near 0 there.
+  # multilingual-oellm-eu runs only the medium tier, with examples from low.
+  # Low is the first 125 MGSM test questions, which mgsm-eu and
+  # global-mgsm-eu already run in en/de/es/fr.
   polymath-eu-low:
-    description: "PolyMath EU math, low tier (0-shot, exact_match)."
+    description: "PolyMath EU math, low tier (5-shot, exact_match)."
     suite: lm-eval-harness
     metric: exact_match
-    n_shots: [0]
+    n_shots: [5]
     dataset: Qwen/PolyMath
     valid_langs: [de, en, es, fr, it, pt]
     tasks:
@@ -611,10 +615,10 @@ task_groups:
         subset: "{lang}"
 
   polymath-eu-medium:
-    description: "PolyMath EU math, medium tier (0-shot, exact_match)."
+    description: "PolyMath EU math, medium tier (5-shot with low-tier examples, exact_match)."
     suite: lm-eval-harness
     metric: exact_match
-    n_shots: [0]
+    n_shots: [5]
     dataset: Qwen/PolyMath
     valid_langs: [de, en, es, fr, it, pt]
     tasks:
@@ -622,10 +626,10 @@ task_groups:
         subset: "{lang}"
 
   polymath-eu-high:
-    description: "PolyMath EU math, high tier (0-shot, exact_match)."
+    description: "PolyMath EU math, high tier (5-shot, exact_match)."
     suite: lm-eval-harness
     metric: exact_match
-    n_shots: [0]
+    n_shots: [5]
     dataset: Qwen/PolyMath
     valid_langs: [de, en, es, fr, it, pt]
     tasks:
@@ -633,10 +637,10 @@ task_groups:
         subset: "{lang}"
 
   polymath-eu-top:
-    description: "PolyMath EU math, top/Olympiad tier (0-shot, exact_match)."
+    description: "PolyMath EU math, top/Olympiad tier (5-shot, exact_match)."
     suite: lm-eval-harness
     metric: exact_match
-    n_shots: [0]
+    n_shots: [5]
     dataset: Qwen/PolyMath
     valid_langs: [de, en, es, fr, it, pt]
     tasks:
@@ -970,51 +974,51 @@ task_groups:
         n_shots: [3]
         dataset: google-research-datasets/mbpp
       - task: polymath_de_low
-        n_shots: [0]
+        n_shots: [5]
         dataset: Qwen/PolyMath
         subset: "de"
       - task: polymath_en_low
-        n_shots: [0]
+        n_shots: [5]
         dataset: Qwen/PolyMath
         subset: "en"
       - task: polymath_es_low
-        n_shots: [0]
+        n_shots: [5]
         dataset: Qwen/PolyMath
         subset: "es"
       - task: polymath_fr_low
-        n_shots: [0]
+        n_shots: [5]
         dataset: Qwen/PolyMath
         subset: "fr"
       - task: polymath_it_low
-        n_shots: [0]
+        n_shots: [5]
         dataset: Qwen/PolyMath
         subset: "it"
       - task: polymath_pt_low
-        n_shots: [0]
+        n_shots: [5]
         dataset: Qwen/PolyMath
         subset: "pt"
       - task: polymath_de_medium
-        n_shots: [0]
+        n_shots: [5]
         dataset: Qwen/PolyMath
         subset: "de"
       - task: polymath_en_medium
-        n_shots: [0]
+        n_shots: [5]
         dataset: Qwen/PolyMath
         subset: "en"
       - task: polymath_es_medium
-        n_shots: [0]
+        n_shots: [5]
         dataset: Qwen/PolyMath
         subset: "es"
       - task: polymath_fr_medium
-        n_shots: [0]
+        n_shots: [5]
         dataset: Qwen/PolyMath
         subset: "fr"
       - task: polymath_it_medium
-        n_shots: [0]
+        n_shots: [5]
         dataset: Qwen/PolyMath
         subset: "it"
       - task: polymath_pt_medium
-        n_shots: [0]
+        n_shots: [5]
         dataset: Qwen/PolyMath
         subset: "pt"
 
@@ -1064,10 +1068,7 @@ super_groups:
       - task: multiblimp-eu
       - task: opensubtitles-eu-en-xx
       - task: opensubtitles-eu-xx-en
-      - task: polymath-eu-high
-      - task: polymath-eu-low
       - task: polymath-eu-medium
-      - task: polymath-eu-top
       - task: sib200-eu
       - task: xcopa-eu
       - task: xcsqa-eu
