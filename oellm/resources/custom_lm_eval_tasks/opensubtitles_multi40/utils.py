@@ -62,6 +62,10 @@ _META_COLUMNS = {
     "translation",
 }
 
+# Few-shot examples come from one held-out movie (the smallest, 311 segments). It is left
+# out of the scored split, so no example shares a scene with a scored sentence.
+FEWSHOT_MOVIE_ID = "27195590_17677860_1_6"
+
 # In-process caches to avoid reloading the same dataset split for each subtask.
 _DATASET_SPLIT_CACHE = {}
 _LANGUAGES_CACHE = {}
@@ -214,6 +218,9 @@ def load_opensubtitles_parallel(**kwargs):
       - tgt_lang: target language key (e.g. fi)
       - allow_empty: keep examples where src or tgt is empty (default: False)
       - max_samples: optional int to truncate dataset for quick debugging
+
+    Returns the scored split under output_split and the FEWSHOT_MOVIE_ID segments
+    under "fewshot".
     """
     dataset_ref = kwargs.get("dataset_dir") or kwargs.get("dataset_repo")
     if not dataset_ref:
@@ -280,18 +287,23 @@ def load_opensubtitles_parallel(**kwargs):
 
     dataset = dataset.map(_map_doc, remove_columns=dataset.column_names)
 
+    held_out = [movie_id == FEWSHOT_MOVIE_ID for movie_id in dataset["movie_id"]]
+    fewshot = dataset.select([i for i, h in enumerate(held_out) if h])
+    dataset = dataset.select([i for i, h in enumerate(held_out) if not h])
+
     if max_samples is not None:
         max_samples = int(max_samples)
         dataset = dataset.select(range(min(max_samples, len(dataset))))
 
     eval_logger.info(
-        "Prepared %d aligned samples for %s -> %s.",
+        "Prepared %d aligned samples and %d few-shot examples for %s -> %s.",
         len(dataset),
+        len(fewshot),
         src_lang,
         tgt_lang,
     )
 
-    return {output_split: dataset}
+    return {output_split: dataset, "fewshot": fewshot}
 
 
 def doc_to_text(doc):
