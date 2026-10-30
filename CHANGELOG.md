@@ -26,6 +26,8 @@ it before comparing runs made with different versions.
 - `bpb-mc-en` task group: gold-answer bits-per-byte on seven English multiple-choice tasks.
 - Template and docs for bits-per-byte on your own text (`custom_lm_eval_tasks/corpus_bpb`).
 - lm-eval runs pass `--write_out` by default, and `--log_samples` saves every sample when requested.
+- `collect --exclude_samples` also reports scores without blocklisted (e.g. contaminated) test rows, recomputed from the saved samples, in every language and in benchmarks holding copies of them (lm-eval, lighteval and evalchemy's MATH500).
+- Task group `decontaminated-agenttrove-0.0` runs the lm-eval tasks holding rows the decontamination pipeline marked, without those rows (`--samples`); `collect` reports them with `subset` `decontaminated:agenttrove-0.0`.
 
 ### Changed
 

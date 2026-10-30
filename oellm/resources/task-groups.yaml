@@ -760,6 +760,264 @@ task_groups:
         dataset: LumiOpen/GPQA-FI
         subset: default
 
+  # Every task holding a test row agenttrove-0.0 marked, in every language, run
+  # without the marked rows (oellm/decontaminated.py), with its usual shots.
+  decontaminated-agenttrove-0.0:
+    description: "Tasks holding test rows agenttrove-0.0 marked as contaminated, run without those rows."
+    suite: lm-eval-harness
+    decontaminated: agenttrove-0.0
+    tasks:
+      - task: openbookqa
+        n_shots: [0]
+        dataset: allenai/openbookqa
+        subset: "main"
+      - task: mmlu
+        n_shots: [5]
+        dataset: cais/mmlu
+      - task: boolq
+        n_shots: [10]
+        dataset: aps/super_glue
+        subset: "boolq"
+      - task: global_mmlu_full_cs
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "cs"
+      - task: global_mmlu_full_de
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "de"
+      - task: global_mmlu_full_el
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "el"
+      - task: global_mmlu_full_en
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "en"
+      - task: global_mmlu_full_es
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "es"
+      - task: global_mmlu_full_fr
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "fr"
+      - task: global_mmlu_full_it
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "it"
+      - task: global_mmlu_full_lt
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "lt"
+      - task: global_mmlu_full_nl
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "nl"
+      - task: global_mmlu_full_pl
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "pl"
+      - task: global_mmlu_full_pt
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "pt"
+      - task: global_mmlu_full_ro
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "ro"
+      - task: global_mmlu_full_sr
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "sr"
+      - task: global_mmlu_full_sv
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "sv"
+      - task: global_mmlu_full_tr
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "tr"
+      - task: global_mmlu_full_uk
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "uk"
+      - task: mmlu_prox_cs
+        n_shots: [5]
+        dataset: li-lab/MMLU-ProX
+        subset: "cs"
+      - task: mmlu_prox_de
+        n_shots: [5]
+        dataset: li-lab/MMLU-ProX
+        subset: "de"
+      - task: mmlu_prox_en
+        n_shots: [5]
+        dataset: li-lab/MMLU-ProX
+        subset: "en"
+      - task: mmlu_prox_es
+        n_shots: [5]
+        dataset: li-lab/MMLU-ProX
+        subset: "es"
+      - task: mmlu_prox_fr
+        n_shots: [5]
+        dataset: li-lab/MMLU-ProX
+        subset: "fr"
+      - task: mmlu_prox_hu
+        n_shots: [5]
+        dataset: li-lab/MMLU-ProX
+        subset: "hu"
+      - task: mmlu_prox_it
+        n_shots: [5]
+        dataset: li-lab/MMLU-ProX
+        subset: "it"
+      - task: mmlu_prox_pt
+        n_shots: [5]
+        dataset: li-lab/MMLU-ProX
+        subset: "pt"
+      - task: mmlu_prox_sr
+        n_shots: [5]
+        dataset: li-lab/MMLU-ProX
+        subset: "sr"
+      - task: mmlu_prox_uk
+        n_shots: [5]
+        dataset: li-lab/MMLU-ProX
+        subset: "uk"
+      - task: mgsm_native_cot_en
+        n_shots: [5]
+        dataset: jbross-ibm-research/mgsm
+        subset: "en"
+      - task: mgsm_native_cot_de
+        n_shots: [5]
+        dataset: jbross-ibm-research/mgsm
+        subset: "de"
+      - task: mgsm_native_cot_es
+        n_shots: [5]
+        dataset: jbross-ibm-research/mgsm
+        subset: "es"
+      - task: mgsm_native_cot_fr
+        n_shots: [5]
+        dataset: jbross-ibm-research/mgsm
+        subset: "fr"
+      - task: global_mgsm_de
+        n_shots: [0]
+        dataset: CohereLabs/global-mgsm
+        subset: "de"
+      - task: global_mgsm_fr
+        n_shots: [0]
+        dataset: CohereLabs/global-mgsm
+        subset: "fr"
+      - task: global_mgsm_es
+        n_shots: [0]
+        dataset: CohereLabs/global-mgsm
+        subset: "es"
+      - task: global_mgsm_el
+        n_shots: [0]
+        dataset: CohereLabs/global-mgsm
+        subset: "el"
+      - task: global_mgsm_cs
+        n_shots: [0]
+        dataset: CohereLabs/global-mgsm
+        subset: "cs"
+      - task: global_mgsm_hu
+        n_shots: [0]
+        dataset: CohereLabs/global-mgsm
+        subset: "hu"
+      - task: global_mgsm_en
+        n_shots: [0]
+        dataset: CohereLabs/global-mgsm
+        subset: "en"
+      - task: global_mgsm_ca
+        n_shots: [0]
+        dataset: CohereLabs/global-mgsm
+        subset: "ca"
+      - task: global_mgsm_eu
+        n_shots: [0]
+        dataset: CohereLabs/global-mgsm
+        subset: "eu"
+      - task: global_mgsm_gl
+        n_shots: [0]
+        dataset: CohereLabs/global-mgsm
+        subset: "gl"
+      - task: global_mgsm_sr
+        n_shots: [0]
+        dataset: CohereLabs/global-mgsm
+        subset: "sr"
+      - task: mmmlu_de_de
+        n_shots: [5]
+        dataset: openai/MMMLU
+        subset: "DE_DE"
+      - task: mmmlu_es_la
+        n_shots: [5]
+        dataset: openai/MMMLU
+        subset: "ES_LA"
+      - task: mmmlu_fr_fr
+        n_shots: [5]
+        dataset: openai/MMMLU
+        subset: "FR_FR"
+      - task: mmmlu_it_it
+        n_shots: [5]
+        dataset: openai/MMMLU
+        subset: "IT_IT"
+      - task: mmmlu_pt_br
+        n_shots: [5]
+        dataset: openai/MMMLU
+        subset: "PT_BR"
+      - task: gsm8k
+        n_shots: [8]
+        dataset: openai/gsm8k
+        subset: "main"
+      - task: mbpp
+        n_shots: [3]
+        dataset: google-research-datasets/mbpp
+      - task: polymath_de_low
+        n_shots: [0]
+        dataset: Qwen/PolyMath
+        subset: "de"
+      - task: polymath_en_low
+        n_shots: [0]
+        dataset: Qwen/PolyMath
+        subset: "en"
+      - task: polymath_es_low
+        n_shots: [0]
+        dataset: Qwen/PolyMath
+        subset: "es"
+      - task: polymath_fr_low
+        n_shots: [0]
+        dataset: Qwen/PolyMath
+        subset: "fr"
+      - task: polymath_it_low
+        n_shots: [0]
+        dataset: Qwen/PolyMath
+        subset: "it"
+      - task: polymath_pt_low
+        n_shots: [0]
+        dataset: Qwen/PolyMath
+        subset: "pt"
+      - task: polymath_de_medium
+        n_shots: [0]
+        dataset: Qwen/PolyMath
+        subset: "de"
+      - task: polymath_en_medium
+        n_shots: [0]
+        dataset: Qwen/PolyMath
+        subset: "en"
+      - task: polymath_es_medium
+        n_shots: [0]
+        dataset: Qwen/PolyMath
+        subset: "es"
+      - task: polymath_fr_medium
+        n_shots: [0]
+        dataset: Qwen/PolyMath
+        subset: "fr"
+      - task: polymath_it_medium
+        n_shots: [0]
+        dataset: Qwen/PolyMath
+        subset: "it"
+      - task: polymath_pt_medium
+        n_shots: [0]
+        dataset: Qwen/PolyMath
+        subset: "pt"
+
 super_groups:
   judgearena:
     description: "JudgeArena base tasks."

@@ -19,6 +19,7 @@ import subprocess
 import sys
 from importlib.resources import files
 from pathlib import Path
+from string import Template
 from unittest.mock import patch
 
 import pandas as pd
@@ -59,6 +60,7 @@ TEMPLATE_FIELDS = {
     "tasks_per_job": 8,
     "judgearena_args": "",
     "judgearena_data": "/tmp/judgearena-data",
+    "samples_dir": "/tmp",
 }
 
 requires_awk = pytest.mark.skipif(shutil.which("awk") is None, reason="awk not available")
@@ -94,9 +96,17 @@ def _batches(rows: list[str], tasks_per_job: int = 8) -> list[dict[str, str]]:
     )
     assert result.returncode == 0, result.stderr
     batches = []
-    for line in result.stdout.strip().split("\n"):
-        model, tasks, n_shot, suite = line.split("\t")
-        batches.append({"model": model, "tasks": tasks, "n_shot": n_shot, "suite": suite})
+    for line in result.stdout.rstrip("\n").split("\n"):
+        model, tasks, n_shot, suite, decontaminated = line.split("\t")
+        batches.append(
+            {
+                "model": model,
+                "tasks": tasks,
+                "n_shot": n_shot,
+                "suite": suite,
+                "decontaminated": decontaminated,
+            }
+        )
     return batches
 
 
@@ -181,3 +191,89 @@ def test_scheduled_csv_keeps_a_batch_adjacent(tmp_path: Path) -> None:
     keys = list(zip(df["model_path"], df["n_shot"], df["eval_suite"], strict=True))
     runs = [key for index, key in enumerate(keys) if index == 0 or key != keys[index - 1]]
     assert len(runs) == len(set(runs)), "rows sharing a batch key are not adjacent"
+
+
+@requires_awk
+def test_decontaminated_rows_get_calls_of_their_own() -> None:
+    """A decontaminated row runs with --samples, which applies to the whole
+    lm_eval call, so it cannot share one with rows on whole tasks."""
+    rows = [
+        f"{MODEL_A},mmlu,5,lm-eval-harness,",
+        f"{MODEL_A},mmlu,5,lm-eval-harness,agenttrove-0.0",
+        f"{MODEL_A},mmlu_prox_de,5,lm-eval-harness,agenttrove-0.0",
+        f"{MODEL_A},global_mmlu_full_de,5,lm-eval-harness",
+    ]
+    assert [(b["tasks"], b["decontaminated"]) for b in _batches(rows)] == [
+        ("mmlu", ""),
+        ("mmlu,mmlu_prox_de", "agenttrove-0.0"),
+        ("global_mmlu_full_de", ""),
+    ]
+
+
+def test_a_decontaminated_row_runs_lm_eval_with_its_samples() -> None:
+    script = _render(samples_dir="/evals/run")
+    assert '--samples "/evals/run/samples-$decontaminated.json"' in script
+    assert (
+        'RUN_NAME="$RUN_ID${decontaminated:+--decontaminated--$decontaminated}"' in script
+    )
+    assert '--output_path "$EVAL_OUT_DIR/$RUN_NAME.json"' in script
+    # For the few-shot examples of oellm's MMMLU high_school_mathematics tasks.
+    assert (
+        'export OELLM_DECONTAMINATED_SAMPLES="/evals/run/samples-$decontaminated.json"'
+        in script
+    )
+    assert "unset OELLM_DECONTAMINATED_SAMPLES" in script
+
+
+def _lm_eval_setup(rows: list[str], scheduling_env: dict[str, str]) -> list[list[str]]:
+    """CACHE_ARGS and the samples path, plain and for the container, as the job
+    sets them for *rows* (their decontaminated value) run one after the other in
+    one shell: the template rendered as schedule renders it, with the scheduling
+    shell's environment substituted, and run with CACHE_REQUESTS."""
+    script = Template(_render(samples_dir="/evals/run")).safe_substitute(scheduling_env)
+    match = re.search(
+        r"^ *CACHE_ARGS=.*?^ *unset OELLM_DECONTAMINATED_SAMPLES .*?\n *fi$",
+        script,
+        re.S | re.M,
+    )
+    assert match, "lm-eval setup block not found in the rendered template"
+    show = (
+        'echo "=$CACHE_ARGS|$OELLM_DECONTAMINATED_SAMPLES'
+        '|$SINGULARITYENV_OELLM_DECONTAMINATED_SAMPLES"'
+    )
+    result = subprocess.run(
+        ["bash", "-c", "".join(f'decontaminated="{d}"\n{match.group(0)}\n{show}\n' for d in rows)],
+        env={"PATH": os.environ["PATH"], "CACHE_REQUESTS": "true"},
+        capture_output=True,
+        text=True,
+        check=True,
+    )  # fmt: skip
+    return [line[1:].split("|") for line in result.stdout.splitlines() if line[:1] == "="]
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash not available")
+def test_a_decontaminated_row_never_caches_requests() -> None:
+    """lm-eval's request cache ignores --samples, so a decontaminated run would
+    score the requests a full run cached for all documents."""
+    assert _lm_eval_setup([""], {})[0][0] == "--cache_requests true"
+    assert _lm_eval_setup(["agenttrove-0.0"], {})[0][0] == ""
+    # The lm_eval call takes the flag from CACHE_ARGS alone.
+    script = Template(_render()).safe_substitute({})
+    (call,) = re.findall(r"run_python -m lm_eval .*?EVAL_STATUS", script, re.S)
+    assert "$CACHE_ARGS" in call
+    assert "--cache_requests" not in call
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash not available")
+def test_the_samples_path_is_the_row_s_not_the_scheduling_shell_s() -> None:
+    stale = {"OELLM_DECONTAMINATED_SAMPLES": "/old/samples-agenttrove-0.0.json"}
+    path = "/evals/run/samples-agenttrove-0.0.json"
+    assert _lm_eval_setup(["agenttrove-0.0"], stale)[0][1:] == [path, path]
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash not available")
+def test_a_full_row_after_a_decontaminated_one_in_the_same_job_runs_as_alone() -> None:
+    """Otherwise oellm's MMMLU tasks would take the decontaminated run's
+    few-shot examples in a full run."""
+    _, full = _lm_eval_setup(["agenttrove-0.0", ""], {})
+    assert full == ["--cache_requests true", "", ""]

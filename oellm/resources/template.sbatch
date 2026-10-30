@@ -96,19 +96,20 @@ FAILED_EVALS=0
 # loads with one. TASKS_PER_JOB caps how many tasks share a call: lm_eval aborts
 # the whole invocation if one task raises, so the cap bounds what a single
 # failure takes down. Suites other than lm_eval pass through one row at a time.
-# The output is tab-separated because a joined task list contains commas.
+# The output is tab-separated because a joined task list contains commas. The
+# optional fifth column names a decontaminated list; such rows get their own calls.
 BATCH_ROWS_AWK='
-    function flush() {{ if (tasks != "") print model, tasks, shots, suite }}
+    function flush() {{ if (tasks != "") print model, tasks, shots, suite, decon }}
     {{
         gsub(/\r/, "")
         if ($1 == "") next
         row_suite = ($4 == "" ? "lm_eval" : $4)
         lowered = tolower(row_suite)
         batchable = (lowered == "lm_eval" || lowered == "lm-eval" || lowered == "lm-eval-harness")
-        row_key = batchable ? ($1 SUBSEP $3 SUBSEP lowered) : ("unbatched" SUBSEP NR)
+        row_key = batchable ? ($1 SUBSEP $3 SUBSEP lowered SUBSEP $5) : ("unbatched" SUBSEP NR)
         if (row_key != key || count >= max_tasks) {{
             flush()
-            key = row_key; model = $1; shots = $3; suite = row_suite; tasks = $2; count = 1
+            key = row_key; model = $1; shots = $3; suite = row_suite; decon = $5; tasks = $2; count = 1
         }} else {{
             tasks = tasks "," $2; count++
         }}
@@ -118,13 +119,14 @@ BATCH_ROWS_AWK='
 
 # Redirected rather than piped into the loop: a pipeline runs the loop body in a
 # subshell, and FAILED_EVALS would be discarded when it exits.
-while IFS=$'\t' read -r model_path task_path n_shot eval_suite
+while IFS=$'\t' read -r model_path task_path n_shot eval_suite decontaminated
 do
     # Remove trailing carriage returns if script is edited on Windows
     model_path=$(echo "$model_path" | tr -d '\r')
     task_path=$(echo "$task_path" | tr -d '\r')
     n_shot=$(echo "$n_shot" | tr -d '\r')
     eval_suite=$(echo "${{eval_suite:-lm_eval}}" | tr -d '\r')
+    decontaminated=$(echo "$decontaminated" | tr -d '\r')
 
     # Skip empty lines
     if [ -z "$model_path" ]; then
@@ -137,6 +139,9 @@ do
     echo "  Task: $task_path"
     echo "  N-shot: $n_shot"
     echo "  Suite: $eval_suite"
+    if [ -n "$decontaminated" ]; then
+        echo "  Leaving out the documents marked in: $decontaminated"
+    fi
     echo "----------------------------------------------------"
 
     # Build bind paths: always mount the shared eval directory, and additionally
@@ -205,17 +210,35 @@ do
             RUN_ID=$(openssl rand -hex 5)
             EVAL_OUT_DIR="{evals_dir}"
             EVAL_OUT_PAT="$RUN_ID*.json"
+            # lm-eval does not record --samples, so the file name tells collect
+            # which documents the run left out.
+            RUN_NAME="$RUN_ID${{decontaminated:+--decontaminated--$decontaminated}}"
+            # lm-eval's request cache ignores --samples.
+            CACHE_ARGS="${{CACHE_REQUESTS:+--cache_requests $CACHE_REQUESTS}}"
+            if [ -n "$decontaminated" ]; then
+                # For the few-shot examples of oellm's MMMLU high_school_mathematics
+                # tasks; SINGULARITYENV_ for a container with a clean env.
+                export OELLM_DECONTAMINATED_SAMPLES="{samples_dir}/samples-$decontaminated.json"
+                export SINGULARITYENV_OELLM_DECONTAMINATED_SAMPLES="$$OELLM_DECONTAMINATED_SAMPLES"
+                if [ -n "$$CACHE_ARGS" ]; then
+                    echo "Not caching requests: the run leaves out documents ($decontaminated)"
+                    CACHE_ARGS=""
+                fi
+            else
+                unset OELLM_DECONTAMINATED_SAMPLES SINGULARITYENV_OELLM_DECONTAMINATED_SAMPLES
+            fi
             run_python -m lm_eval --model hf \
                 --model_args pretrained="$model_path",trust_remote_code=True \
                 --tasks "$task_path" \
                 --num_fewshot "$n_shot" \
-                --output_path "$EVAL_OUT_DIR/$RUN_ID.json" \
+                --output_path "$EVAL_OUT_DIR/$RUN_NAME.json" \
                 --trust_remote_code \
                 ${{LM_EVAL_INCLUDE_PATH:+--include_path $$LM_EVAL_INCLUDE_PATH}} \
                 --batch_size auto \
                 --write_out \
-                ${{CACHE_REQUESTS:+--cache_requests $CACHE_REQUESTS}} \
+                $$CACHE_ARGS \
                 ${{LIMIT:+--limit $LIMIT}} \
+                ${{decontaminated:+--samples "{samples_dir}/samples-$decontaminated.json"}} \
                 ${{LOG_SAMPLES:+--log_samples}}
             EVAL_STATUS=$?
             echo "----------------------------------------------------"
