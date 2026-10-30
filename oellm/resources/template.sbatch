@@ -30,6 +30,8 @@ export JUDGEARENA_DATA={judgearena_data}
 export HF_HOME=$HF_HOME
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export HF_HUB_OFFLINE={hf_hub_offline}
+# keep lmms-eval on the shared datasets cache (by default it uses node-local /tmp)
+export LMMS_EVAL_DATASETS_CACHE="$HF_DATASETS_CACHE"
 
 # Neither harness caches under HF_HOME on its own. lighteval hardcodes
 # ~/.cache/huggingface/lighteval and never reads HF_HOME, which fills the user's
@@ -358,6 +360,93 @@ do
                         --model.name "VLLM/$model_path" \
                         --run.result_folder "$RESULTS_SUBDIR" \
                         ${{LIMIT:+--generation.n_instructions $LIMIT}}
+                EVAL_STATUS=$?
+            fi
+            ;;
+        lmms_eval|lmms-eval|lmms_eval:*|lmms-eval:*)
+            # lmms-eval needs a model class per model family: take it from the
+            # suite ("lmms-eval:<class>") or pick it from the model name
+            RESULTS_SUBDIR="{evals_dir}/$(openssl rand -hex 5)"
+            EVAL_OUT_DIR="$RESULTS_SUBDIR"
+            EVAL_OUT_PAT="*_results.json"
+            LMMS_EVAL_MODEL=""
+            case "$suite_normalized" in
+                *:*) LMMS_EVAL_MODEL="${{suite_normalized#*:}}" ;;
+            esac
+            # lm-eval and lighteval load any HF model through one generic class
+            # (--model hf), but lmms-eval has no such class for VLMs: you have to
+            # pass the family's class, like qwen2_5_vl or llava_hf. This block
+            # picks it from the model name when the suite doesn't set it
+            # (lmms-eval:<class>).
+            if [ -z "$LMMS_EVAL_MODEL" ]; then
+                # first match wins, so specific names come first
+                case "$(echo "$model_path" | tr '[:upper:]' '[:lower:]')" in
+                    *qwen2-audio*|*qwen2_audio*) LMMS_EVAL_MODEL="qwen2_audio" ;;
+                    *qwen2.5-omni*|*qwen2_5_omni*) LMMS_EVAL_MODEL="qwen2_5_omni" ;;
+                    *video-salmonn*|*video_salmonn*) LMMS_EVAL_MODEL="video_salmonn_2" ;;
+                    *audio-flamingo-3*|*audio_flamingo_3*) LMMS_EVAL_MODEL="audio_flamingo_3" ;;
+                    *kimi-audio*|*kimi_audio*) LMMS_EVAL_MODEL="kimi_audio" ;;
+                    *whisper*) LMMS_EVAL_MODEL="whisper" ;;
+                    *phi-4-multimodal*|*phi_4_multimodal*|*phi4-multimodal*) LMMS_EVAL_MODEL="phi4_multimodal" ;;
+                    *qwen2.5-vl*|*qwen2_5_vl*|*qwen2.5vl*) LMMS_EVAL_MODEL="qwen2_5_vl" ;;
+                    *qwen2-vl*|*qwen2_vl*) LMMS_EVAL_MODEL="qwen2_vl" ;;
+                    *llava-hf*) LMMS_EVAL_MODEL="llava_hf" ;;
+                    *llava-onevision*|*llava_onevision*) LMMS_EVAL_MODEL="llava_onevision" ;;
+                    *llava-vid*|*llava_vid*|*llava-video*) LMMS_EVAL_MODEL="llava_vid" ;;
+                    *video-llava*|*video_llava*) LMMS_EVAL_MODEL="video_llava" ;;
+                    *llava*) LMMS_EVAL_MODEL="llava_hf" ;;
+                    *internvideo*) LMMS_EVAL_MODEL="internvideo2" ;;
+                    *internvl*) LMMS_EVAL_MODEL="internvl2" ;;
+                    *idefics2*) LMMS_EVAL_MODEL="idefics2" ;;
+                    *minicpm*) LMMS_EVAL_MODEL="minicpm_v" ;;
+                    *longva*) LMMS_EVAL_MODEL="longva" ;;
+                    *videochat2*) LMMS_EVAL_MODEL="videochat2" ;;
+                    *qwen-vl*|*qwen_vl*) LMMS_EVAL_MODEL="qwen_vl" ;;
+                esac
+            fi
+            if [ -z "$LMMS_EVAL_MODEL" ]; then
+                echo "[error] lmms-eval suite: no known model class for '$model_path'. Extend the case in template.sbatch, or name the class in the suite as lmms-eval:<class>."
+                EVAL_STATUS=1
+            else
+                LMMS_ARGS="pretrained=$model_path"
+                # default device: all GPUs of the node (MPS on macOS), unless
+                # LMMS_MODEL_ARGS sets device_map
+                case ",${{LMMS_MODEL_ARGS:-}}," in
+                    *,device_map=*) ;;
+                    *)
+                        case "$LMMS_EVAL_MODEL" in
+                            kimi_audio|minicpm_v|qwen_vl) ;;  # no device_map argument
+                            *)
+                                if [ "$(uname -s)" = "Darwin" ]; then
+                                    LMMS_ARGS="$LMMS_ARGS,device=mps,device_map=mps"
+                                else
+                                    LMMS_ARGS="$LMMS_ARGS,device_map=auto"
+                                fi
+                                ;;
+                        esac
+                        ;;
+                esac
+                case "$LMMS_EVAL_MODEL" in
+                    # cap frames per video (the default of 32 runs out of memory)
+                    qwen2_vl|qwen2_5_vl)
+                        LMMS_ARGS="$LMMS_ARGS,max_num_frames=${{MAX_NUM_FRAMES:-8}}"
+                        ;;
+                    # llava_onevision needs the model name
+                    llava_onevision)
+                        LMMS_ARGS="$LMMS_ARGS,model_name=$(basename "$model_path")"
+                        ;;
+                esac
+                # extra model arguments, comma-separated key=value
+                if [ -n "${{LMMS_MODEL_ARGS:-}}" ]; then
+                    LMMS_ARGS="$LMMS_ARGS,${{LMMS_MODEL_ARGS:-}}"
+                fi
+                run_python -m lmms_eval \
+                    --model "$LMMS_EVAL_MODEL" \
+                    --model_args "$LMMS_ARGS" \
+                    --tasks "$task_path" \
+                    --num_fewshot "$n_shot" \
+                    --output_path "$RESULTS_SUBDIR" \
+                    ${{LIMIT:+--limit $LIMIT}}
                 EVAL_STATUS=$?
             fi
             ;;
