@@ -1,4 +1,6 @@
+import csv
 import os
+import subprocess
 import sys
 from importlib.resources import files
 from pathlib import Path
@@ -74,6 +76,42 @@ def test_schedule_evals_slurm_template_var_overrides(tmp_path):
     assert "#SBATCH --account=myproject" in sbatch_content
     assert "#SBATCH --time=02:15:00" in sbatch_content
     assert "#SBATCH --gres=gpu:2" in sbatch_content
+
+
+def test_model_revision_survives_slurm_job_manifest(tmp_path):
+    """Model options containing commas must not shift Slurm job columns."""
+    model = "openeurollm/prelude,revision=ter_0953312"
+    input_csv = tmp_path / "input.csv"
+    with input_csv.open("w", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(["model_path", "task_path", "n_shot"])
+        writer.writerow([model, "hellaswag", 0])
+    with (
+        patch("oellm.main._load_cluster_env"),
+        patch("oellm.main._num_jobs_in_queue", return_value=0),
+        patch.dict(
+            os.environ,
+            {"EVAL_OUTPUT_DIR": str(tmp_path), "HF_HOME": str(tmp_path / "hf")},
+        ),
+    ):
+        schedule_evals(
+            eval_csv_path=str(input_csv),
+            skip_checks=True,
+            venv_path=str(Path(sys.prefix)),
+            dry_run=True,
+        )
+
+    manifest = next(tmp_path.glob("**/jobs.tsv"))
+    script = next(tmp_path.glob("**/submit_evals.sbatch")).read_text()
+    assert str(manifest) in script
+    assert "awk -F '\\t'" in script
+    result = subprocess.run(
+        ["awk", "-F", "\t", "NR==2 { print $1; print $2; print $3 }", str(manifest)],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert result.stdout.splitlines() == [model, "hellaswag", "0"]
 
 
 def test_schedule_evals_nodelist(tmp_path):
