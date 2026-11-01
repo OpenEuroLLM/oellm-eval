@@ -88,7 +88,7 @@ fi
 # status so a failed eval cannot be mistaken for a completed one.
 FAILED_EVALS=0
 
-# Use `tail` and `head` to slice the CSV file for the tasks assigned to this job.
+# Use `tail` and `head` to slice the tab-separated execution manifest.
 # The +1 on START_INDEX accounts for the header row.
 # Collapse adjacent rows that share a model, shot count and lm_eval suite into
 # a single row whose task field is a comma-separated list. lm_eval loads the
@@ -385,7 +385,7 @@ do
     fi
 
 done < <(tail -n +$((START_INDEX + 1)) "$CSV_PATH" | head -n $((END_INDEX - START_INDEX + 1)) | \
-    awk -F, -v max_tasks="$TASKS_PER_JOB" -v OFS='\t' "$BATCH_ROWS_AWK")
+    awk -F '\t' -v max_tasks="$TASKS_PER_JOB" -v OFS='\t' "$BATCH_ROWS_AWK")
 
 if [ "$FAILED_EVALS" -gt 0 ]; then
     echo "Job $SLURM_ARRAY_TASK_ID finished with $FAILED_EVALS failed evaluation(s)."
