@@ -263,6 +263,27 @@ def test_a_metric_given_as_a_function_is_recomputed(tmp_path):
     assert clean["pass_at_1,none"] == 0.5
 
 
+def test_humaneval_s_pass_at_k_is_recomputed_as_pass_at_1(tmp_path):
+    """humaneval's `metric: !function utils.pass_at_k` with `k: [1]` returns
+    {"pass@1": ...}, so lm-eval reports and saves pass@1."""
+    docs = _docs(5)
+    task = _task(
+        docs,
+        {"create_test": [1, 0, 0, 1, 1]},
+        metric="pass@1",
+        output_type="generate_until",
+    )
+    task["config"]["metric_list"][0] |= {
+        "metric": "def pass_at_k(references, predictions, k=None):\n    ...\n",
+        "k": [1],
+    }
+    run = _write_run(tmp_path, {"toy": task})
+    clean, _ = _clean(run, {"Toy": [docs[0]]})["toy"]
+    assert clean["pass@1,create_test"] == 0.5
+    config = task["config"]
+    assert not sample_exclusion._is_mean_metric("pass@10", config)
+
+
 def _ifeval_like(docs, prompt, instructions):
     """ifeval: a boolean per prompt, and a list of booleans per prompt (one per
     instruction) that lm-eval flattens before averaging, with no stderr."""
