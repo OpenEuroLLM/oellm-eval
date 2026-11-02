@@ -5,6 +5,12 @@ validation_split: null
 doc_to_text: !function utils.doc_to_text
 doc_to_target: !function utils.doc_to_target
 process_results: !function utils.process_results
+# Few-shot examples come from fewshot_split in each task file and end in \boxed{answer},
+# the format scored. Medium draws them from the low tier; the other tiers use their own
+# tier, which makes lm-eval leave the scored item out.
+fewshot_config:
+  sampler: default
+  doc_to_target: !function utils.boxed_target
 generation_kwargs:
   until:
     - "Problem:"

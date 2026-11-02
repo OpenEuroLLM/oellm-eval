@@ -17,6 +17,7 @@ it before comparing runs made with different versions.
 ### Changed results
 
 - SIB-200 (`sib200-eu`) runs 10-shot instead of 0-shot, with few-shot examples taken from the start of the train split. Few-shot runs previously drew them from the label-sorted test split, so every example was science/technology and scores sat at 0.25, that label's share (#137).
+- PolyMath (`polymath-eu-*`) runs 5-shot instead of 0-shot, with examples that end in `\boxed{answer}`; at 0 shots base models rarely box an answer and score near 0. Medium takes its examples from the low tier, the other tiers from their own tier without the scored item. `multilingual-oellm-eu` no longer runs PolyMath (401 → 377 evals): low repeats MGSM questions it already runs, and 2B and 9B base models score medium no better than always answering 1 (#161).
 - LUMI container: `lm-eval[api,tasks]` 0.4.13 with `datasets>=4` and `transformers<5.20`, PolyMath's scoring dependencies, and patches so `dclm-core-22`'s `agieval_lsat_ar`, `squadv2` and `coqa` run at n_shot>0. Applies once the image is rebuilt (#130).
 
 ### Added
@@ -33,6 +34,7 @@ it before comparing runs made with different versions.
 
 ### Fixed
 
+- PolyMath's scorer no longer freezes a run. It gave up on a slow sympy check by abandoning its thread, and a check stuck in a huge integer power held the GIL and stalled lm-eval for hours; checks now run in a worker process that is killed and restarted on timeout (#161).
 - `collect` no longer reports lm-eval's `sample_len` document count as a metric for tasks outside the task groups or with `--fetch_all_metrics`.
 - `--limit` now shortens evalchemy's benchmarks (`reasoning`: MATH500, GPQADiamond, AIME24, ...). They ignored it and ran in full; they now get `--debug`, which runs the first 2 questions (10 for LiveCodeBench) whatever the limit, and `schedule` warns about it (#154).
 

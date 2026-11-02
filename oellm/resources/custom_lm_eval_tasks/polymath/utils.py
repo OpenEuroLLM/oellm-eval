@@ -40,6 +40,11 @@ def doc_to_target(doc: dict) -> str:
     return doc["answer"]
 
 
+def boxed_target(doc: dict) -> str:
+    # The dataset has no worked solutions, so a few-shot example shows only the answer.
+    return "\\boxed{" + doc["answer"].replace("$", "") + "}"
+
+
 # --- Answer extraction (verbatim from PolyMath eval/run_eval.py) -------------
 def extract_boxed_content(text):
     pattern = re.compile(r"boxed{")

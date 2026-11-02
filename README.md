@@ -54,17 +54,17 @@ Available task groups:
 - `flores-200-eu-to-eng` / `flores-200-eng-to-eu` - Translation tasks
 - `global-mmlu-eu` - Global MMLU in EU languages
 - `mgsm-eu` - Multilingual GSM benchmarks
-- `polymath-eu-low` / `polymath-eu-medium` / `polymath-eu-high` / `polymath-eu-top` - PolyMath multilingual math reasoning (EU languages, 0-shot, `\boxed{}` answer extraction), one group per difficulty tier
+- `polymath-eu-low` / `polymath-eu-medium` / `polymath-eu-high` / `polymath-eu-top` - PolyMath multilingual math reasoning (EU languages, 5-shot, `\boxed{}` answer extraction), one group per difficulty tier; medium takes its examples from low. Not part of `multilingual-oellm-eu`
 - `generic-multilingual` - XWinograd, XCOPA, XStoryCloze
 - `include` - INCLUDE benchmarks
 - `gpqa-diamond` - GPQA Diamond, generative (0-shot, pass@1, up to 32768 new tokens) for instruct/reasoning checkpoints, in English and Finnish (professionally post-edited `LumiOpen/GPQA-FI`). English reads the gated `Idavidrein/gpqa`, so the HF token must have access. Defined as custom lighteval tasks, see [docs/TASKS.md](docs/TASKS.md#custom-lighteval-tasks). Schedule it separately with a small `BATCH_SIZE`, see [Lighteval Batch Size](#lighteval-batch-size)
 
 Super groups combine multiple task groups:
 - `oellm-multilingual` - All multilingual benchmarks combined
-- `multilingual-oellm-eu` - Every multilingual benchmark, in the 36 prioritised
+- `multilingual-oellm-eu` - Every multilingual benchmark except PolyMath, in the 36 prioritised
   OpenEuroLLM target languages (24 official EU languages,
-  Catalan/Basque/Galician, candidate members, Icelandic/Norwegian). 401 eval
-  units across all 15 multilingual benchmarks and both eval suites:
+  Catalan/Basque/Galician, candidate members, Icelandic/Norwegian). 377 eval
+  units across 14 multilingual benchmarks and both eval suites:
 
   ```bash
   oellm-eval schedule --models "my-model" --task_groups "multilingual-oellm-eu"
