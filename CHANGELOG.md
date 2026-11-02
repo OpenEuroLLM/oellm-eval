@@ -18,6 +18,7 @@ it before comparing runs made with different versions.
 
 - SIB-200 (`sib200-eu`) runs 10-shot instead of 0-shot, with few-shot examples taken from the start of the train split. Few-shot runs previously drew them from the label-sorted test split, so every example was science/technology and scores sat at 0.25, that label's share (#137).
 - LUMI container: `lm-eval[api,tasks]` 0.4.13 with `datasets>=4` and `transformers<5.20`, PolyMath's scoring dependencies, and patches so `dclm-core-22`'s `agieval_lsat_ar`, `squadv2` and `coqa` run at n_shot>0. Applies once the image is rebuilt (#130).
+- `decontaminated-agenttrove-0.0` also runs GSM8K-Platinum (0-shot), MATH, MathQA, MMLU-Redux, MMLU-Pro (5-shot), TriviaQA, MBPP+ (3-shot), HumanEval and HumanEval+, with lm-eval's default shots unless noted.
 
 ### Added
 
@@ -28,11 +29,13 @@ it before comparing runs made with different versions.
 - lm-eval runs pass `--write_out` by default, and `--log_samples` saves every sample when requested.
 - `collect --exclude_samples` also reports scores without blocklisted (e.g. contaminated) test rows, recomputed from the saved samples, in every language and in benchmarks holding copies of them (lm-eval, lighteval and evalchemy's MATH500).
 - Task group `decontaminated-agenttrove-0.0` runs the lm-eval tasks holding rows the decontamination pipeline marked, without those rows (`--samples`); `collect` reports them with `subset` `decontaminated:agenttrove-0.0`.
+- `collect --exclude_samples` covers GSM8K-Platinum, MATH, MathQA, MMLU-Redux, MMLU-Pro, TriviaQA, MBPP+, HumanEval and HumanEval+ (lm-eval), and excludes a row from both of HumanEval/HumanEval+, MBPP/MBPP+, GSM8K/GSM8K-Platinum, MMLU/MMLU-Redux and MATH-500/MATH.
 
 ### Changed
 
 ### Fixed
 
+- lm-eval's code tasks (`mbpp`, `humaneval`) run: the job passes `--confirm_run_unsafe_code` and sets `HF_ALLOW_CODE_EVAL=1`.
 - `collect` no longer reports lm-eval's `sample_len` document count as a metric for tasks outside the task groups or with `--fetch_all_metrics`.
 - `--limit` now shortens evalchemy's benchmarks (`reasoning`: MATH500, GPQADiamond, AIME24, ...). They ignored it and ran in full; they now get `--debug`, which runs the first 2 questions (10 for LiveCodeBench) whatever the limit, and `schedule` warns about it (#154).
 
