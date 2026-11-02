@@ -1176,7 +1176,7 @@
    ],
    "kept_answers": "6f183d127cc6ba50"
   },
-  "gsm8k_platinum": {
+  "gsm8k_platinum_cot": {
    "documents": 1209,
    "excluded": [
     0,
@@ -1226,47 +1226,7 @@
     44,
     45
    ],
-   "kept_answers": "88dc53c656a5614e"
-  },
-  "hendrycks_math_algebra": {
-   "documents": 1187,
-   "excluded": [
-    38,
-    781,
-    830,
-    841
-   ],
-   "kept_answers": "b611357b653b9d6c"
-  },
-  "hendrycks_math_counting_and_prob": {
-   "documents": 474,
-   "excluded": [
-    99
-   ],
-   "kept_answers": "55b8b4fddb83ffa2"
-  },
-  "hendrycks_math_intermediate_algebra": {
-   "documents": 903,
-   "excluded": [
-    435,
-    541
-   ],
-   "kept_answers": "8912619b1698c987"
-  },
-  "hendrycks_math_prealgebra": {
-   "documents": 871,
-   "excluded": [
-    3
-   ],
-   "kept_answers": "b19f2d5981f07bfa"
-  },
-  "hendrycks_math_precalc": {
-   "documents": 546,
-   "excluded": [
-    202,
-    218
-   ],
-   "kept_answers": "d1cf0ffcc6059793"
+   "kept_answers": "34910f2ce93d51c1"
   },
   "humaneval": {
    "documents": 164,
@@ -1557,6 +1517,46 @@
     49
    ],
    "kept_answers": "683cbb8400800fb6"
+  },
+  "minerva_math_algebra": {
+   "documents": 1187,
+   "excluded": [
+    38,
+    781,
+    830,
+    841
+   ],
+   "kept_answers": "42c4f9674951febf"
+  },
+  "minerva_math_counting_and_prob": {
+   "documents": 474,
+   "excluded": [
+    99
+   ],
+   "kept_answers": "edfd689d53d23a92"
+  },
+  "minerva_math_intermediate_algebra": {
+   "documents": 903,
+   "excluded": [
+    435,
+    541
+   ],
+   "kept_answers": "5e129b724f4f2877"
+  },
+  "minerva_math_prealgebra": {
+   "documents": 871,
+   "excluded": [
+    3
+   ],
+   "kept_answers": "67be56d6d37353fb"
+  },
+  "minerva_math_precalc": {
+   "documents": 546,
+   "excluded": [
+    202,
+    218
+   ],
+   "kept_answers": "0f2e8c6a7d8a2aef"
   },
   "mmlu_college_computer_science": {
    "documents": 100,

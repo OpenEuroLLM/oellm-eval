@@ -21,7 +21,7 @@ benchmarks:
   # PolyMath's low level is the first 125 of them. GSM8K-Platinum keeps most
   # test questions, some of them corrected.
   GSM8K:
-    [gsm8k, gsm8k_platinum, mgsm_native_cot_en, mgsm_native_cot_de,
+    [gsm8k, gsm8k_platinum_cot, mgsm_native_cot_en, mgsm_native_cot_de,
      mgsm_native_cot_es, mgsm_native_cot_fr, global_mgsm_de, global_mgsm_fr, global_mgsm_es,
      global_mgsm_el, global_mgsm_cs, global_mgsm_hu, global_mgsm_en,
      global_mgsm_ca, global_mgsm_eu, global_mgsm_gl, global_mgsm_sr,
@@ -56,11 +56,12 @@ benchmarks:
   # MATH-500's questions are MATH test questions, found by their problem. The
   # pipeline's Hendrycks_MATH holds MATH-500's rows too, with MATH-500's fields.
   Math500:
-    tasks: [MATH500, hendrycks_math]
+    tasks: [MATH500, minerva_math]
     match_on: [problem]
-  GSM8KPlatinum: [gsm8k_platinum, gsm8k]
+  GSM8KPlatinum: [gsm8k_platinum_cot, gsm8k]
+  # minerva_math scores MATH's test split with Minerva's 4-shot prompt.
   Hendrycks_MATH:
-    tasks: [hendrycks_math]
+    tasks: [minerva_math]
     match_on: [problem]
   MathQA: [mathqa]
   # The rows are MMLU-Redux 1.0; lm-eval runs 2.0's questions labelled ok,
