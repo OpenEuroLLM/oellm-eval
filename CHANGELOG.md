@@ -34,6 +34,7 @@ it before comparing runs made with different versions.
 
 ### Fixed
 
+- PolyMath's scorer no longer freezes a run. It gave up on a slow sympy check by abandoning its thread, and a check stuck in a huge integer power held the GIL and stalled lm-eval for hours; checks now run in a worker process that is killed and restarted on timeout (#161).
 - `collect` no longer reports lm-eval's `sample_len` document count as a metric for tasks outside the task groups or with `--fetch_all_metrics`.
 - `--limit` now shortens evalchemy's benchmarks (`reasoning`: MATH500, GPQADiamond, AIME24, ...). They ignored it and ran in full; they now get `--debug`, which runs the first 2 questions (10 for LiveCodeBench) whatever the limit, and `schedule` warns about it (#154).
 

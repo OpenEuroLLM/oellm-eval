@@ -13,8 +13,9 @@ Two deviations from upstream, both forced/justified:
      in this venv. The extended fork exposes the same ``latex2sympy`` and only
      serves as the LaTeX->sympy parser in ``symbolic_equal``; the equivalence
      decision logic below is unchanged.
-  2. ``call_with_timeout`` runs the symbolic check in a daemon thread instead of
-     a forked process (forking breaks ``latex2sympy2_extended`` here; see below).
+  2. ``call_with_timeout`` runs the symbolic check in a long-lived worker
+     process started from this file, instead of a forked process per check
+     (forking breaks ``latex2sympy2_extended`` here; see below).
 
 The unused ``multi_math_equal`` / ``AdaptedEvaluatorMath`` tail (which needed
 the ``symeval`` package, not on PyPI) is dropped; ``math_equal`` does not use
@@ -621,32 +622,78 @@ def symbolic_equal(a, b):
 def symbolic_equal_process(a, b, output_queue):
     result = symbolic_equal(a, b)
     output_queue.put(result)
+_worker = None  # the scoring worker process, started on first use
+
+
+def _start_worker():
+    import os
+    import select
+    import subprocess
+    import sys
+
+    # This file's regexes are not raw strings, so a fresh compile warns about them.
+    worker = subprocess.Popen(
+        [sys.executable, "-W", "ignore::SyntaxWarning", os.path.abspath(__file__)],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+    # Importing sympy and latex2sympy and warming the parser take a few seconds,
+    # which must not count against the first check's timeout.
+    ready = select.select([worker.stdout], [], [], 600)[0]
+    if not ready or worker.stdout.readline().strip() != "ready":
+        worker.kill()
+        raise RuntimeError("PolyMath scoring worker did not start")
+    return worker
+
+
 def call_with_timeout(func, *args, timeout=1, **kwargs):
-    # Adaptation (vs upstream): upstream runs the symbolic check in a forked
+    # Adaptation (vs upstream): upstream runs each symbolic check in a forked
     # multiprocessing.Process. Forking breaks latex2sympy2_extended's parser
     # state in this venv, so LaTeX answers (e.g. \frac{1}{2}) silently score
-    # wrong. A daemon thread shares memory, so the parser works; it is abandoned
-    # on timeout (we return False), preserving upstream's "give up after
-    # `timeout`s" semantics. The timeout is honoured for the pure-Python sympy
-    # work because the interpreter periodically yields the GIL to the joiner.
+    # wrong. A thread cannot be stopped either: an abandoned one keeps running,
+    # and one stuck in a big-integer power holds the GIL and freezes the whole
+    # evaluation. So checks go, one JSON line each, to a worker process that
+    # runs this file fresh; on timeout it is killed and restarted, and the check
+    # returns False, upstream's "give up after `timeout`s" semantics.
+    import json
+    import select
+
+    global _worker
+    if _worker is None or _worker.poll() is not None:
+        _worker = _start_worker()
+    _worker.stdin.write(json.dumps([func.__name__, args, kwargs]) + "\n")
+    _worker.stdin.flush()
+    if select.select([_worker.stdout], [], [], timeout)[0]:
+        line = _worker.stdout.readline()
+        if line:
+            return json.loads(line)
+    _worker.kill()
+    _worker.wait()
+    _worker = None
+    return False
+
+
+def _serve():
+    # The worker's loop: one request [function name, args, kwargs] per stdin
+    # line, one JSON result per stdout line. Anything the libraries print goes
+    # to stderr so it cannot be read as a result.
+    import json
     import queue as _queue
-    import threading
+    import sys
 
-    output_queue = _queue.Queue()
-    thread_args = args + (output_queue,)
-    thread = threading.Thread(
-        target=func, args=thread_args, kwargs=kwargs, daemon=True
-    )
-    thread.start()
-    thread.join(timeout)
-
-    if thread.is_alive():
-        return False
-
-    try:
-        return output_queue.get_nowait()
-    except _queue.Empty:
-        return False
+    results = sys.stdout
+    sys.stdout = sys.stderr
+    print("ready", file=results, flush=True)
+    for line in sys.stdin:
+        name, args, kwargs = json.loads(line)
+        output_queue = _queue.SimpleQueue()
+        try:
+            globals()[name](*args, output_queue, **kwargs)
+            result = bool(output_queue.get_nowait())
+        except Exception:
+            result = False
+        print(json.dumps(result), file=results, flush=True)
 
 def math_equal(
     prediction: Union[bool, float, str],
@@ -854,3 +901,7 @@ try:
     symbolic_equal(r"\frac{1}{2}", "0.5")
 except Exception:
     pass
+
+
+if __name__ == "__main__":
+    _serve()
