@@ -66,7 +66,7 @@ def test_lm_eval_can_run_code_tasks(script):
     code_eval metric refuse without these, also in --contain containers."""
     assert "--confirm_run_unsafe_code" in script
     assert "export HF_ALLOW_CODE_EVAL=1" in script
-    assert "--env HF_ALLOW_CODE_EVAL=$HF_ALLOW_CODE_EVAL" in script
+    assert "--env HF_ALLOW_CODE_EVAL=1" in script
 
 
 def test_full_sample_logging_is_opt_in(script):
