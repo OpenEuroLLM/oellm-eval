@@ -21,8 +21,8 @@ benchmarks:
   # PolyMath's low level is the first 125 of them. GSM8K-Platinum keeps most
   # test questions, some of them corrected.
   GSM8K:
-    [gsm8k, gsm8k_platinum, mgsm_native_cot_en, mgsm_native_cot_de, mgsm_native_cot_es,
-     mgsm_native_cot_fr, global_mgsm_de, global_mgsm_fr, global_mgsm_es,
+    [gsm8k, gsm8k_platinum, mgsm_native_cot_en, mgsm_native_cot_de,
+     mgsm_native_cot_es, mgsm_native_cot_fr, global_mgsm_de, global_mgsm_fr, global_mgsm_es,
      global_mgsm_el, global_mgsm_cs, global_mgsm_hu, global_mgsm_en,
      global_mgsm_ca, global_mgsm_eu, global_mgsm_gl, global_mgsm_sr,
      polymath_de_low, polymath_en_low, polymath_es_low, polymath_fr_low,
@@ -30,8 +30,8 @@ benchmarks:
   # Global-MMLU's English is MMLU's test split; MMMLU translates it too, and
   # MMLU-Redux re-annotates some of its questions.
   MMLU:
-    [mmlu, mmlu_redux_generative, global_mmlu_full_cs, global_mmlu_full_de, global_mmlu_full_el,
-     global_mmlu_full_en, global_mmlu_full_es, global_mmlu_full_fr,
+    [mmlu, mmlu_redux_generative, global_mmlu_full_cs, global_mmlu_full_de,
+     global_mmlu_full_el, global_mmlu_full_en, global_mmlu_full_es, global_mmlu_full_fr,
      global_mmlu_full_it, global_mmlu_full_lt, global_mmlu_full_nl,
      global_mmlu_full_pl, global_mmlu_full_pt, global_mmlu_full_ro,
      global_mmlu_full_sr, global_mmlu_full_sv, global_mmlu_full_tr,
@@ -53,9 +53,8 @@ benchmarks:
   HumanEval_Plus:
     tasks: [humaneval_plus, humaneval]
     match_on: [task_id]
-  # MATH-500's questions are MATH test questions; lm-eval's hendrycks_math
-  # keeps only problem and solution, and the pipeline's Hendrycks_MATH also
-  # holds MATH-500's rows, with its fields.
+  # MATH-500's questions are MATH test questions, found by their problem. The
+  # pipeline's Hendrycks_MATH holds MATH-500's rows too, with MATH-500's fields.
   Math500:
     tasks: [MATH500, hendrycks_math]
     match_on: [problem]

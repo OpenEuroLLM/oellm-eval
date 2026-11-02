@@ -31,8 +31,8 @@ export HF_HOME=$HF_HOME
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export HF_HUB_OFFLINE={hf_hub_offline}
 
-# lm-eval's code tasks (mbpp, humaneval) run the generated code: lm-eval needs
-# --confirm_run_unsafe_code for that, and HF's code_eval metric this variable.
+# lm-eval's code tasks (mbpp, humaneval) run the generated code, which needs
+# --confirm_run_unsafe_code and, for HF's code_eval metric, this variable.
 export HF_ALLOW_CODE_EVAL=1
 
 # Neither harness caches under HF_HOME on its own. lighteval hardcodes

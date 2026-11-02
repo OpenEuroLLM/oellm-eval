@@ -280,8 +280,7 @@ def test_humaneval_s_pass_at_k_is_recomputed_as_pass_at_1(tmp_path):
     run = _write_run(tmp_path, {"toy": task})
     clean, _ = _clean(run, {"Toy": [docs[0]]})["toy"]
     assert clean["pass@1,create_test"] == 0.5
-    config = task["config"]
-    assert not sample_exclusion._is_mean_metric("pass@10", config)
+    assert not sample_exclusion._is_mean_metric("pass@10", task["config"])
 
 
 def _ifeval_like(docs, prompt, instructions):
