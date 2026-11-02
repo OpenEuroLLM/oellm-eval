@@ -600,9 +600,9 @@ task_groups:
   # separate group so a tier can be run in isolation. EU languages only
   # (de/en/es/fr/it/pt); 5-shot generative, \boxed{} answer + exact_match.
   # Base models rarely box an answer at 0 shots, so they score near 0 there.
-  # multilingual-oellm-eu runs only the medium tier, with examples from low.
-  # Low is the first 125 MGSM test questions, which mgsm-eu and
-  # global-mgsm-eu already run in en/de/es/fr.
+  # multilingual-oellm-eu runs no tier: low is the first 125 MGSM test
+  # questions, which mgsm-eu and global-mgsm-eu already run in en/de/es/fr,
+  # and 2B/9B base models score medium no better than always boxing 1.
   polymath-eu-low:
     description: "PolyMath EU math, low tier (5-shot, exact_match)."
     suite: lm-eval-harness
@@ -1068,7 +1068,6 @@ super_groups:
       - task: multiblimp-eu
       - task: opensubtitles-eu-en-xx
       - task: opensubtitles-eu-xx-en
-      - task: polymath-eu-medium
       - task: sib200-eu
       - task: xcopa-eu
       - task: xcsqa-eu
