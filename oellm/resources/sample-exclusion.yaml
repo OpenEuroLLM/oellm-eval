@@ -139,11 +139,10 @@ benchmarks:
        belebele_dan_Latn_cf, belebele_nld_Latn_cf, belebele_eng_Latn_cf,
        belebele_est_Latn_cf, belebele_fin_Latn_cf, belebele_fra_Latn_cf,
        belebele_deu_Latn_cf, belebele_ell_Grek_cf, belebele_hun_Latn_cf,
-       belebele_ita_Latn_cf, belebele_lvs_Latn_cf, belebele_lit_Latn_cf,
-       belebele_mlt_Latn_cf, belebele_pol_Latn_cf, belebele_por_Latn_cf,
-       belebele_ron_Latn_cf, belebele_slk_Latn_cf, belebele_slv_Latn_cf,
-       belebele_spa_Latn_cf, belebele_swe_Latn_cf, belebele_nob_Latn_cf,
-       belebele_eus_Latn_cf, belebele_cat_Latn_cf]
+       belebele_ita_Latn_cf, belebele_pol_Latn_cf, belebele_por_Latn_cf,
+       belebele_ron_Latn_cf, belebele_slk_Latn_cf, belebele_spa_Latn_cf,
+       belebele_swe_Latn_cf, belebele_nob_Latn_cf, belebele_eus_Latn_cf,
+       belebele_cat_Latn_cf]
     match_on: [link, question_number]
   # sample_weight, a float, differs in its last digit between copies.
   MultiBlimp:
