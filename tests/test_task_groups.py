@@ -170,9 +170,10 @@ class TestExpandTaskGroupsWithTemplates:
         results = _expand_task_groups(["sib200-eu"])
         assert len(results) == 36
 
-    def test_belebele_cf_expands_to_26_tasks(self):
+    def test_belebele_cf_expands_to_22_tasks(self):
+        # lighteval can't build Latvian, Lithuanian, Maltese or Slovenian.
         results = _expand_task_groups(["belebele-eu-cf"])
-        assert len(results) == 26
+        assert len(results) == 22
 
     def test_arc_challenge_mt_expands_to_22_tasks(self):
         # 21 templated + 1 static (arc_challenge_mt_is)
