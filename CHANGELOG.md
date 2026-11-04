@@ -20,6 +20,7 @@ it before comparing runs made with different versions.
 - XCSQA (`xcsqa-eu`) uses CommonsenseQA's prompt with lettered choices (A to E), runs 10-shot instead of 0-shot with examples drawn at random from the validation split, and scores `acc` instead of `acc_norm` (#142).
 - LUMI container: `lm-eval[api,tasks]` 0.4.13 with `datasets>=4` and `transformers<5.20`, PolyMath's scoring dependencies, and patches so `dclm-core-22`'s `agieval_lsat_ar`, `squadv2` and `coqa` run at n_shot>0. Applies once the image is rebuilt (#130).
 - `belebele-eu-cf` no longer runs Latvian, Lithuanian, Maltese and Slovenian, whose cf tasks lighteval can't build (huggingface/lighteval#1471). `belebele-eu-5-shot` still covers them.
+- lighteval's corpus chrF, chrF++ and TER score every translation, as its BLEU does, instead of the first one alone. This changes every `flores-200-eu-to-eng` and `flores-200-eng-to-eu` chrF++ score; earlier ones are not comparable (#169, huggingface/lighteval#1112).
 
 ### Added
 

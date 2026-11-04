@@ -18,20 +18,30 @@ with two deliberate changes:
   draws from it in turn, so a question's letter depends on which other tasks
   and samples were built before it in the same run. With the hash, a question
   gets the same letter in every run.
+
+lighteval imports this file in every run, so it also fixes lighteval's corpus
+chrF, chrF++ and TER (``_fix_corpus_translation_metrics``).
 """
 
 import hashlib
+import logging
+import math
 import random
 from string import ascii_uppercase
 
 import numpy as np
 from lighteval.metrics.dynamic_metrics import MultilingualExtractiveMatchMetric
+from lighteval.metrics.metrics_corpus import CorpusLevelTranslationMetric
 from lighteval.metrics.metrics_sample import PassAtK
+from lighteval.metrics.sample_preparator import GenerativeCorpusMetricInput
 from lighteval.metrics.utils.extractive_match_utils import IndicesExtractionConfig
 from lighteval.metrics.utils.metric_utils import SampleLevelMetric, SamplingMethod
 from lighteval.tasks.lighteval_task import LightevalTaskConfig
 from lighteval.tasks.requests import Doc
 from lighteval.utils.language import Language
+from lighteval.utils.utils import as_list
+
+logger = logging.getLogger(__name__)
 
 MAX_NEW_TOKENS = 32768
 
@@ -133,3 +143,54 @@ def _gpqa_tasks() -> list[LightevalTaskConfig]:
 
 
 TASKS_TABLE = _gpqa_tasks()
+
+# --- Corpus chrF, chrF++ and TER ---------------------------------------------
+
+# lighteval passes sacrebleu one reference stream for BLEU but one per sentence
+# for chrF, chrF++ and TER, so those score the first translation alone
+# (huggingface/lighteval#1112).
+_TRANSLATION_METRICS = ("chrf", "chrf++", "ter")
+
+
+def _scores_first_translation_only(metric_type: str) -> bool:
+    """Whether lighteval still has the bug for *metric_type*."""
+    items = [
+        GenerativeCorpusMetricInput(
+            golds=["The cat sat on the mat."], preds=["The cat sat on the mat."]
+        ),
+        GenerativeCorpusMetricInput(
+            golds=["A dog ran through the park."], preds=["It rained all day long."]
+        ),
+    ]
+    metric = CorpusLevelTranslationMetric(metric_type)
+    corpus = metric.get_metric().corpus_score(
+        hypotheses=[item.preds[0] for item in items],
+        references=[[item.golds[0] for item in items]],
+    )
+    return not math.isclose(metric.compute_corpus(items), corpus.score)
+
+
+def _fix_corpus_translation_metrics() -> None:
+    """Give the broken metrics lighteval's BLEU handling: one reference stream."""
+    broken = {t for t in _TRANSLATION_METRICS if _scores_first_translation_only(t)}
+    if not broken:
+        return
+    compute_corpus = CorpusLevelTranslationMetric.compute_corpus
+
+    def fixed_compute_corpus(self, items):
+        if self.metric_type not in broken:
+            return compute_corpus(self, items)
+        golds = [[item.golds[0] for item in items]]
+        preds = [as_list(item.preds)[0] for item in items]
+        score = self.get_metric().corpus_score(hypotheses=preds, references=golds)
+        return float(score.score)
+
+    CorpusLevelTranslationMetric.compute_corpus = fixed_compute_corpus
+    logger.warning(
+        "oellm-eval: lighteval scores %s on the first translation alone "
+        "(huggingface/lighteval#1112); scoring them on every translation instead.",
+        ", ".join(sorted(broken)),
+    )
+
+
+_fix_corpus_translation_metrics()
