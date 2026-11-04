@@ -23,6 +23,7 @@ it before comparing runs made with different versions.
 
 ### Added
 
+- `schedule --lm_eval_backend vllm` runs lm-eval-harness tasks with vLLM instead of transformers (`hf`, the default) (#152).
 - `bpb-corpus` task group: bits-per-byte on WikiText-2 for comparing small models.
 - `bpb-flores-eu` task group: bits-per-byte on FLORES-200 devtest in the 36 OpenEuroLLM target languages.
 - `bpb-mc-en` task group: gold-answer bits-per-byte on seven English multiple-choice tasks.
