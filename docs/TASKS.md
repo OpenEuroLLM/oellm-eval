@@ -119,7 +119,13 @@ lighteval run as `--custom-tasks` (override with `--lighteval_custom_tasks` or
 rejects names that collide with its built-in tasks. Each registry entry's
 `dataset`/`subset` must equal the task's `hf_repo`/`hf_subset`, because compute
 nodes can only read what was pre-downloaded.
-`tests/test_custom_lighteval_tasks.py` checks this and the prompts and metrics;
+
+The file also fixes lighteval's corpus chrF, chrF++ and TER while the installed
+lighteval still scores them on the first translation alone
+(huggingface/lighteval#1112). A file passed with `--lighteval_custom_tasks`
+replaces it, so FLORES chrF++ is wrong again unless that file copies the fix.
+
+`tests/test_custom_lighteval_tasks.py` checks all of this and the prompts and metrics;
 it needs lighteval installed, which CI's `eval-base` environment does not have,
 so run it locally after changing the file.
 
