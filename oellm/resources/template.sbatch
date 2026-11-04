@@ -31,6 +31,10 @@ export HF_HOME=$HF_HOME
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export HF_HUB_OFFLINE={hf_hub_offline}
 
+# lm-eval's code tasks (mbpp, humaneval) run the generated code, which needs
+# --confirm_run_unsafe_code and, for HF's code_eval metric, this variable.
+export HF_ALLOW_CODE_EVAL=1
+
 # Neither harness caches under HF_HOME on its own. lighteval hardcodes
 # ~/.cache/huggingface/lighteval and never reads HF_HOME, which fills the user's
 # home directory and fails mid-run on clusters with a small home quota
@@ -167,7 +171,7 @@ do
         JOB_HOME="$EVAL_BASE_DIR/$USER/container_home/$SLURM_JOB_ID"
         mkdir -p "$JOB_HOME"
         SINGULARITY_HOME_ARG="--home $JOB_HOME"
-        SINGULARITY_ENV_ARGS="--env HF_HOME=$HF_HOME --env HF_DATASETS_CACHE=$HF_DATASETS_CACHE --env HF_HUB_OFFLINE=$HF_HUB_OFFLINE --env TRANSFORMERS_OFFLINE=$TRANSFORMERS_OFFLINE --env NLTK_DATA=$NLTK_DATA --env LM_HARNESS_CACHE_PATH=$LM_HARNESS_CACHE_PATH"
+        SINGULARITY_ENV_ARGS="--env HF_HOME=$HF_HOME --env HF_DATASETS_CACHE=$HF_DATASETS_CACHE --env HF_HUB_OFFLINE=$HF_HUB_OFFLINE --env TRANSFORMERS_OFFLINE=$TRANSFORMERS_OFFLINE --env NLTK_DATA=$NLTK_DATA --env LM_HARNESS_CACHE_PATH=$LM_HARNESS_CACHE_PATH --env HF_ALLOW_CODE_EVAL=1"
     fi
 
     GPU_DEVICES=$(seq -s, 0 $(($GPUS_PER_NODE - 1)))
@@ -233,6 +237,7 @@ do
                 --num_fewshot "$n_shot" \
                 --output_path "$EVAL_OUT_DIR/$RUN_NAME.json" \
                 --trust_remote_code \
+                --confirm_run_unsafe_code \
                 ${{LM_EVAL_INCLUDE_PATH:+--include_path $$LM_EVAL_INCLUDE_PATH}} \
                 --batch_size auto \
                 --write_out \

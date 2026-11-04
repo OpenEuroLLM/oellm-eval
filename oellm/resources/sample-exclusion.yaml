@@ -18,18 +18,20 @@
 # benchmarks other than MATH500, which keep no per-question results.
 benchmarks:
   # MGSM translates GSM8K's first 250 test questions, and Global-MGSM MGSM's;
-  # PolyMath's low level is the first 125 of them.
+  # PolyMath's low level is the first 125 of them. GSM8K-Platinum keeps most
+  # test questions, some of them corrected.
   GSM8K:
-    [gsm8k, mgsm_native_cot_en, mgsm_native_cot_de, mgsm_native_cot_es,
-     mgsm_native_cot_fr, global_mgsm_de, global_mgsm_fr, global_mgsm_es,
+    [gsm8k, gsm8k_platinum_cot, mgsm_native_cot_en, mgsm_native_cot_de,
+     mgsm_native_cot_es, mgsm_native_cot_fr, global_mgsm_de, global_mgsm_fr, global_mgsm_es,
      global_mgsm_el, global_mgsm_cs, global_mgsm_hu, global_mgsm_en,
      global_mgsm_ca, global_mgsm_eu, global_mgsm_gl, global_mgsm_sr,
      polymath_de_low, polymath_en_low, polymath_es_low, polymath_fr_low,
      polymath_it_low, polymath_pt_low]
-  # Global-MMLU's English is MMLU's test split; MMMLU translates it too.
+  # Global-MMLU's English is MMLU's test split; MMMLU translates it too, and
+  # MMLU-Redux re-annotates some of its questions.
   MMLU:
-    [mmlu, global_mmlu_full_cs, global_mmlu_full_de, global_mmlu_full_el,
-     global_mmlu_full_en, global_mmlu_full_es, global_mmlu_full_fr,
+    [mmlu, mmlu_redux_generative, global_mmlu_full_cs, global_mmlu_full_de,
+     global_mmlu_full_el, global_mmlu_full_en, global_mmlu_full_es, global_mmlu_full_fr,
      global_mmlu_full_it, global_mmlu_full_lt, global_mmlu_full_nl,
      global_mmlu_full_pl, global_mmlu_full_pt, global_mmlu_full_ro,
      global_mmlu_full_sr, global_mmlu_full_sv, global_mmlu_full_tr,
@@ -37,8 +39,44 @@ benchmarks:
      mmmlu_pt_br]
   OpenBookQA: [openbookqa]
   BoolQ: [boolq]
-  MBPP: [mbpp]
-  Math500: [MATH500]
+  # MBPP+ keeps MBPP's task ids, with its own tests and fixed solutions.
+  MBPP:
+    tasks: [mbpp, mbpp_plus]
+    match_on: [task_id]
+  MBPP_Plus:
+    tasks: [mbpp_plus, mbpp]
+    match_on: [task_id]
+  # HumanEval+ keeps HumanEval's task ids, with more tests.
+  HumanEval:
+    tasks: [humaneval, humaneval_plus]
+    match_on: [task_id]
+  HumanEval_Plus:
+    tasks: [humaneval_plus, humaneval]
+    match_on: [task_id]
+  # MATH-500's questions are MATH test questions, found by their problem. The
+  # pipeline's Hendrycks_MATH holds MATH-500's rows too, with MATH-500's fields.
+  Math500:
+    tasks: [MATH500, minerva_math]
+    match_on: [problem]
+  GSM8KPlatinum: [gsm8k_platinum_cot, gsm8k]
+  # minerva_math scores MATH's test split with Minerva's 4-shot prompt.
+  Hendrycks_MATH:
+    tasks: [minerva_math]
+    match_on: [problem]
+  MathQA: [mathqa]
+  # The rows are MMLU-Redux 1.0; lm-eval runs 2.0's questions labelled ok,
+  # whose annotation fields can differ.
+  MMLU_Redux:
+    tasks: [mmlu_redux_generative, mmlu]
+    match_on: [question, choices]
+  # MMLU-ProX keeps MMLU-Pro's id in question_id_src, so its tasks are not
+  # matched here; agenttrove-0.0 marks the same items in both.
+  MMLU_Pro:
+    tasks: [mmlu_pro]
+    match_on: [question_id]
+  TriviaQA:
+    tasks: [triviaqa]
+    match_on: [question_id]
   MMLUProX:
     tasks:
       [mmlu_prox_cs, mmlu_prox_de, mmlu_prox_en, mmlu_prox_es, mmlu_prox_fr,

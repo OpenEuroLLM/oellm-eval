@@ -1019,6 +1019,37 @@ task_groups:
         n_shots: [0]
         dataset: Qwen/PolyMath
         subset: "pt"
+      # In no other group, so run with the shots model reports use. GSM8K-Platinum
+      # has only a test split: gsm8k_platinum_cot shows 8 fixed examples instead.
+      - task: gsm8k_platinum_cot
+        n_shots: [8]
+        dataset: madrylab/gsm8k-platinum
+        subset: "main"
+      - task: minerva_math
+        n_shots: [4]
+        dataset: EleutherAI/hendrycks_math
+      - task: mathqa
+        n_shots: [0]
+        dataset: regisss/math_qa
+      - task: mmlu_redux_generative
+        n_shots: [0]
+        dataset: fxmarty/mmlu-redux-2.0-ok
+      - task: mmlu_pro
+        n_shots: [5]
+        dataset: TIGER-Lab/MMLU-Pro
+      - task: triviaqa
+        n_shots: [5]
+        dataset: mandarjoshi/trivia_qa
+        subset: "rc.nocontext"
+      - task: mbpp_plus
+        n_shots: [3]
+        dataset: evalplus/mbppplus
+      - task: humaneval
+        n_shots: [0]
+        dataset: openai/openai_humaneval
+      - task: humaneval_plus
+        n_shots: [0]
+        dataset: evalplus/humanevalplus
 
 super_groups:
   judgearena:
