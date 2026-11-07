@@ -33,6 +33,7 @@ it before comparing runs made with different versions.
 - `collect --exclude_samples` also reports scores without blocklisted (e.g. contaminated) test rows, recomputed from the saved samples, in every language and in benchmarks holding copies of them (lm-eval, lighteval and evalchemy's MATH500).
 - Task group `decontaminated-agenttrove-0.0` runs the lm-eval tasks holding rows the decontamination pipeline marked, without those rows (`--samples`); `collect` reports them with `subset` `decontaminated:agenttrove-0.0`.
 - `collect --exclude_samples` covers GSM8K-Platinum, MATH, MathQA, MMLU-Redux, MMLU-Pro, TriviaQA, MBPP+, HumanEval and HumanEval+ (lm-eval), and excludes a row from both of HumanEval/HumanEval+, MBPP/MBPP+, GSM8K/GSM8K-Platinum, MMLU/MMLU-Redux and MATH-500/MATH.
+- `collect --exclude_samples` covers JudgeArena's AlpacaEval, arena-hard and m-ArenaHard: their win rates are recomputed from the judge's preference in each battle, without the blocklisted questions in every language. AlpacaEval's length-controlled win rate, arena-hard's bootstrapped intervals and the ELO tasks are not recomputed.
 
 ### Changed
 
