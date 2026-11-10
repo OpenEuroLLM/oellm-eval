@@ -250,8 +250,13 @@ def _aggregation(metric: str, config: dict) -> str | None:
     registered aggregation's name, or an aggregation function's name."""
     for entry in config.get("metric_list") or []:
         name = str(entry.get("metric"))
-        # A metric given as a function (mbpp's utils.pass_at_1).
-        if name == metric or _function_name(name) == metric:
+        # A metric given as a function (mbpp's utils.pass_at_1), or humaneval's
+        # utils.pass_at_k, reported as pass@<k> for each k.
+        function = _function_name(name)
+        ks = entry.get("k") or []
+        ks = [ks] if isinstance(ks, int) else ks
+        pass_at = function == "pass_at_k" and metric in {f"pass@{k}" for k in ks}
+        if name == metric or function == metric or pass_at:
             if "aggregation" not in entry:
                 return _REGISTERED_AGGREGATIONS.get(metric)
             aggregation = str(entry["aggregation"])

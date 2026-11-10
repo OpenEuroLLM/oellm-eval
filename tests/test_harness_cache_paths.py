@@ -61,6 +61,14 @@ def test_lm_eval_writes_out_the_first_sample(script):
     assert "--write_out" in script
 
 
+def test_lm_eval_can_run_code_tasks(script):
+    """mbpp and humaneval run the generated code, which lm-eval and HF's
+    code_eval metric refuse without these, also in --contain containers."""
+    assert "--confirm_run_unsafe_code" in script
+    assert "export HF_ALLOW_CODE_EVAL=1" in script
+    assert "--env HF_ALLOW_CODE_EVAL=1" in script
+
+
 def test_full_sample_logging_is_opt_in(script):
     """Saving every sample fills disk, so the flags stay off unless requested."""
     assert 'LOG_SAMPLES=""' in script

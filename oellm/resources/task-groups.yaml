@@ -81,18 +81,20 @@ task_groups:
     metric: acc_norm
     n_shots: [0]
     dataset: facebook/belebele
+    # Without Latvian, Lithuanian, Maltese and Slovenian: lighteval has no prompt
+    # words for them, so their cf tasks can't be built
+    # (huggingface/lighteval#1471). belebele-eu-5-shot runs all four.
     valid_langs: [bul_Cyrl, hrv_Latn, ces_Latn, dan_Latn, nld_Latn, eng_Latn, est_Latn, fin_Latn,
-                  fra_Latn, deu_Latn, ell_Grek, hun_Latn, ita_Latn, lvs_Latn, lit_Latn, mlt_Latn,
-                  pol_Latn, por_Latn, ron_Latn, slk_Latn, slv_Latn, spa_Latn, swe_Latn, nob_Latn,
-                  eus_Latn, cat_Latn]
+                  fra_Latn, deu_Latn, ell_Grek, hun_Latn, ita_Latn, pol_Latn, por_Latn, ron_Latn,
+                  slk_Latn, spa_Latn, swe_Latn, nob_Latn, eus_Latn, cat_Latn]
     tasks:
       - task: "belebele_{lang}_cf"
         subset: "{lang}"
 
   xcsqa-eu:
-    description: "XCSQA EU commonsense QA (0-shot MCQ, acc_norm)"
+    description: "XCSQA EU commonsense QA (10-shot MCQ, acc)"
     suite: lm-eval-harness
-    metric: acc_norm
+    metric: acc
     n_shots: [10]
     dataset: INK-USC/xcsr
     tasks:
@@ -1017,6 +1019,37 @@ task_groups:
         n_shots: [0]
         dataset: Qwen/PolyMath
         subset: "pt"
+      # In no other group, so run with the shots model reports use. GSM8K-Platinum
+      # has only a test split: gsm8k_platinum_cot shows 8 fixed examples instead.
+      - task: gsm8k_platinum_cot
+        n_shots: [8]
+        dataset: madrylab/gsm8k-platinum
+        subset: "main"
+      - task: minerva_math
+        n_shots: [4]
+        dataset: EleutherAI/hendrycks_math
+      - task: mathqa
+        n_shots: [0]
+        dataset: regisss/math_qa
+      - task: mmlu_redux_generative
+        n_shots: [0]
+        dataset: fxmarty/mmlu-redux-2.0-ok
+      - task: mmlu_pro
+        n_shots: [5]
+        dataset: TIGER-Lab/MMLU-Pro
+      - task: triviaqa
+        n_shots: [5]
+        dataset: mandarjoshi/trivia_qa
+        subset: "rc.nocontext"
+      - task: mbpp_plus
+        n_shots: [3]
+        dataset: evalplus/mbppplus
+      - task: humaneval
+        n_shots: [0]
+        dataset: openai/openai_humaneval
+      - task: humaneval_plus
+        n_shots: [0]
+        dataset: evalplus/humanevalplus
 
 super_groups:
   judgearena:
