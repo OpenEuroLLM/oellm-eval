@@ -34,6 +34,15 @@ _LANG_ALIAS = {
     "uk": "ukr_Cyrl",
     "he": "heb_Hebr",
     "en": "eng_Latn",
+    # JudgeArena language selectors
+    "ar": "arb_Arab",
+    "fa": "pes_Arab",
+    "hi": "hin_Deva",
+    "id": "ind_Latn",
+    "ja": "jpn_Jpan",
+    "ko": "kor_Hang",
+    "vi": "vie_Latn",
+    "zh": "zho_Hans",
     "bg": "bul_Cyrl",
     "da": "dan_Latn",
     "et": "est_Latn",
@@ -57,6 +66,28 @@ _LANG_ALIAS = {
     "pt_br": "por_Latn",
     # full English names (include)
     "albanian": "als_Latn",
+    "bengali": "ben_Beng",
+    "bosnian": "bos_Latn",
+    "catalan": "cat_Latn",
+    "czech": "ces_Latn",
+    "danish": "dan_Latn",
+    "english": "eng_Latn",
+    "galician": "glg_Latn",
+    "hindi": "hin_Deva",
+    "icelandic": "isl_Latn",
+    "indonesian": "ind_Latn",
+    "irish": "gle_Latn",
+    "japanese": "jpn_Jpan",
+    "latvian": "lvs_Latn",
+    "macedonian": "mkd_Cyrl",
+    "maltese": "mlt_Latn",
+    "mandarin-chinese": "zho_Hans",
+    "norwegian": "nob_Latn",
+    "romanian": "ron_Latn",
+    "slovak": "slk_Latn",
+    "slovene": "slv_Latn",
+    "standard-arabic": "arb_Arab",
+    "swedish": "swe_Latn",
     "armenian": "hye_Armn",
     "azerbaijani": "aze_Latn",
     "basque": "eus_Latn",
@@ -153,8 +184,9 @@ def _resolve_task_languages(name: str, subset: str | None) -> list[str]:
 
     Translation pairs (``flores200:src-tgt`` and
     ``opensubtitles_multi40_src_to_tgt``) resolve to their non-English side;
-    every other task resolves via its ``subset``. Tasks with no recognisable
-    language (e.g. English-only standard benchmarks) return [].
+    every other task resolves via its ``subset``, then via a lighteval-style
+    ``benchmark:lang`` name suffix. Tasks with no recognisable language (e.g.
+    English-only standard benchmarks) return [].
     """
     if name.startswith("flores200:"):
         pair = name.split(":", 1)[1]
@@ -169,6 +201,13 @@ def _resolve_task_languages(name: str, subset: str | None) -> list[str]:
     lang = _canonical_language(subset)
     if lang:
         return [lang]
+    # lighteval-style ``benchmark:lang`` names (e.g. ``gpqa_diamond:fi``), whose
+    # subset is an HF config name such as ``gpqa_diamond`` or ``default``.
+    m = re.search(r":([a-z]{2,3})$", name)
+    if m:
+        lang = _canonical_language(m.group(1))
+        if lang:
+            return [lang]
     # Some explicitly-listed tasks omit `subset` and encode the language as a
     # trailing code in the task name (e.g. ``arc_challenge_mt_is``).
     if subset is None:
@@ -194,6 +233,8 @@ class _Task:
     subset: str | None = None
     suite: str | None = None
     languages: list[str] = field(default_factory=list)
+    # The list of marked documents the task runs without (decontaminated.py).
+    decontaminated: str | None = None
 
 
 @dataclass
@@ -204,9 +245,11 @@ class TaskGroup:
     description: str
     n_shots: list[int] | None = None
     dataset: str | None = None
+    decontaminated: str | None = None
 
     def __post_init__(self):
         for task in self.tasks:
+            task.decontaminated = self.decontaminated
             if task.n_shots is None and self.n_shots is not None:
                 task.n_shots = self.n_shots
             elif task.n_shots is None and self.n_shots is None:
@@ -242,6 +285,7 @@ class TaskGroup:
             description=data["description"],
             n_shots=data.get("n_shots"),
             dataset=data.get("dataset"),
+            decontaminated=data.get("decontaminated"),
         )
 
 
@@ -382,7 +426,8 @@ def _parse_task_groups(
     if "all" not in task_groups and "all" not in super_groups:
         super_groups["all"] = TaskSuperGroup(
             name="all",
-            task_groups=list(task_groups.values()),
+            # A decontaminated group reruns tasks other groups hold.
+            task_groups=[g for g in task_groups.values() if not g.decontaminated],
             description="Every task group (auto-generated)",
         )
 
@@ -399,6 +444,7 @@ class TaskGroupResult:
     task: str
     n_shot: int
     suite: str
+    decontaminated: str | None = None
 
 
 def _iter_group_tasks(
@@ -535,7 +581,7 @@ def _select_tasks(group_names: Iterable[str]) -> list[tuple[str, _Task]]:
         raise ValueError(f"Unknown task group(s): {', '.join(sorted(missing))}")
 
     selected: list[tuple[str, _Task]] = []
-    seen: set[tuple[str, str]] = set()
+    seen: set[tuple[str, str, str | None]] = set()
     for name, filt in specs:
         group_pairs = list(_iter_group_tasks({name: parsed[name]}))
         if filt is None:
@@ -559,7 +605,8 @@ def _select_tasks(group_names: Iterable[str]) -> list[tuple[str, _Task]]:
         # De-duplicate tasks shared by several groups (e.g. the `all` super_group
         # spans groups whose benchmarks overlap), so they are scheduled once.
         for suite, t in kept:
-            key = (suite, t.name)
+            # A decontaminated run is a separate evaluation.
+            key = (suite, t.name, t.decontaminated)
             if key not in seen:
                 seen.add(key)
                 selected.append((suite, t))
@@ -571,7 +618,11 @@ def _expand_task_groups(group_names: Iterable[str]) -> list[TaskGroupResult]:
     results: list[TaskGroupResult] = []
     for suite, t in _select_tasks(group_names):
         for shot in (int(s) for s in (t.n_shots or [])):
-            results.append(TaskGroupResult(task=t.name, n_shot=shot, suite=suite))
+            results.append(
+                TaskGroupResult(
+                    task=t.name, n_shot=shot, suite=suite, decontaminated=t.decontaminated
+                )
+            )
     return results
 
 

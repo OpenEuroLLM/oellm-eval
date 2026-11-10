@@ -1,0 +1,3 @@
+dataset_name: hun_Latn
+include: _default_template_yaml
+task: flores_bpb_hun_Latn

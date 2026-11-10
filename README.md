@@ -8,7 +8,7 @@ A lightweight CLI for scheduling LLM evaluations across multiple HPC clusters us
 - **Collect results** and check for missing evaluations: `oellm-eval collect`
 - **Task groups** for pre-defined evaluation suites with automatic dataset pre-downloading
 - **Multi-cluster support** with auto-detection (Leonardo, LUMI, JURECA, Snellius)
-- **Automatic building and deployment of containers** 
+- **Automatic building and deployment of containers**
 
 ## Quick Start
 
@@ -18,7 +18,7 @@ A lightweight CLI for scheduling LLM evaluations across multiple HPC clusters us
 
 ```bash
 # Install the package
-uv tool install -p 3.12 git+https://github.com/OpenEuroLLM/oellm-eval.git
+uv tool install -p 3.12 git+https://github.com/OpenEuroLLM/oellm-eval.git@stable
 
 # Run evaluations using a task group (recommended)
 oellm-eval schedule \
@@ -46,6 +46,9 @@ Task groups are pre-defined evaluation suites in [`task-groups.yaml`](oellm/reso
 
 Available task groups:
 - `crows-pairs` - CrowS-Pairs social bias benchmark (English, 0-shot, `pct_stereotype`)
+- `bpb-corpus` - Bits-per-byte on held-out text (WikiText-2, 0-shot, `bits_per_byte`).  For BPB on your own text, see [docs/TASKS.md](docs/TASKS.md#bits-per-byte-on-your-own-text)
+- `bpb-flores-eu` - Bits-per-byte on FLORES-200 devtest in the 36 OpenEuroLLM target languages (0-shot, `bits_per_byte`, lower is better). Each source article's sentences are scored as one document. `facebook/flores` is gated, so the HF token must have access
+- `bpb-mc-en` - Gold-answer bits-per-byte on English multiple-choice tasks (ARC-Easy/Challenge, HellaSwag, OpenBookQA, PIQA, Social IQa, Winogrande; 5-shot, `bits_per_byte`, lower is better).
 - `open-sci-0.01` - Standard benchmarks (COPA, MMLU, HellaSwag, ARC, etc.)
 - `belebele-eu-5-shot` - Belebele European language tasks
 - `flores-200-eu-to-eng` / `flores-200-eng-to-eu` - Translation tasks
@@ -54,6 +57,7 @@ Available task groups:
 - `polymath-eu-low` / `polymath-eu-medium` / `polymath-eu-high` / `polymath-eu-top` - PolyMath multilingual math reasoning (EU languages, 0-shot, `\boxed{}` answer extraction), one group per difficulty tier
 - `generic-multilingual` - XWinograd, XCOPA, XStoryCloze
 - `include` - INCLUDE benchmarks
+- `gpqa-diamond` - GPQA Diamond, generative (0-shot, pass@1, up to 32768 new tokens) for instruct/reasoning checkpoints, in English and Finnish (professionally post-edited `LumiOpen/GPQA-FI`). English reads the gated `Idavidrein/gpqa`, so the HF token must have access. Defined as custom lighteval tasks, see [docs/TASKS.md](docs/TASKS.md#custom-lighteval-tasks). Schedule it separately with a small `BATCH_SIZE`, see [Lighteval Batch Size](#lighteval-batch-size)
 
 Super groups combine multiple task groups:
 - `oellm-multilingual` - All multilingual benchmarks combined
@@ -154,6 +158,8 @@ oellm-eval schedule \
 
 Results are written to `./oellm-output/<timestamp>/results/`.
 
+lm-eval-harness runs always pass `--write_out`, so the job log includes the prompt and gold target for the first sample of each task. To also save every sample, pass `--log_samples`. That writes `samples_*.jsonl` for lm-eval-harness and passes `--save-details` to lighteval. It is off by default because those files are large. evalchemy does not get the flag, because its benchmarks crash on it. Most of them (not HumanEval or LiveCodeBench) keep every question and model output in their results file anyway.
+
 **Air-gapped cluster nodes (no internet):** batch jobs set `HF_HUB_OFFLINE=1` and get `HF_HOME` from your cluster env. With `--local`, the CLI defaults `HF_HOME` to `~/.cache/huggingface` if unset and would otherwise allow Hub access—so on a compute node without network, export your real cache and offline flag before running, for example:
 
 ```bash
@@ -180,6 +186,42 @@ oellm-eval schedule --models "model-name" --task_groups "open-sci-0.01" \
 
 Use exact env var names: `PARTITION`, `ACCOUNT`, `GPUS_PER_NODE`, `SLURM_MEM`. `TIME` (HH:MM:SS) overrides the time limit.
 
+## LLM Judge benchmarks (JudgeArena)
+
+LLM judge benchmarks are available through JudgeArena. Packaged tasks are
+registered in `task-groups.yaml`, so they use the JudgeArena runner
+automatically:
+
+```bash
+oellm-eval schedule \
+  --models /path/to/model \
+  --tasks arena-hard-v2.0 \
+  --n_shot 0 \
+  --judgearena_kwargs '{"judge.model":"OpenRouter/google/gemma-4-31b-it"}'
+```
+
+Use `--task_groups elo-en`, `elo-eu`, or `elo-multilingual` to schedule the
+language-specific ELO tasks. The standalone `-ja` task variants are not
+registered.
+
+Pass JudgeArena runtime settings such as the judge model through
+`--judgearena_kwargs`. Use `--limit` to set the number of instructions. Local
+task files, prompt overrides, and `meta-eval-*` tasks are not supported.
+
+The selected venv or container must include the `judgearena` command. Use
+`--download_only true` to download each selected task into the shared
+`JUDGEARENA_DATA` and `HF_HOME` directories before an offline cluster run:
+
+```bash
+oellm-eval schedule \
+  --models /path/to/model \
+  --task_groups judgearena \
+  --download_only true
+```
+
+`oellm-eval collect` reads `run-metadata.v1.json` and adds its numeric metrics to
+the result CSV. It leaves JudgeArena's reports and annotations unchanged.
+
 ## Lighteval Batch Size
 
 For lighteval runs, generated jobs default to `batch_size=1` for local runs and
@@ -203,6 +245,28 @@ for example:
 MODEL_ARGS='batch_size=8' oellm-eval schedule \
   --models "model-name" --task_groups "belebele-eu-cf" --venv_path .venv
 ```
+
+### Long generations (`gpqa-diamond`)
+
+These tasks generate up to 32768 tokens per sample, and `lighteval accelerate`
+keeps a float32 score vector the size of the vocabulary for every generated
+token of every sequence in the batch. At 32k tokens that is ~20 GB per
+sequence for a 150k-token vocabulary (Qwen, Llama 3), plus ~5 GB of KV cache
+for a 7-8B model, on top of the weights. Reasoning models write that much: with
+Qwen3-8B, `batch_size=8` ran out of memory on a 256 GB MI325X, so the default
+`batch_size=32` does not fit either. Schedule the group on its own with a batch
+size that fits, for example:
+
+```bash
+# 64 GB GPU (one LUMI MI250X GCD): Qwen2.5-7B-Instruct completed both languages
+BATCH_SIZE=1 oellm-eval schedule --models "model-name" --task_groups "gpqa-diamond"
+# 256 GB GPU (MI325X): Qwen3-8B completed 40 Finnish questions
+BATCH_SIZE=4 oellm-eval schedule --models "model-name" --task_groups "gpqa-diamond"
+```
+
+Expect hours per language: a batch runs until its longest sample stops, so one
+long answer holds up the whole batch. With `BATCH_SIZE=1` on one MI250X GCD,
+Qwen2.5-7B-Instruct took 1.5 h for English and 2.8 h for Finnish.
 
 ### Workaround for `acc_norm` tasks
 
@@ -265,6 +329,36 @@ The `--check` flag outputs a `results_missing.csv` that can be used to re-schedu
 oellm-eval schedule --eval_csv_path results_missing.csv
 ```
 
+### Scores without contaminated samples
+
+To report scores without blocklisted test rows, schedule the runs with `--log_samples`, then run:
+
+```bash
+oellm-eval collect --results_dir /path/to/eval-output-dir \
+    --exclude_samples /path/to/blocklist
+```
+
+The blocklist is a directory with one `<benchmark>.jsonl` per benchmark, holding the original dataset rows. [`sample-exclusion.yaml`](oellm/resources/sample-exclusion.yaml) lists the tasks each benchmark appears in.
+
+Each affected task gets extra rows with `subset=clean`, recomputed without the blocklisted rows, and an `n_excluded` column. A contaminated sample is removed from every language, and from copies of the benchmark in other suites (for example GSM8K questions in MGSM and PolyMath).
+
+Some scores can't be recomputed exactly, so `collect` leaves them out with a warning: bootstrapped standard errors, and lighteval's chrF, chrF++ and TER. It stops with an error if a metric can't be recomputed at all (such as SQuAD v2's F1), or if the saved samples don't reproduce the reported score. Runs made with `--limit`, or without saved samples, get no clean rows.
+
+### Evaluating without contaminated samples
+
+```bash
+oellm-eval schedule --models "my-model" \
+    --task_groups decontaminated-agenttrove-0.0
+```
+
+This group runs the lm-eval tasks on all their test questions except the ones the decontamination pipeline flagged in agenttrove-0.0. The list of questions is in [`oellm/resources/decontaminated/agenttrove-0.0.json`](oellm/resources/decontaminated/agenttrove-0.0.json), so the pipeline output isn't needed. `collect` reports these results with `subset=decontaminated:agenttrove-0.0`. The `all` group doesn't include it.
+
+Its scores match `collect --exclude_samples` for 0-shot tasks and for tasks whose few-shot examples are the first documents. Tasks that draw examples at random (GSM8K, BoolQ, MGSM) differ slightly.
+
+Tasks in no other group run with the shots model reports commonly use, unless the examples would come from the test questions. GSM8K-Platinum has only test questions, so it runs as `gsm8k_platinum_cot`, with 8 fixed examples, and MMLU-Redux runs 0-shot.
+
+One flagged question is among the first five few-shot examples of MMMLU's `high_school_mathematics`. This group uses the next question instead ([`mmmlu_decontaminated/`](oellm/resources/custom_lm_eval_tasks/mmmlu_decontaminated)), so the clean score from `collect --exclude_samples` still shows the flagged question as an example, and `collect` logs that.
+
 ## CSV-Based Scheduling
 
 For full control, provide a CSV file with columns: `model_path`, `task_path`, `n_shot`, and optionally `eval_suite`:
@@ -278,13 +372,31 @@ oellm-eval schedule --eval_csv_path custom_evals.csv
 ### General Installation
 
 ```bash
-uv tool install -p 3.12 git+https://github.com/OpenEuroLLM/oellm-eval.git
+uv tool install -p 3.12 git+https://github.com/OpenEuroLLM/oellm-eval.git@stable
 ```
 
 Update to latest:
 ```bash
 uv tool upgrade oellm-eval
 ```
+
+### Versions
+
+`main` is the beta channel. Its version ends in `bN` (for example `0.3.0b1`), and any
+commit on it may change what a task group measures. From 0.3.0 on, releases are git tags
+such as `v0.3.0`, and the `stable` branch points at the latest one. Pin a tag for an
+evaluation campaign so that every run uses the same tasks, shots and metrics:
+
+```bash
+uv tool install -p 3.12 git+https://github.com/OpenEuroLLM/oellm-eval.git@v0.3.0   # pinned
+uv tool install -p 3.12 git+https://github.com/OpenEuroLLM/oellm-eval.git@stable   # latest release
+uv tool install -p 3.12 git+https://github.com/OpenEuroLLM/oellm-eval.git          # main (beta)
+```
+
+`uv tool upgrade oellm-eval` keeps you on the ref you installed from. Include the output
+of `oellm-eval --version` in bug reports. [CHANGELOG.md](CHANGELOG.md) lists what changed in
+each version, with the changes that can affect results in a section of their own. How
+versions are chosen and releases are cut is described in [docs/RELEASING.md](docs/RELEASING.md).
 
 ### JURECA/JSC Specifics
 
@@ -349,7 +461,7 @@ uv sync --extra dev
 uv run pytest tests/test_datasets.py -v
 
 # Download-only mode for testing
-uv run oellm-eval schedule --models "EleutherAI/pythia-160m" --task_groups "open-sci-0.01" --download_only
+uv run oellm-eval schedule --models "EleutherAI/pythia-160m" --task_groups "open-sci-0.01" --download_only true
 ```
 
 ## Deploying containers

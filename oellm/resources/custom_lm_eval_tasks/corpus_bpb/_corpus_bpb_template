@@ -1,0 +1,31 @@
+# Bits-per-byte on your own held-out text. Copy this file into a folder of
+# your own as <task name>.yaml, fill in the three marked parts, and schedule it
+# with --lm_eval_include_path pointing at that folder (see docs/TASKS.md,
+# "Bits-per-byte on your own text"). This file has no .yaml extension, so
+# lm-eval does not load it as a task.
+
+# 1. The task name you pass to --tasks.
+task: bpb_my_corpus
+
+# 2. The data. For local files keep dataset_path as json, parquet or csv and
+# list the files under test: (absolute paths). For a Hugging Face dataset set
+# dataset_path to its repo id, add dataset_name if it has several configs
+# (e.g. a language), drop dataset_kwargs and set test_split to the split to score.
+dataset_path: json
+dataset_kwargs:
+  data_files:
+    test: /path/to/heldout.jsonl
+test_split: test
+
+# 3. The column holding the raw text (not token ids). Each row is scored as
+# one document.
+doc_to_target: "{{text}}"
+
+output_type: loglikelihood_rolling
+doc_to_text: ""
+metric_list:
+  - metric: bits_per_byte
+    aggregation: bits_per_byte
+    higher_is_better: false
+metadata:
+  version: 0.0

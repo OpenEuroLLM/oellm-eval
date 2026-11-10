@@ -40,20 +40,31 @@ exit 1
 HARNESS_SILENT = """#!/bin/bash
 exit 0
 """
+JUDGEARENA_OK = """#!/bin/bash
+for arg in "$@"; do
+    if [ "$prev" = "--run.result_folder" ]; then
+        output_dir="$arg"
+    fi
+    prev="$arg"
+done
+mkdir -p "$output_dir/run"
+echo '{"schema_version":"judgearena-run-metadata/v1"}' > "$output_dir/run/run-metadata.v1.json"
+exit 0
+"""
 
 
-def _fake_venv(tmp_path: Path, harness: str) -> Path:
-    """A venv whose `activate` puts a stub `python` ahead of the real one."""
+def _fake_venv(tmp_path: Path, harness: str, command: str = "python") -> Path:
+    """A venv whose `activate` puts a stub harness ahead of the real one."""
     venv = tmp_path / "venv"
-    (venv / "bin").mkdir(parents=True)
+    (venv / "bin").mkdir(parents=True, exist_ok=True)
     (venv / "bin" / "activate").write_text(f'export PATH="{venv}/bin:$PATH"\n')
-    python = venv / "bin" / "python"
-    python.write_text(harness)
-    python.chmod(python.stat().st_mode | stat.S_IEXEC)
+    executable = venv / "bin" / command
+    executable.write_text(harness)
+    executable.chmod(executable.stat().st_mode | stat.S_IEXEC)
     return venv
 
 
-def _render(tmp_path: Path, venv: Path) -> Path:
+def _render(tmp_path: Path, venv: Path, *, task: str = "hellaswag") -> Path:
     with (
         patch("oellm.main._load_cluster_env"),
         patch("oellm.main._num_jobs_in_queue", return_value=0),
@@ -61,7 +72,7 @@ def _render(tmp_path: Path, venv: Path) -> Path:
     ):
         schedule_evals(
             models="EleutherAI/pythia-70m",
-            tasks="hellaswag",
+            tasks=task,
             n_shot=0,
             skip_checks=True,
             venv_path=str(venv),
@@ -140,6 +151,32 @@ def test_failure_count_survives_the_read_loop(tmp_path):
 
     assert result.returncode == 1
     assert "2 failed evaluation" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "harness, expected_error",
+    [
+        pytest.param(HARNESS_CRASHES, "exited with status 1", id="crashes"),
+        pytest.param(HARNESS_SILENT, "wrote no result", id="writes-nothing"),
+    ],
+)
+def test_failed_judgearena_evaluation_fails_the_job(tmp_path, harness, expected_error):
+    venv = _fake_venv(tmp_path, harness, command="judgearena")
+    script = _render(tmp_path, venv, task="arena-hard-v2.0")
+    result = _run(script)
+
+    assert result.returncode == 1
+    assert expected_error in result.stdout
+    assert "Evaluation finished" not in result.stdout
+
+
+def test_successful_judgearena_evaluation_passes(tmp_path):
+    venv = _fake_venv(tmp_path, JUDGEARENA_OK, command="judgearena")
+    script = _render(tmp_path, venv, task="arena-hard-v2.0")
+    result = _run(script)
+
+    assert result.returncode == 0
+    assert "Evaluation finished" in result.stdout
 
 
 def test_sbatch_failure_exits_non_zero(tmp_path):

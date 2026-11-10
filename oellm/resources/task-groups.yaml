@@ -1,9 +1,9 @@
 task_groups:
   sib200-eu:
-    description: "SIB-200 European language topic classification tasks (0-shot)"
+    description: "SIB-200 European language topic classification (10-shot)"
     suite: lm-eval-harness
     metric: acc
-    n_shots: [0]
+    n_shots: [10]
     dataset: Davlan/sib200
     valid_langs: [bul_Cyrl, hrv_Latn, ces_Latn, dan_Latn, nld_Latn, eng_Latn, est_Latn, fin_Latn,
                   fra_Latn, deu_Latn, ell_Grek, hun_Latn, gle_Latn, ita_Latn, lvs_Latn, lit_Latn,
@@ -81,19 +81,21 @@ task_groups:
     metric: acc_norm
     n_shots: [0]
     dataset: facebook/belebele
+    # Without Latvian, Lithuanian, Maltese and Slovenian: lighteval has no prompt
+    # words for them, so their cf tasks can't be built
+    # (huggingface/lighteval#1471). belebele-eu-5-shot runs all four.
     valid_langs: [bul_Cyrl, hrv_Latn, ces_Latn, dan_Latn, nld_Latn, eng_Latn, est_Latn, fin_Latn,
-                  fra_Latn, deu_Latn, ell_Grek, hun_Latn, ita_Latn, lvs_Latn, lit_Latn, mlt_Latn,
-                  pol_Latn, por_Latn, ron_Latn, slk_Latn, slv_Latn, spa_Latn, swe_Latn, nob_Latn,
-                  eus_Latn, cat_Latn]
+                  fra_Latn, deu_Latn, ell_Grek, hun_Latn, ita_Latn, pol_Latn, por_Latn, ron_Latn,
+                  slk_Latn, spa_Latn, swe_Latn, nob_Latn, eus_Latn, cat_Latn]
     tasks:
       - task: "belebele_{lang}_cf"
         subset: "{lang}"
 
   xcsqa-eu:
-    description: "XCSQA EU commonsense QA (0-shot MCQ, acc_norm)"
+    description: "XCSQA EU commonsense QA (10-shot MCQ, acc)"
     suite: lm-eval-harness
-    metric: acc_norm
-    n_shots: [0]
+    metric: acc
+    n_shots: [10]
     dataset: INK-USC/xcsr
     tasks:
       - task: xcsqa_deu_Latn
@@ -455,10 +457,10 @@ task_groups:
       - task: arc_challenge_mt_is  # no subset in the source dataset
 
   hellaswag-eu:
-    description: "Okapi HellaSwag multilingual (16 EU languages, 0-shot)."
+    description: "Okapi HellaSwag multilingual (16 EU languages, 10-shot)."
     suite: lm-eval-harness
     metric: acc_norm
-    n_shots: [0]
+    n_shots: [10]
     dataset: alexandrainst/m_hellaswag
     valid_langs: [da, nl, fr, de, hu, it, pt, ro, sk, es, sv, hr,
                   ca, eu, sr, uk]
@@ -467,11 +469,11 @@ task_groups:
         subset: "{lang}"
 
   reasoning:
-    description: "Reasoning tasks: GSM8k (4-shot), IFEval (0-shot), MBPP (3-shot), GPQA-Diamond (0-shot), MATH500 (0-shot), LiveCodeBench (0-shot), HumanEval (0-shot), AIME24 (0-shot), AIME25 (0-shot), AMC23 (0-shot)"
+    description: "Reasoning tasks: GSM8k (8-shot), IFEval (0-shot), MBPP (3-shot), GPQA-Diamond (0-shot), MATH500 (0-shot), LiveCodeBench (0-shot), HumanEval (0-shot), AIME24 (0-shot), AIME25 (0-shot), AMC23 (0-shot)"
     suite: lm-eval-harness
     tasks:
       - task: gsm8k
-        n_shots: [4]
+        n_shots: [8]
         dataset: openai/gsm8k
         subset: main
       - task: ifeval
@@ -512,6 +514,61 @@ task_groups:
     subset: english
     tasks:
       - task: crows_pairs_english
+
+  # Bits-per-byte (BPB) on held-out text: the summed negative log-likelihood of
+  # the documents divided by ln(2) times their UTF-8 byte count. It is
+  # tokenizer-agnostic and still separates very small models whose accuracy on
+  # downstream tasks sits at chance. Lower is better. Perplexity-style tasks
+  # take no few-shot examples, so the group runs 0-shot only.
+  bpb-corpus:
+    description: "Bits-per-byte on held-out text, for comparing small models (0-shot, lower is better)."
+    suite: lm-eval-harness
+    metric: bits_per_byte
+    n_shots: [0]
+    tasks:
+      - task: wikitext
+        dataset: EleutherAI/wikitext_document_level
+        subset: wikitext-2-raw-v1
+
+  bpb-flores-eu:
+    description: "Bits-per-byte on FLORES-200 devtest in EU languages (0-shot, lower is better)."
+    suite: lm-eval-harness
+    metric: bits_per_byte
+    n_shots: [0]
+    dataset: facebook/flores
+    valid_langs: [bul_Cyrl, hrv_Latn, ces_Latn, dan_Latn, nld_Latn, eng_Latn, est_Latn, fin_Latn,
+                  fra_Latn, deu_Latn, ell_Grek, hun_Latn, gle_Latn, ita_Latn, lvs_Latn, lit_Latn,
+                  mlt_Latn, pol_Latn, por_Latn, ron_Latn, slk_Latn, slv_Latn, spa_Latn, swe_Latn,
+                  cat_Latn, eus_Latn, glg_Latn, bos_Latn, kat_Geor, mkd_Cyrl, als_Latn, srp_Cyrl,
+                  tur_Latn, ukr_Cyrl, isl_Latn, nob_Latn]
+    tasks:
+      - task: "flores_bpb_{lang}"
+        subset: "{lang}"
+
+  bpb-mc-en:
+    description: "Gold-answer bits-per-byte on English multiple-choice tasks, for comparing small models (5-shot, lower is better)."
+    suite: lm-eval-harness
+    metric: bits_per_byte
+    n_shots: [5]
+    tasks:
+      - task: arc_easy_bpb
+        dataset: allenai/ai2_arc
+        subset: ARC-Easy
+      - task: arc_challenge_bpb
+        dataset: allenai/ai2_arc
+        subset: ARC-Challenge
+      - task: hellaswag_bpb
+        dataset: Rowan/hellaswag
+      - task: openbookqa_bpb
+        dataset: allenai/openbookqa
+        subset: main
+      - task: piqa_bpb
+        dataset: baber/piqa
+      - task: social_iqa_bpb
+        dataset: lighteval/siqa
+      - task: winogrande_bpb
+        dataset: allenai/winogrande
+        subset: winogrande_xl
 
   global-piqa-eu-completions:
     description: "Global PIQA European languages — multiple-choice completions (0-shot, mrlbenchmarks/global-piqa-nonparallel)"
@@ -802,8 +859,424 @@ task_groups:
       - task: umimeto_physics_p4
         dataset: CZLC/umimeto-qa
         subset: physics
+  judgearena-default:
+    description: "JudgeArena tasks used when no language filter is given."
+    suite: judgearena
+    n_shots: [0]
+    tasks:
+      - task: alpaca-eval
+      - task: arena-hard-v0.1
+      - task: arena-hard-v2.0
+      - task: elo-comparia
+      - task: elo-lmarena
+      - task: elo-lmarena-100k
+      - task: elo-lmarena-140k
+      - task: fluency
+      - task: m-arena-hard-v0.1
+      - task: m-arena-hard-v2.0
+      - task: mt-bench
+
+  judgearena-comparia:
+    description: "JudgeArena ComparIA ELO language variants."
+    suite: judgearena
+    n_shots: [0]
+    valid_langs: [fr, en]
+    tasks:
+      - task: "elo-comparia-{lang}"
+        subset: "{lang}"
+
+  judgearena-lmarena:
+    description: "JudgeArena LMSYS Arena ELO language variants."
+    suite: judgearena
+    n_shots: [0]
+    valid_langs: [en, pl, ru, zh, de, ja, es, fr, ko, pt, fa, it, tr, vi, cs, ar, uk]
+    tasks:
+      - task: "elo-lmarena-{lang}"
+        subset: "{lang}"
+      - task: "elo-lmarena-100k-{lang}"
+        subset: "{lang}"
+      - task: "elo-lmarena-140k-{lang}"
+        subset: "{lang}"
+
+  elo-en:
+    description: "English ComparIA and LMSYS Arena ELO tasks."
+    suite: judgearena
+    n_shots: [0]
+    tasks:
+      - task: elo-comparia-en
+        subset: en
+      - task: elo-lmarena-en
+        subset: en
+      - task: elo-lmarena-100k-en
+        subset: en
+      - task: elo-lmarena-140k-en
+        subset: en
+
+  elo-eu:
+    description: "ComparIA and LMSYS Arena ELO tasks in supported OpenEuroLLM European languages."
+    suite: judgearena
+    n_shots: [0]
+    valid_langs: [en, pl, de, es, fr, pt, it, tr, cs, uk]
+    tasks:
+      - task: elo-comparia-en
+        subset: en
+      - task: elo-comparia-fr
+        subset: fr
+      - task: "elo-lmarena-{lang}"
+        subset: "{lang}"
+      - task: "elo-lmarena-100k-{lang}"
+        subset: "{lang}"
+      - task: "elo-lmarena-140k-{lang}"
+        subset: "{lang}"
+
+  judgearena-m-arena-hard:
+    description: "JudgeArena m-ArenaHard language variants."
+    suite: judgearena
+    n_shots: [0]
+    valid_langs: [ar, cs, de, el, en, es, fa, fr, he, hi, id, it, ja, ko, nl, pl, pt, ro, ru, tr, uk, vi, zh]
+    tasks:
+      - task: "m-arena-hard-v0.1-{lang}"
+        subset: "{lang}"
+      - task: "m-arena-hard-v2.0-{lang}"
+        subset: "{lang}"
+
+  judgearena-fluency:
+    description: "JudgeArena fluency language variants."
+    suite: judgearena
+    n_shots: [0]
+    valid_langs: [albanian, basque, bengali, bosnian, bulgarian, catalan, croatian, czech, danish, dutch, english, estonian, finnish, french, galician, georgian, german, greek, hindi, hungarian, icelandic, indonesian, irish, italian, japanese, latvian, lithuanian, macedonian, maltese, mandarin-chinese, norwegian, polish, portuguese, romanian, russian, serbian, slovak, slovene, spanish, standard-arabic, swedish, turkish, ukrainian]
+    tasks:
+      - task: "fluency-{lang}"
+        subset: "{lang}"
+
+  judgearena-additional:
+    description: "Other packaged JudgeArena tasks."
+    suite: judgearena
+    n_shots: [0]
+    tasks:
+      - task: mt-bench-101
+      - task: m-arena-hard-v0.1-EU
+      - task: m-arena-hard-v2.0-EU
+
+  # Multilingual GPQA Diamond from LumiOpen, defined as custom lighteval tasks
+  # in custom_lighteval_tasks/reasoning/reasoning.py. Generative, 0-shot, greedy pass@1
+  # with up to 32768 new tokens: meant for instruct/reasoning checkpoints.
+  # Long generations need a small lighteval BATCH_SIZE, see README
+  # "Lighteval Batch Size".
+  gpqa-diamond:
+    description: "GPQA Diamond, generative 0-shot pass@1 (en: gated Idavidrein/gpqa, fi: LumiOpen/GPQA-FI)."
+    suite: lighteval
+    metric: "gpqa_pass@k:k=1"
+    n_shots: [0]
+    tasks:
+      - task: "gpqa_diamond:en"
+        dataset: Idavidrein/gpqa
+        subset: gpqa_diamond
+      - task: "gpqa_diamond:fi"
+        dataset: LumiOpen/GPQA-FI
+        subset: default
+
+  # Every task holding a test row agenttrove-0.0 marked, in every language, run
+  # without the marked rows (oellm/decontaminated.py), with its usual shots.
+  decontaminated-agenttrove-0.0:
+    description: "Tasks holding test rows agenttrove-0.0 marked as contaminated, run without those rows."
+    suite: lm-eval-harness
+    decontaminated: agenttrove-0.0
+    tasks:
+      - task: openbookqa
+        n_shots: [0]
+        dataset: allenai/openbookqa
+        subset: "main"
+      - task: mmlu
+        n_shots: [5]
+        dataset: cais/mmlu
+      - task: boolq
+        n_shots: [10]
+        dataset: aps/super_glue
+        subset: "boolq"
+      - task: global_mmlu_full_cs
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "cs"
+      - task: global_mmlu_full_de
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "de"
+      - task: global_mmlu_full_el
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "el"
+      - task: global_mmlu_full_en
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "en"
+      - task: global_mmlu_full_es
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "es"
+      - task: global_mmlu_full_fr
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "fr"
+      - task: global_mmlu_full_it
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "it"
+      - task: global_mmlu_full_lt
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "lt"
+      - task: global_mmlu_full_nl
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "nl"
+      - task: global_mmlu_full_pl
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "pl"
+      - task: global_mmlu_full_pt
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "pt"
+      - task: global_mmlu_full_ro
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "ro"
+      - task: global_mmlu_full_sr
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "sr"
+      - task: global_mmlu_full_sv
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "sv"
+      - task: global_mmlu_full_tr
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "tr"
+      - task: global_mmlu_full_uk
+        n_shots: [5]
+        dataset: CohereForAI/Global-MMLU
+        subset: "uk"
+      - task: mmlu_prox_cs
+        n_shots: [5]
+        dataset: li-lab/MMLU-ProX
+        subset: "cs"
+      - task: mmlu_prox_de
+        n_shots: [5]
+        dataset: li-lab/MMLU-ProX
+        subset: "de"
+      - task: mmlu_prox_en
+        n_shots: [5]
+        dataset: li-lab/MMLU-ProX
+        subset: "en"
+      - task: mmlu_prox_es
+        n_shots: [5]
+        dataset: li-lab/MMLU-ProX
+        subset: "es"
+      - task: mmlu_prox_fr
+        n_shots: [5]
+        dataset: li-lab/MMLU-ProX
+        subset: "fr"
+      - task: mmlu_prox_hu
+        n_shots: [5]
+        dataset: li-lab/MMLU-ProX
+        subset: "hu"
+      - task: mmlu_prox_it
+        n_shots: [5]
+        dataset: li-lab/MMLU-ProX
+        subset: "it"
+      - task: mmlu_prox_pt
+        n_shots: [5]
+        dataset: li-lab/MMLU-ProX
+        subset: "pt"
+      - task: mmlu_prox_sr
+        n_shots: [5]
+        dataset: li-lab/MMLU-ProX
+        subset: "sr"
+      - task: mmlu_prox_uk
+        n_shots: [5]
+        dataset: li-lab/MMLU-ProX
+        subset: "uk"
+      - task: mgsm_native_cot_en
+        n_shots: [5]
+        dataset: jbross-ibm-research/mgsm
+        subset: "en"
+      - task: mgsm_native_cot_de
+        n_shots: [5]
+        dataset: jbross-ibm-research/mgsm
+        subset: "de"
+      - task: mgsm_native_cot_es
+        n_shots: [5]
+        dataset: jbross-ibm-research/mgsm
+        subset: "es"
+      - task: mgsm_native_cot_fr
+        n_shots: [5]
+        dataset: jbross-ibm-research/mgsm
+        subset: "fr"
+      - task: global_mgsm_de
+        n_shots: [0]
+        dataset: CohereLabs/global-mgsm
+        subset: "de"
+      - task: global_mgsm_fr
+        n_shots: [0]
+        dataset: CohereLabs/global-mgsm
+        subset: "fr"
+      - task: global_mgsm_es
+        n_shots: [0]
+        dataset: CohereLabs/global-mgsm
+        subset: "es"
+      - task: global_mgsm_el
+        n_shots: [0]
+        dataset: CohereLabs/global-mgsm
+        subset: "el"
+      - task: global_mgsm_cs
+        n_shots: [0]
+        dataset: CohereLabs/global-mgsm
+        subset: "cs"
+      - task: global_mgsm_hu
+        n_shots: [0]
+        dataset: CohereLabs/global-mgsm
+        subset: "hu"
+      - task: global_mgsm_en
+        n_shots: [0]
+        dataset: CohereLabs/global-mgsm
+        subset: "en"
+      - task: global_mgsm_ca
+        n_shots: [0]
+        dataset: CohereLabs/global-mgsm
+        subset: "ca"
+      - task: global_mgsm_eu
+        n_shots: [0]
+        dataset: CohereLabs/global-mgsm
+        subset: "eu"
+      - task: global_mgsm_gl
+        n_shots: [0]
+        dataset: CohereLabs/global-mgsm
+        subset: "gl"
+      - task: global_mgsm_sr
+        n_shots: [0]
+        dataset: CohereLabs/global-mgsm
+        subset: "sr"
+      - task: mmmlu_de_de
+        n_shots: [5]
+        dataset: openai/MMMLU
+        subset: "DE_DE"
+      - task: mmmlu_es_la
+        n_shots: [5]
+        dataset: openai/MMMLU
+        subset: "ES_LA"
+      - task: mmmlu_fr_fr
+        n_shots: [5]
+        dataset: openai/MMMLU
+        subset: "FR_FR"
+      - task: mmmlu_it_it
+        n_shots: [5]
+        dataset: openai/MMMLU
+        subset: "IT_IT"
+      - task: mmmlu_pt_br
+        n_shots: [5]
+        dataset: openai/MMMLU
+        subset: "PT_BR"
+      - task: gsm8k
+        n_shots: [8]
+        dataset: openai/gsm8k
+        subset: "main"
+      - task: mbpp
+        n_shots: [3]
+        dataset: google-research-datasets/mbpp
+      - task: polymath_de_low
+        n_shots: [0]
+        dataset: Qwen/PolyMath
+        subset: "de"
+      - task: polymath_en_low
+        n_shots: [0]
+        dataset: Qwen/PolyMath
+        subset: "en"
+      - task: polymath_es_low
+        n_shots: [0]
+        dataset: Qwen/PolyMath
+        subset: "es"
+      - task: polymath_fr_low
+        n_shots: [0]
+        dataset: Qwen/PolyMath
+        subset: "fr"
+      - task: polymath_it_low
+        n_shots: [0]
+        dataset: Qwen/PolyMath
+        subset: "it"
+      - task: polymath_pt_low
+        n_shots: [0]
+        dataset: Qwen/PolyMath
+        subset: "pt"
+      - task: polymath_de_medium
+        n_shots: [0]
+        dataset: Qwen/PolyMath
+        subset: "de"
+      - task: polymath_en_medium
+        n_shots: [0]
+        dataset: Qwen/PolyMath
+        subset: "en"
+      - task: polymath_es_medium
+        n_shots: [0]
+        dataset: Qwen/PolyMath
+        subset: "es"
+      - task: polymath_fr_medium
+        n_shots: [0]
+        dataset: Qwen/PolyMath
+        subset: "fr"
+      - task: polymath_it_medium
+        n_shots: [0]
+        dataset: Qwen/PolyMath
+        subset: "it"
+      - task: polymath_pt_medium
+        n_shots: [0]
+        dataset: Qwen/PolyMath
+        subset: "pt"
+      # In no other group, so run with the shots model reports use. GSM8K-Platinum
+      # has only a test split: gsm8k_platinum_cot shows 8 fixed examples instead.
+      - task: gsm8k_platinum_cot
+        n_shots: [8]
+        dataset: madrylab/gsm8k-platinum
+        subset: "main"
+      - task: minerva_math
+        n_shots: [4]
+        dataset: EleutherAI/hendrycks_math
+      - task: mathqa
+        n_shots: [0]
+        dataset: regisss/math_qa
+      - task: mmlu_redux_generative
+        n_shots: [0]
+        dataset: fxmarty/mmlu-redux-2.0-ok
+      - task: mmlu_pro
+        n_shots: [5]
+        dataset: TIGER-Lab/MMLU-Pro
+      - task: triviaqa
+        n_shots: [5]
+        dataset: mandarjoshi/trivia_qa
+        subset: "rc.nocontext"
+      - task: mbpp_plus
+        n_shots: [3]
+        dataset: evalplus/mbppplus
+      - task: humaneval
+        n_shots: [0]
+        dataset: openai/openai_humaneval
+      - task: humaneval_plus
+        n_shots: [0]
+        dataset: evalplus/humanevalplus
 
 super_groups:
+  judgearena:
+    description: "JudgeArena base tasks."
+    task_groups:
+      - task: judgearena-default
+
+  elo-multilingual:
+    description: "All language-specific ComparIA and LMSYS Arena ELO tasks."
+    task_groups:
+      - task: judgearena-comparia
+      - task: judgearena-lmarena
+
   oellm-multilingual:
     description: "Combined Belebele EU set plus multilingual benchmarks"
     task_groups:

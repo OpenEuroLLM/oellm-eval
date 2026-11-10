@@ -1,0 +1,3 @@
+dataset_name: lvs_Latn
+include: _default_template_yaml
+task: flores_bpb_lvs_Latn

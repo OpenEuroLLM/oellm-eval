@@ -1,0 +1,7 @@
+tag:
+  - bpb_mc
+task: arc_challenge_bpb
+class: !function bpb_task.BPBTask
+base_task: arc_challenge
+metadata:
+  version: 0.0

@@ -1,5 +1,8 @@
 from oellm.task_groups import (
+    DatasetSpec,
     TaskGroup,
+    _build_task_suite_map,
+    _collect_dataset_specs,
     _expand_lang_templates,
     _expand_task_groups,
     _load_task_groups_data,
@@ -167,9 +170,10 @@ class TestExpandTaskGroupsWithTemplates:
         results = _expand_task_groups(["sib200-eu"])
         assert len(results) == 36
 
-    def test_belebele_cf_expands_to_26_tasks(self):
+    def test_belebele_cf_expands_to_22_tasks(self):
+        # lighteval can't build Latvian, Lithuanian, Maltese or Slovenian.
         results = _expand_task_groups(["belebele-eu-cf"])
-        assert len(results) == 26
+        assert len(results) == 22
 
     def test_arc_challenge_mt_expands_to_22_tasks(self):
         # 21 templated + 1 static (arc_challenge_mt_is)
@@ -201,3 +205,88 @@ class TestExpandTaskGroupsWithTemplates:
     def test_global_piqa_completions_expands_to_32_tasks(self):
         results = _expand_task_groups(["global-piqa-eu-completions"])
         assert len(results) == 32
+
+
+def test_judgearena_does_not_register_standalone_ja_variants():
+    assert {"alpaca-eval-ja", "arena-hard-v0.1-ja", "arena-hard-v2.0-ja"}.isdisjoint(
+        _build_task_suite_map()
+    )
+
+
+def test_judgearena_elo_categories():
+    en = {result.task for result in _expand_task_groups(["elo-en"])}
+    eu = {result.task for result in _expand_task_groups(["elo-eu"])}
+    multilingual = {result.task for result in _expand_task_groups(["elo-multilingual"])}
+
+    assert en == {
+        "elo-comparia-en",
+        "elo-lmarena-en",
+        "elo-lmarena-100k-en",
+        "elo-lmarena-140k-en",
+    }
+    assert en <= eu <= multilingual
+    assert len(eu) == 32
+    assert len(multilingual) == 53
+    assert {result.task for result in _expand_task_groups(["elo-eu[deu_Latn]"])} == {
+        "elo-lmarena-de",
+        "elo-lmarena-100k-de",
+        "elo-lmarena-140k-de",
+    }
+    assert {
+        (result.suite, result.n_shot) for result in _expand_task_groups(["elo-eu"])
+    } == {("judgearena", 0)}
+
+
+def test_judgearena_additional_routes_only_three_tasks():
+    assert {
+        (result.task, result.suite, result.n_shot)
+        for result in _expand_task_groups(["judgearena-additional"])
+    } == {
+        ("mt-bench-101", "judgearena", 0),
+        ("m-arena-hard-v0.1-EU", "judgearena", 0),
+        ("m-arena-hard-v2.0-EU", "judgearena", 0),
+    }
+
+
+def test_bpb_corpus_runs_wikitext_zero_shot():
+    """Perplexity-style tasks take no few-shot examples, and the dataset must be
+    pre-downloaded on the login node because compute nodes are offline."""
+    assert {
+        (result.task, result.suite, result.n_shot)
+        for result in _expand_task_groups(["bpb-corpus"])
+    } == {("wikitext", "lm-eval-harness", 0)}
+    assert _collect_dataset_specs(["bpb-corpus"]) == [
+        DatasetSpec(
+            repo_id="EleutherAI/wikitext_document_level", subset="wikitext-2-raw-v1"
+        )
+    ]
+
+
+def test_bpb_flores_eu_runs_every_target_language_zero_shot():
+    results = _expand_task_groups(["bpb-flores-eu"])
+    assert len(results) == 36
+    assert {(result.suite, result.n_shot) for result in results} == {
+        ("lm-eval-harness", 0)
+    }
+    assert {
+        result.task for result in _expand_task_groups(["bpb-flores-eu[deu_Latn]"])
+    } == {"flores_bpb_deu_Latn"}
+    assert DatasetSpec(repo_id="facebook/flores", subset="deu_Latn") in (
+        _collect_dataset_specs(["bpb-flores-eu"])
+    )
+
+
+def test_bpb_mc_en_runs_seven_english_tasks_five_shot():
+    results = _expand_task_groups(["bpb-mc-en"])
+    assert {result.task for result in results} == {
+        "arc_easy_bpb",
+        "arc_challenge_bpb",
+        "hellaswag_bpb",
+        "openbookqa_bpb",
+        "piqa_bpb",
+        "social_iqa_bpb",
+        "winogrande_bpb",
+    }
+    assert {(result.suite, result.n_shot) for result in results} == {
+        ("lm-eval-harness", 5)
+    }

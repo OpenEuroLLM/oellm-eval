@@ -1,38 +1,92 @@
 Bootstrap: docker
-From: rocm/pytorch:rocm6.4.1_ubuntu24.04_py3.12_pytorch_release_2.7.1
+From: rocm/pytorch:rocm7.2.1_ubuntu24.04_py3.12_pytorch_release_2.9.1
+
+%arguments
+    JUDGEARENA_GIT_REF=45e3b80705f54463f7b67bdeecd8245413eb7457
 
 %labels
     Author      oellm-cli
     Description Apptainer image for LUMI cluster
+    JudgeArenaRef {{ JUDGEARENA_GIT_REF }}
 
 %post
+    umask 022
     # Install uv
     curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
     export UV_TOOL_BIN_DIR=/usr/local/bin
     export UV_TOOL_DIR=/opt/uv-tools
 
-    # lm-eval and dependencies (system Python)
-    uv pip install --system --break-system-packages \
-        lm-eval \
-        transformers \
-        "datasets<4.0.0" \
+    # lm-eval and dependencies in the ROCm/PyTorch base venv.
+    # transformers<5.20: 5.20 removed transformers.data.metrics, which lm-eval
+    # tasks still import (coqa, xquad, record, scrolls, ...); a failing import
+    # takes down every task batched with it (e.g. part of dclm-core-22).
+    uv pip install --python /opt/venv/bin/python \
+        "lm-eval[api,tasks]" \
+        word2number \
+        "transformers<5.20" \
+        "datasets>=4.0" \
         wandb \
         sentencepiece \
         tiktoken \
         accelerate \
         nltk
 
+    # Keep the ROCm/PyTorch base for lm-eval; isolate vLLM in JudgeArena.
+    uv venv --python 3.12 /opt/judgearena
+    uv pip install --python /opt/judgearena/bin/python \
+        --extra-index-url https://wheels.vllm.ai/rocm/0.19.1/rocm721/ \
+        "torch==2.10.0+git8514f05" \
+        "vllm==0.19.1+rocm721" \
+        "transformers==5.5.4" \
+        "huggingface-hub>=1.5,<2" \
+        "judgearena @ git+https://github.com/OpenEuroLLM/JudgeArena.git@{{ JUDGEARENA_GIT_REF }}"
+    ln -s /opt/judgearena/bin/judgearena /usr/local/bin/judgearena
+
+    # Patch two lm-eval bugs that break dclm-core-22 at n_shot>0 (both fail the
+    # whole batched lm_eval call): agieval_lsat_ar ("Answer is not a string! : [4]")
+    # and squadv2 ("doc_to_text() takes 2 positional arguments but 3 were given").
+    # Exact-string replacements; the build fails if a target is not found.
+    /opt/venv/bin/python - <<'PY'
+import os, lm_eval
+root = os.path.dirname(lm_eval.__file__)
+patches = {
+    "api/task.py": [(
+        "                c[a]\n                if (c and isinstance(a, int))\n                # TODO: for multiple targets a is a list[str]. Fix this hack\n",
+        "                c[a]\n                if (c and isinstance(a, int))\n                # Gold given as a list of choice indices (AGIEval: [4]) -> map through choices.\n                else c[a[0]]\n                if (c and isinstance(a, list) and len(a) and isinstance(a[0], int))\n                # TODO: for multiple targets a is a list[str]. Fix this hack\n",
+    )],
+    "tasks/squadv2/task.py": [
+        ("    def doc_to_text(self, doc):\n", "    def doc_to_text(self, doc, doc_to_text=None):\n"),
+        ("    def doc_to_target(self, doc):\n", "    def doc_to_target(self, doc, doc_to_target=None):\n"),
+    ],
+}
+for rel, reps in patches.items():
+    path = os.path.join(root, rel)
+    src = open(path).read()
+    for old, new in reps:
+        if new in src:
+            continue
+        if src.count(old) != 1:
+            raise SystemExit(f"lm-eval patch target not found exactly once in {rel}")
+        src = src.replace(old, new)
+    open(path, "w").write(src)
+    print("patched", rel)
+PY
+
+    # Fail the build if any lm-eval task module that dclm-core-22 needs cannot
+    # import (see the transformers pin above).
+    /opt/venv/bin/python -c "import transformers.data.metrics.squad_metrics, lm_eval.tasks.coqa.utils"
+
     # lighteval as isolated tool (avoids dependency conflicts).
     #
-    # --torch-backend rocm6.4 is REQUIRED on LUMI. `uv tool install` builds an
+    # --torch-backend rocm7.2 is REQUIRED on LUMI. `uv tool install` builds an
     # isolated venv and re-resolves every dependency from PyPI, including torch --
     # so it pulls the default CUDA wheel (torch==2.10.0+cu128) even though the base
     # image ships ROCm torch. On MI250X that wheel reports device_count() == 0,
     # accelerate then selects cpu, and lighteval logs "putting model on device cpu"
     # and runs on CPU until it hits the walltime. No *_VISIBLE_DEVICES setting can
     # help: the wheel has no HIP support compiled in. See issue #96.
-    # lm-eval is unaffected because it is installed with `uv pip install --system`
-    # above, reusing the base image's ROCm torch.
+    # lm-eval is unaffected because it is installed in the base venv above,
+    # reusing the base image's ROCm torch.
     #
     # xxhash<4 is also required: 4.0 dropped implicit str encoding, and lighteval
     # hashes doc.query directly (logging/info_loggers.py), so a fresh resolve picks
@@ -40,17 +94,18 @@ From: rocm/pytorch:rocm6.4.1_ubuntu24.04_py3.12_pytorch_release_2.7.1
     # before hashing" right after COMPUTING METRICS. Independent of lighteval's
     # version -- v0.13.0 and main both hit it.
     uv tool install --python 3.12 \
-        --torch-backend rocm6.4 \
+        --torch-backend rocm7.2 \
         --with "langcodes[data]" \
         --with "pillow" \
         --with "xxhash<4" \
+        --with "huggingface-hub<2" \
         "lighteval[multilingual] @ git+https://github.com/huggingface/lighteval.git"
 
     # Pre-load lighteval registry to trigger tinyBenchmarks data download at build time
     /opt/uv-tools/lighteval/bin/python -c "from lighteval.tasks.registry import Registry; Registry.load_all_task_configs(load_multilingual=True)"
 
     # NLTK data
-    mkdir -p /opt/nltk_data
+    mkdir -p /opt/nltk_data && chmod 755 /opt/nltk_data
     python -c "import nltk; nltk.download('punkt', download_dir='/opt/nltk_data'); nltk.download('punkt_tab', download_dir='/opt/nltk_data')"
 
 %environment
