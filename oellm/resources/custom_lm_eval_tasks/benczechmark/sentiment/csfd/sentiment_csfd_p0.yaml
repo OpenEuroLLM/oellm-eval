@@ -1,0 +1,6 @@
+task: sentiment_csfd_p0
+tag: sentiment_csfd
+include: ../../_sentiment.yaml
+dataset_path: CZLC/csfd_sentiment_balanced
+description: "Dále je můj seznam textů. Dělím je na negativní, neutrální a pozitivní.\n"
+doc_to_text: "{{query}} Toto shledávám jako:"

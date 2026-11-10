@@ -1,0 +1,4 @@
+task: cermat_czech_tf_p1
+include: ../_cermat_czech_tf.yaml
+description: "Úkol: Vyberte odpověď ANO/NE na následující otázky.\n\n"
+doc_to_text: "{{('Text: '+ context+' ') if context else ''}}Otázka: {{query}}\nOdpověď:"

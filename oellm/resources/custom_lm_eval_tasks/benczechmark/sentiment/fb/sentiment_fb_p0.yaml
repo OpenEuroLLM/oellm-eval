@@ -1,0 +1,6 @@
+task: sentiment_fb_p0
+tag: sentiment_fb
+include: ../../_sentiment.yaml
+dataset_path: CZLC/fb_sentiment_balanced
+description: "Dále je můj seznam textů. Dělím je na negativní, neutrální a pozitivní.\n"
+doc_to_text: "{{query}} Toto shledávám jako:"

@@ -1,0 +1,6 @@
+task: sentiment_mall_p4
+tag: sentiment_mall
+include: ../../_sentiment.yaml
+dataset_path: CZLC/mall_sentiment_balanced
+description: "Příklady textů, které jsou negativní, neutrální, nebo pozitivní.\n"
+doc_to_text: "{{query}} Sentiment:"

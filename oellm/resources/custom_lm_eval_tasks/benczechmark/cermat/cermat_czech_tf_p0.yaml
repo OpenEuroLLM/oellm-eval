@@ -1,0 +1,4 @@
+task: cermat_czech_tf_p0
+include: ../_cermat_czech_tf.yaml
+description: "Jsi expert v Češtine. Předložím ti několik otázek a tvůj úkol bude odpovídat ANO/NE.\n\n"
+doc_to_text: "{{('Kontext: '+ context+' ') if context else ''}}Dotaz: {{query}}\nVybírám:"

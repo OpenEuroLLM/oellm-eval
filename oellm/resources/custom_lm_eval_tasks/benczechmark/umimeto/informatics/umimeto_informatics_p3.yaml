@@ -1,0 +1,5 @@
+dataset_name: informatics
+tag: umimeto_informatics
+task: umimeto_informatics_p3
+include: ../../_umimeto.yaml
+description: "Informatická Olympiáda.\n\nInstrukce: Vyberte správnou odpověď A-B pro zadanou otázku. Pro každou otázku existuje právě jedna správná odpověď.\nZadání:\n\n"

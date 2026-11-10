@@ -1,0 +1,5 @@
+dataset_name: informatics
+tag: umimeto_informatics
+task: umimeto_informatics_p0
+include: ../../_umimeto.yaml
+description: "Jsi počítačový expert. Předložím ti několik otázek a možné odpovědi A-B a tvůj úkol bude vybrat správnou odpověď.\n\n"

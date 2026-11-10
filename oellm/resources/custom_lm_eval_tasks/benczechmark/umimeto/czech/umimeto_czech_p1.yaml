@@ -1,0 +1,5 @@
+dataset_name: czech
+tag: umimeto_czech
+task: umimeto_czech_p1
+include: ../../_umimeto.yaml
+description: "Úkol: Vyberte správnou odpověď A-B na následující otázky.\n\n"

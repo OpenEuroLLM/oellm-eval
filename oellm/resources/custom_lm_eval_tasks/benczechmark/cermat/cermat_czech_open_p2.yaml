@@ -1,0 +1,4 @@
+task: cermat_czech_open_p2
+include: ../_cermat_czech_open.yaml
+description: "Ukázkové úlohy ze zkoušky ČJ. Na dotaz odpovídejte pouze stručne. V případě více možných odpovědí je oddělte pomocí ', '. Odpověď by měla končit znakem '\n\n'.\n\n"
+doc_to_text: "{{('Ukázka: '+ context+' ') if context else ''}}Zodpovězte: {{query}}\nVaše odpověď:"

@@ -1,0 +1,4 @@
+task: cs_sqad32_p1
+description: "Najděte odpovědi na tato dotazy. Podložte je textem. Odpověď ukončete symbolem '\n\n'.\n\n"
+doc_to_text: "Kontext: {{title}}-{{context}} Otázka: {{question}}\nOdpověď:"
+include: ../_cs_sqad32.yaml
