@@ -17,7 +17,11 @@ it before comparing runs made with different versions.
 ### Changed results
 
 - SIB-200 (`sib200-eu`) runs 10-shot instead of 0-shot, with few-shot examples taken from the start of the train split. Few-shot runs previously drew them from the label-sorted test split, so every example was science/technology and scores sat at 0.25, that label's share (#137).
+- XCSQA (`xcsqa-eu`) uses CommonsenseQA's prompt with lettered choices (A to E), runs 10-shot instead of 0-shot with examples drawn at random from the validation split, and scores `acc` instead of `acc_norm` (#142).
 - LUMI container: `lm-eval[api,tasks]` 0.4.13 with `datasets>=4` and `transformers<5.20`, PolyMath's scoring dependencies, and patches so `dclm-core-22`'s `agieval_lsat_ar`, `squadv2` and `coqa` run at n_shot>0. Applies once the image is rebuilt (#130).
+- `decontaminated-agenttrove-0.0` also runs GSM8K-Platinum (8-shot, `gsm8k_platinum_cot`), MATH (4-shot, `minerva_math`), MMLU-Pro (5-shot), TriviaQA (5-shot), MBPP+ (3-shot), MathQA, MMLU-Redux, HumanEval and HumanEval+ (0-shot), with the shots model reports use where the task allows it.
+- `belebele-eu-cf` no longer runs Latvian, Lithuanian, Maltese and Slovenian, whose cf tasks lighteval can't build (huggingface/lighteval#1471). `belebele-eu-5-shot` still covers them.
+- lighteval's corpus chrF, chrF++ and TER score every translation, as its BLEU does, instead of the first one alone. This changes every `flores-200-eu-to-eng` and `flores-200-eng-to-eu` chrF++ score; earlier ones are not comparable (#169, huggingface/lighteval#1112).
 
 ### Added
 
@@ -29,11 +33,14 @@ it before comparing runs made with different versions.
 - lm-eval runs pass `--write_out` by default, and `--log_samples` saves every sample when requested.
 - `collect --exclude_samples` also reports scores without blocklisted (e.g. contaminated) test rows, recomputed from the saved samples, in every language and in benchmarks holding copies of them (lm-eval, lighteval and evalchemy's MATH500).
 - Task group `decontaminated-agenttrove-0.0` runs the lm-eval tasks holding rows the decontamination pipeline marked, without those rows (`--samples`); `collect` reports them with `subset` `decontaminated:agenttrove-0.0`.
+- `collect --exclude_samples` covers GSM8K-Platinum, MATH, MathQA, MMLU-Redux, MMLU-Pro, TriviaQA, MBPP+, HumanEval and HumanEval+ (lm-eval), and excludes a row from both of HumanEval/HumanEval+, MBPP/MBPP+, GSM8K/GSM8K-Platinum, MMLU/MMLU-Redux and MATH-500/MATH.
 
 ### Changed
 
 ### Fixed
 
+- lm-eval's code tasks (`mbpp`, `humaneval`) run: the job passes `--confirm_run_unsafe_code` and sets `HF_ALLOW_CODE_EVAL=1`.
+- `xcsqa-eu` names `acc` as its primary metric. It still named `acc_norm`, which #142 stopped computing, so `collect` kept every metric for XCSQA.
 - `collect` no longer reports lm-eval's `sample_len` document count as a metric for tasks outside the task groups or with `--fetch_all_metrics`.
 - `--limit` now shortens evalchemy's benchmarks (`reasoning`: MATH500, GPQADiamond, AIME24, ...). They ignored it and ran in full; they now get `--debug`, which runs the first 2 questions (10 for LiveCodeBench) whatever the limit, and `schedule` warns about it (#154).
 

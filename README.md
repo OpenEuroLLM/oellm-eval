@@ -368,6 +368,8 @@ This group runs the lm-eval tasks on all their test questions except the ones th
 
 Its scores match `collect --exclude_samples` for 0-shot tasks and for tasks whose few-shot examples are the first documents. Tasks that draw examples at random (GSM8K, BoolQ, MGSM) differ slightly.
 
+Tasks in no other group run with the shots model reports commonly use, unless the examples would come from the test questions. GSM8K-Platinum has only test questions, so it runs as `gsm8k_platinum_cot`, with 8 fixed examples, and MMLU-Redux runs 0-shot.
+
 One flagged question is among the first five few-shot examples of MMMLU's `high_school_mathematics`. This group uses the next question instead ([`mmmlu_decontaminated/`](oellm/resources/custom_lm_eval_tasks/mmmlu_decontaminated)), so the clean score from `collect --exclude_samples` still shows the flagged question as an example, and `collect` logs that.
 
 ## CSV-Based Scheduling
