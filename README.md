@@ -344,6 +344,8 @@ Each affected task gets extra rows with `subset=clean`, recomputed without the b
 
 Some scores can't be recomputed exactly, so `collect` leaves them out with a warning: bootstrapped standard errors, and lighteval's chrF, chrF++ and TER. It stops with an error if a metric can't be recomputed at all (such as SQuAD v2's F1), or if the saved samples don't reproduce the reported score. Runs made with `--limit`, or without saved samples, get no clean rows.
 
+JudgeArena's win-rate tasks (AlpacaEval, arena-hard, m-ArenaHard) need no `--log_samples`: every run saves each battle's question and the judge's preference. `collect` recomputes their win rates without the blocklisted questions, in every language and in both answer orders, and leaves out with a warning AlpacaEval's length-controlled win rate and arena-hard's bootstrapped intervals. The ELO tasks fit ratings over all battles at once, so they get no clean rows.
+
 ### Evaluating without contaminated samples
 
 ```bash
