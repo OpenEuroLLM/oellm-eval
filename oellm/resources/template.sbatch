@@ -231,7 +231,7 @@ do
             else
                 unset OELLM_DECONTAMINATED_SAMPLES SINGULARITYENV_OELLM_DECONTAMINATED_SAMPLES
             fi
-            run_python -m lm_eval --model hf \
+            run_python -m lm_eval --model {lm_eval_backend} \
                 --model_args pretrained="$model_path",trust_remote_code=True \
                 --tasks "$task_path" \
                 --num_fewshot "$n_shot" \

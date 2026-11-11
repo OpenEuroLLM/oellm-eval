@@ -246,6 +246,19 @@ MODEL_ARGS='batch_size=8' oellm-eval schedule \
   --models "model-name" --task_groups "belebele-eu-cf" --venv_path .venv
 ```
 
+## lm-eval-harness Backend (vLLM)
+
+lm-eval-harness tasks run with the transformers backend (`--model hf`) by
+default. For long generative tasks, vLLM is often faster, although it loads the
+model more slowly. Select it with `--lm_eval_backend vllm` (vLLM must be
+installed in the evaluation environment):
+
+```bash
+oellm-eval schedule \
+  --models "model-name" --tasks "gsm8k" --n_shot 0 \
+  --lm_eval_backend vllm --venv_path .venv
+```
+
 ### Long generations (`gpqa-diamond`)
 
 These tasks generate up to 32768 tokens per sample, and `lighteval accelerate`
