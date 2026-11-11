@@ -151,6 +151,17 @@ task_groups:
       - task: xnli_fra_Latn
         subset: fr
 
+  xquad-eu:
+    description: "XQuAD EU extractive question answering (2-shot, f1)"
+    suite: lm-eval-harness
+    metric: f1
+    n_shots: [2]
+    dataset: google/xquad
+    valid_langs: [de, el, en, es, ro, tr]
+    tasks:
+      - task: "xquad_{lang}"
+        subset: "xquad.{lang}"
+
   flores-200-eu-to-eng:
     description: "Flores 200 EU->English translation (4-shot, chrf++)."
     suite: lighteval
