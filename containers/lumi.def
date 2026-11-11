@@ -29,7 +29,11 @@ From: rocm/pytorch:rocm7.2.1_ubuntu24.04_py3.12_pytorch_release_2.9.1
         sentencepiece \
         tiktoken \
         accelerate \
-        nltk
+        nltk \
+        "bert_score==0.3.13" \
+        "errant==3.0.2" \
+        "spacy==3.8.16" \
+        "en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"
 
     # Keep the ROCm/PyTorch base for lm-eval; isolate vLLM in JudgeArena.
     uv venv --python 3.12 /opt/judgearena
