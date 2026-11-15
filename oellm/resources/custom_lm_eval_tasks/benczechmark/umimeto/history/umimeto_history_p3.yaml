@@ -1,0 +1,5 @@
+dataset_name: history
+tag: umimeto_history
+task: umimeto_history_p3
+include: ../../_umimeto.yaml
+description: "Dějepisná Olympiáda.\n\nInstrukce: Vyberte správnou odpověď A-B pro zadanou otázku. Pro každou otázku existuje právě jedna správná odpověď.\nZadání:\n\n"

@@ -1,0 +1,4 @@
+task: cermat_czech_mc_p0
+include: ../_cermat_czech_mc.yaml
+description: "Jsi expert v Češtine. Předložím ti několik otázek a možné odpovědi A-D a tvůj úkol bude vybrat správnou odpověď.\n\n"
+doc_to_text: "{{('Kontext: '+ context+' ') if context else ''}}Dotaz: {{query}}\nMožnosti: {{'\n'.join(choices)}}\nVybírám:"

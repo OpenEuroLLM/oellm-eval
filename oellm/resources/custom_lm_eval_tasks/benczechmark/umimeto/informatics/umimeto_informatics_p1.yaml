@@ -1,0 +1,5 @@
+dataset_name: informatics
+tag: umimeto_informatics
+task: umimeto_informatics_p1
+include: ../../_umimeto.yaml
+description: "Úkol: Vyberte správnou odpověď A-B na následující otázky.\n\n"

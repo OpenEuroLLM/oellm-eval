@@ -1,0 +1,4 @@
+task: cermat_math_mc_p1
+include: ../_cermat_math_mc.yaml
+description: "Úkol: Vyberte správnou odpověď A-E na následující otázky.\n\n"
+doc_to_text: "{{('Text: '+ context+' ') if context else ''}}Otázka: {{query}}\nMožnosti: {{'\n'.join(choices)}}\nOdpověď:"

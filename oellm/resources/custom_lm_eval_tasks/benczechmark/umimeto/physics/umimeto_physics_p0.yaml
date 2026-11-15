@@ -1,0 +1,5 @@
+dataset_name: physics
+tag: umimeto_physics
+task: umimeto_physics_p0
+include: ../../_umimeto.yaml
+description: "Jsi expert ve fyzice. Předložím ti několik otázek a možné odpovědi A-B a tvůj úkol bude vybrat správnou odpověď.\n\n"

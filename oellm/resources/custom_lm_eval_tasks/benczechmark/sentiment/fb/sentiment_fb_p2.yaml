@@ -1,0 +1,6 @@
+task: sentiment_fb_p2
+tag: sentiment_fb
+include: ../../_sentiment.yaml
+dataset_path: CZLC/fb_sentiment_balanced
+description: "Rozhodni jestli je sentiment následujícího textu negativní, neutrální, nebo pozitivní. Odpověz negativní, neutrální, nebo pozitivní.\n"
+doc_to_text: "{{query}} Rozhodnutí je:"

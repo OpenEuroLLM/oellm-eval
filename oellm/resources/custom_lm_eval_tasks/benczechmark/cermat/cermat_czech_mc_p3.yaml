@@ -1,0 +1,4 @@
+task: cermat_czech_mc_p3
+include: ../_cermat_czech_mc.yaml
+description: "Maturitní zkouška.\n\nInstrukce: Vyberte správnou odpověď A-D pro zadanou otázku. Pro každou otázku existuje právě jedna správná odpověď.\nZadání:\n\n"
+doc_to_text: "{{('Příklad: '+ context+' ') if context else ''}}Dotaz: {{query}}\nMožnosti: {{'\n'.join(choices)}}\nVaše odpověď:"

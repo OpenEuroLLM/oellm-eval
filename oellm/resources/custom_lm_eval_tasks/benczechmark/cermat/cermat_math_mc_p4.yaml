@@ -1,0 +1,4 @@
+task: cermat_math_mc_p4
+include: ../_cermat_math_mc.yaml
+description: "Správná řešení úloh z matematiky. Odpovědi jsou vždy v rozsahu A-E.\n\n"
+doc_to_text: "{{('Zadání: '+ context+' ') if context else ''}}Dotaz: {{query}}\nMožnosti: {{'\n'.join(choices)}}\nSprávné řešení:"
