@@ -289,6 +289,9 @@ class TaskSuperGroup:
     name: str
     task_groups: list[TaskGroup]
     description: str
+    # Languages (``lang_Scri``) whose tasks this super group leaves out, so a suite can
+    # drop a language its member groups keep for everyone else.
+    exclude_langs: list[str] = field(default_factory=list)
 
     def __post_init__(self):
         resolved_groups = []
@@ -317,6 +320,7 @@ class TaskSuperGroup:
             name=name,
             task_groups=task_groups,
             description=data["description"],
+            exclude_langs=_normalise_language_codes(data.get("exclude_langs") or []),
         )
 
 
@@ -449,16 +453,19 @@ def _iter_group_tasks(
     """Yield ``(resolved_suite, task)`` for every task in the parsed groups.
 
     Flattens both plain task groups and super groups, resolving each task's
-    suite from its explicit ``suite`` or the owning group's default.
+    suite from its explicit ``suite`` or the owning group's default. A super
+    group's ``exclude_langs`` drops every task that resolves to one of them.
     """
     for group in parsed.values():
         if isinstance(group, TaskGroup):
             for t in group.tasks:
                 yield (t.suite or group.suite), t
         else:
+            excluded = set(group.exclude_langs)
             for g in group.task_groups:
                 for t in g.tasks:
-                    yield (t.suite or g.suite), t
+                    if not excluded & set(t.languages):
+                        yield (t.suite or g.suite), t
 
 
 def _normalise_language_codes(languages: Iterable[str]) -> list[str]:

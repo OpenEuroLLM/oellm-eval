@@ -209,10 +209,10 @@ class TestFlagEvals:
     def test_halves_split_by_backend(self):
         vllm = _expand_task_groups(["flag-evals-vllm"])
         lighteval = _expand_task_groups(["flag-evals-lighteval"])
-        assert (len(vllm), len(lighteval)) == (365, 73)
+        assert (len(vllm), len(lighteval)) == (360, 71)
         assert {r.suite for r in vllm} == {"lm-eval-harness", "evalchemy"}
         assert {r.suite for r in lighteval} == {"lighteval"}
-        assert len(_expand_task_groups(["flag-evals"])) == 438
+        assert len(_expand_task_groups(["flag-evals"])) == 431
 
     def test_sib200_reports_acc(self):
         metrics = primary_metric_map()
@@ -231,9 +231,9 @@ class TestFlagTiers:
                                  ("t3", "vllm lighteval cot"), ("t4", "vllm lighteval")]
             for half in halves.split()
         }
-        assert sizes == {"t1-vllm": 132, "t1-lighteval": 12, "t2-vllm": 266, "t2-lighteval": 73,
-                         "t2-cot": 14, "t3-vllm": 330, "t3-lighteval": 73, "t3-cot": 32,
-                         "t4-vllm": 154, "t4-lighteval": 14}
+        assert sizes == {"t1-vllm": 130, "t1-lighteval": 12, "t2-vllm": 263, "t2-lighteval": 71,
+                         "t2-cot": 14, "t3-vllm": 325, "t3-lighteval": 71, "t3-cot": 32,
+                         "t4-vllm": 152, "t4-lighteval": 14}
 
     def test_each_tier_contains_the_one_below(self):
         for half in ("vllm", "lighteval"):
@@ -248,13 +248,19 @@ class TestFlagTiers:
             "flag-cot-math", "flag-cot-polymath-high", "flag-cot-polymath-top"]))
         decide = set().union(*(_evals(f"flag-t2-{h}") for h in ("vllm", "lighteval", "cot")))
         report = set().union(*(_evals(f"flag-t3-{h}") for h in ("vllm", "lighteval", "cot")))
-        assert held_out <= report
+        assert held_out - _evals("all[kat_Geor]") <= report  # FLAG leaves out Georgian
         assert held_out.isdisjoint(decide)
 
     def test_global_mgsm_only_post_train(self):
         base = set().union(*(_evals(f"flag-t3-{h}") for h in ("vllm", "lighteval", "cot")))
         assert _evals("global-mgsm-eu").isdisjoint(base)
         assert _evals("global-mgsm-eu") <= _evals("flag-t4-vllm")
+
+    def test_no_georgian(self):
+        groups = ["flag-evals"] + [f"flag-{t}-{h}" for t in ("t1", "t2", "t3", "t4")
+                                   for h in ("vllm", "lighteval")]
+        tasks = {task for g in groups for task, _ in _evals(g)}
+        assert not {t for t in tasks if "kat" in t.lower() or "georgian" in t.lower()}
 
     def test_no_livecodebench_in_tiers(self):
         for group in ("flag-t2-cot", "flag-t3-cot"):
@@ -264,6 +270,14 @@ class TestFlagTiers:
         assert _evals("gsm8k-cot") == {("gsm8k_cot", 8)}
         assert {n for _, n in _evals("global-mgsm-eu")} == {0}
 
+
+def test_georgian_only_left_out_by_exclude_langs():
+    # The plain groups keep Georgian; multilingual-oellm-eu (for now) and FLAG drop it.
+    georgian = {"flores200:eng_Latn-kat_Geor", "flores200:kat_Geor-eng_Latn",
+                "global_piqa_completions_kat_geor", "global_piqa_prompted_kat_geor",
+                "include_base_44_georgian", "multiblimp_kat", "sib200_kat_Geor"}
+    assert georgian <= {task for task, _ in _evals("all[kat_Geor]")}
+    assert not georgian & {task for task, _ in _evals("multilingual-oellm-eu")}
 
 def test_judgearena_does_not_register_standalone_ja_variants():
     assert {"alpaca-eval-ja", "arena-hard-v0.1-ja", "arena-hard-v2.0-ja"}.isdisjoint(

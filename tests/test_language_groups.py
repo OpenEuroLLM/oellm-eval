@@ -277,9 +277,11 @@ def test_multilingual_oellm_eu_every_listed_group_contributes():
 
 def test_multilingual_oellm_eu_spans_more_than_the_curated_multilingual_group():
     """It is the whole suite: everything oellm-multilingual reaches, plus the
-    benchmarks that group never covered (SIB-200, PolyMath, global PIQA, ...)."""
+    benchmarks that group never covered (SIB-200, PolyMath, global PIQA, ...).
+    Georgian aside: multilingual-oellm-eu leaves it out (exclude_langs) for now."""
     targets = {j.task for j in _expand_task_groups(["multilingual-oellm-eu"])}
     curated = {j.task for j in _expand_task_groups(["oellm-multilingual"])}
-    assert curated - {"xwinograd", "xcopa", "xstorycloze"} < targets
+    georgian = {j.task for j in _expand_task_groups(["all[kat_Geor]"])}
+    assert curated - {"xwinograd", "xcopa", "xstorycloze"} - georgian < targets
     for extra in ["sib200_deu_Latn", "polymath_de_top", "xcsqa_deu_Latn"]:
         assert extra in targets
