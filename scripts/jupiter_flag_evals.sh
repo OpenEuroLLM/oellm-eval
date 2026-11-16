@@ -14,7 +14,12 @@
 # for the hardlinks), VLLM_SIF, LIGHTEVAL_SIF (built from containers/lighteval-jupiter.def), CONCURRENCY, TIME,
 # HALVES (render / tasks: "vllm", "lighteval", "cot"; default "vllm lighteval"), HUMANEVAL_PATCH,
 # SUITE (the super groups flag-$SUITE-<half>: "evals", the full suite, by default; "t1".."t4" for the
-# FLAG tiers, see task-groups.yaml; t2/t3 have a cot half, t1/t4 none).
+# FLAG tiers, see task-groups.yaml; t2/t3 have a cot half, t1/t4 none),
+# VLLM_TP (GPUs per vLLM replica, default 1: 4 replicas per node; 2 for a 70B, whose bf16 weights do
+# not fit one 96 GB GPU), VLLM_MODEL_ARGS (added to the vLLM model args, e.g. max_model_len=4096 to
+# give a reference model our 32B's context), MAX_ARRAY (array tasks per launcher, default 1000 = one
+# eval each; fewer packs several evals into a task, where adjacent lm-eval rows with the same shots
+# share one lm_eval call and one vLLM start, up to 8 per call).
 # The "cot" half is task group flag-evals-cot (custom_lm_eval_tasks/flag_cot: forced-reasoning _cot
 # and continuation _cont variants of the reasoning and code evals), on the vLLM image like "vllm".
 # Views: identity chat template for vLLM (Evalchemy applies it, lm-eval does not); none for lighteval,
@@ -110,17 +115,19 @@ render_half() {  # <half> <model dir> <output dir>: renders one launcher, prints
     local half=$1 model=$2 out=$3 sif extra="" opts=()
     if [ "$half" = vllm ] || [ "$half" = cot ]; then
         sif=$VLLM_SIF; extra="$VLLM_EXTRA"
-        opts=(--model_backend vllm --data_parallel_size 4 --data_parallel_backend mp
-              --model_args dtype=bfloat16,gpu_memory_utilization=0.9,max_num_seqs=32)
+        local tp=${VLLM_TP:-1}
+        opts=(--model_backend vllm --data_parallel_size $((4 / tp)) --tensor_parallel_size "$tp"
+              --data_parallel_backend mp
+              --model_args "dtype=bfloat16,gpu_memory_utilization=0.9,max_num_seqs=32${VLLM_MODEL_ARGS:+,$VLLM_MODEL_ARGS}")
     else
         sif=$LIGHTEVAL_SIF
     fi
-    # One eval per array task (array size = min(max_array_len, evals)).
+    # One eval per array task unless MAX_ARRAY is set (array size = min(max_array_len, evals)).
     # GPUS_PER_NODE=4: vLLM overrides it with DP x TP; lighteval splits the model over all four.
     EVAL_BASE_DIR="$FLAG_WORK/runs" EVAL_OUTPUT_DIR="$out" QUEUE_LIMIT=1000 GPUS_PER_NODE=4 \
     EVAL_CONTAINER_IMAGE="$sif" SINGULARITY_ARGS="$(echo $ARGS $extra)" \
         oellm_eval schedule --models "$model" --task_groups "flag-$SUITE-$half" "${opts[@]}" \
-            --log_samples true --confirm_run_unsafe_code true --max_array_len 1000 \
+            --log_samples true --confirm_run_unsafe_code true --max_array_len "${MAX_ARRAY:-1000}" \
             --slurm_template_var "$SLURM" --skip_checks true --dry_run true > /dev/null
     ls -t "$out"/*/submit_evals.sbatch | head -1
 }
