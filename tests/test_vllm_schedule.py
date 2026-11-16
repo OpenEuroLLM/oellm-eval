@@ -195,11 +195,12 @@ def test_unknown_ifeval_policy_is_rejected(tmp_path,monkeypatch):
 
 
 @pytest.mark.parametrize('confirmed', [False, True])
-def test_code_execution_acknowledgement_is_explicit(tmp_path, monkeypatch, confirmed):
+def test_code_execution_is_always_acknowledged(tmp_path, monkeypatch, confirmed):
+    # lm-eval always gets the flag; the option stays for older command lines.
     script=render(tmp_path,monkeypatch,model_backend='vllm',confirm_run_unsafe_code=confirmed)
     subprocess.run(['bash', str(script)],check=True,capture_output=True)
     argv=(tmp_path/'argv').read_text().splitlines()
-    assert ('--confirm_run_unsafe_code' in argv) == confirmed
+    assert '--confirm_run_unsafe_code' in argv
 
 
 def test_hf_evalchemy_is_available_in_complete_container(tmp_path,monkeypatch):

@@ -14,8 +14,8 @@ from string import Template
 import pandas as pd
 from jsonargparse import auto_cli
 
+from oellm import decontaminated, sample_exclusion
 from oellm.eval_protocol import VERSIONS, freeze, resolve_job, result_identity
-
 from oellm.task_groups import (
     _build_task_suite_map,
     _collect_dataset_specs,
@@ -34,6 +34,7 @@ from oellm.utils import (
     _process_model_paths,
     _setup_logging,
     capture_third_party_output_from_kwarg,
+    version_info,
 )
 
 
@@ -146,6 +147,27 @@ class EvaluationJob:
     task_path: str
     n_shot: int
     eval_suite: str
+    # The list of marked documents left out of the run (oellm/decontaminated.py).
+    decontaminated: str = ""
+
+
+def _holds_decontaminated_tasks(include_path: Path) -> bool:
+    """Whether *include_path* holds oellm's MMMLU tasks
+    (custom_lm_eval_tasks/mmmlu_decontaminated), whose few-shot examples skip
+    the documents a decontaminated run leaves out; lm-eval's own do not."""
+    bundled = Path(
+        str(files("oellm.resources") / "custom_lm_eval_tasks" / "mmmlu_decontaminated")
+    )
+    expected = {p.name: p.read_bytes() for p in bundled.iterdir() if p.is_file()}
+    marker = min(name for name in expected if name.endswith(".yaml"))
+    return any(
+        all(
+            (found.parent / name).is_file()
+            and (found.parent / name).read_bytes() == content
+            for name, content in expected.items()
+        )
+        for found in include_path.rglob(marker)
+    )
 
 
 @capture_third_party_output_from_kwarg("verbose")
@@ -160,6 +182,7 @@ def schedule_evals(
     max_array_len: int = 128,
     tasks_per_job: int = 8,
     limit: int | None = None,
+    log_samples: bool = False,
     verbose: bool = False,
     download_only: bool = False,
     dry_run: bool = False,
@@ -180,7 +203,6 @@ def schedule_evals(
     data_parallel_size: int = 1,
     data_parallel_backend: str = "mp",
     tensor_parallel_size: int = 1,
-    log_samples: bool = False,
 ) -> None:
     """
     Schedule evaluation jobs for a given set of models, tasks, and number of shots.
@@ -220,7 +242,15 @@ def schedule_evals(
             a single failure takes down; 1 restores one invocation per task.
         limit: If set, limit the number of samples per task (useful for quick testing).
             Passes --limit to lm_eval, --max_samples to lighteval, and
-            --generation.n_instructions to JudgeArena.
+            --generation.n_instructions to JudgeArena. evalchemy's own benchmarks
+            ignore the value: they get --debug, which runs a fixed subset (the first
+            2 questions, 10 for LiveCodeBench).
+        log_samples: If True, save every sample (prompt, model output, and
+            per-sample metrics) instead of only the aggregated scores. Passes
+            --log_samples to lm-eval-harness and --save-details to lighteval,
+            but nothing to evalchemy, whose benchmarks crash on it. Off by
+            default. lm-eval-harness always gets --write_out, which logs each
+            task's first sample either way.
         download_only: If True, only download the datasets and models and exit.
         dry_run: If True, generate the SLURM script but don't submit it to the scheduler.
         skip_checks: If True, skip container image, model validation, and dataset pre-download checks for faster execution.
@@ -243,7 +273,8 @@ def schedule_evals(
         nodelist: Optional SLURM nodelist to constrain the job to specific node(s),
             e.g. "tdll-3gpu4". Passed through as #SBATCH --nodelist. If unset, no
             node constraint is added.
-        confirm_run_unsafe_code: Explicitly enable harness code-execution benchmarks such as MBPP.
+        confirm_run_unsafe_code: Kept for older command lines; lm-eval always gets
+            --confirm_run_unsafe_code, so code benchmarks such as MBPP run either way.
         ifeval_stopping_policy: IFEval only: eos (ordinary stopping) or continue (greedy full 1280-token response; requires complete image).
         eval_version: v0.01 preserves historical procedures; v0.02 selects calibrated tasks in frozen per-submission snapshots.
         calibrated_output_tokens: Explicit common HumanEval/MATH500 output override; recorded as a protocol variant.
@@ -254,7 +285,6 @@ def schedule_evals(
         data_parallel_size: Number of vLLM model replicas on one node. Requires model_backend=vllm.
         data_parallel_backend: vLLM DP launcher: mp (default, no Ray runtime) or ray.
         tensor_parallel_size: GPUs per vLLM replica. Requires model_backend=vllm.
-        log_samples: Save per-example lm-eval results. Evalchemy chat results already include examples.
     """
     _setup_logging(verbose)
 
@@ -351,6 +381,9 @@ def schedule_evals(
             df["eval_suite"] = "lm_eval"
         else:
             df["eval_suite"] = df["eval_suite"].fillna("lm_eval")
+        if "decontaminated" not in df.columns:
+            df["decontaminated"] = ""
+        df["decontaminated"] = df["decontaminated"].fillna("")
 
         # Always expand local model paths, even with skip_checks
         df["model_path"].unique()
@@ -361,6 +394,7 @@ def schedule_evals(
                     task_path=row["task_path"],
                     n_shot=row["n_shot"],
                     eval_suite=row["eval_suite"],
+                    decontaminated=row["decontaminated"],
                 )
                 for _, row in df.iterrows()
             ]
@@ -392,6 +426,7 @@ def schedule_evals(
                         task_path=result.task,
                         n_shot=result.n_shot,
                         eval_suite=result.suite,
+                        decontaminated=result.decontaminated or "",
                     )
                     for model in models
                     for result in expanded
@@ -411,6 +446,7 @@ def schedule_evals(
                         task_path=job.task_path,
                         n_shot=job.n_shot,
                         eval_suite=job.eval_suite,
+                        decontaminated=job.decontaminated,
                     )
                 )
 
@@ -436,7 +472,54 @@ def schedule_evals(
     original_jobs = df.to_dict("records")
     df = pd.DataFrame([resolve_job(job, eval_version) for job in original_jobs])
     df["eval_suite"] = df["eval_suite"].str.lower()
+    if limit and df["eval_suite"].eq("evalchemy").any():
+        logging.warning(
+            "evalchemy benchmarks ignore --limit %s and run their debug subset instead "
+            "(the first 2 questions, 10 for LiveCodeBench).",
+            limit,
+        )
     judgearena_rows = df["eval_suite"].eq("judgearena")
+    decontaminated_rows = df["decontaminated"].ne("")
+    if decontaminated_rows.any():
+        if limit:
+            raise ValueError(
+                "Decontaminated task groups run lm-eval with --samples, which "
+                "cannot be combined with --limit."
+            )
+        if not log_samples:
+            logging.info(
+                "Saving samples (--log_samples): collect checks that a decontaminated "
+                "run's samples are the documents its list keeps."
+            )
+            log_samples = True
+        not_lm_eval = df.loc[
+            decontaminated_rows
+            & ~df["eval_suite"].isin(["lm_eval", "lm-eval", "lm-eval-harness"]),
+            "task_path",
+        ]
+        if not not_lm_eval.empty:
+            raise ValueError(
+                "Only lm-eval tasks can run decontaminated: "
+                + ", ".join(sorted(set(not_lm_eval)))
+            )
+        for name in df.loc[decontaminated_rows, "decontaminated"].unique():
+            decontaminated.load(name)  # an unknown list fails here
+        include_path = Path(
+            lm_eval_include_path
+            or os.environ.get("LM_EVAL_INCLUDE_PATH")
+            or str(files("oellm.resources") / "custom_lm_eval_tasks")
+        )
+        if not _holds_decontaminated_tasks(include_path):
+            raise ValueError(
+                f"The lm-eval include path {include_path} lacks oellm's MMMLU tasks "
+                "for decontaminated runs (oellm/resources/custom_lm_eval_tasks/"
+                "mmmlu_decontaminated); copy them into it, or schedule "
+                "decontaminated task groups with oellm's own (neither "
+                "--lm_eval_include_path nor LM_EVAL_INCLUDE_PATH)."
+            )
+    else:
+        # jobs.csv keeps its columns when no task runs decontaminated.
+        df = df.drop(columns="decontaminated")
     df.loc[judgearena_rows, "n_shot"] = 0
 
     judgearena_values = judgearena_kwargs or {}
@@ -537,6 +620,9 @@ def schedule_evals(
     # of adjacent rows into a single lm_eval invocation, so keeping them
     # adjacent is what lets the model be loaded once instead of once per task.
     batch_key = ["model_path", "n_shot", "eval_suite"]
+    if "decontaminated" in df.columns:
+        # A decontaminated run gets its own lm-eval call, with --samples.
+        batch_key.append("decontaminated")
     group_order = (
         df[batch_key]
         .drop_duplicates()
@@ -556,6 +642,12 @@ def schedule_evals(
     )
 
     df.to_csv(csv_path, index=False)
+    if "decontaminated" in df.columns:
+        for name in df["decontaminated"].unique():
+            if name:
+                (evals_dir / f"samples-{name}.json").write_text(
+                    json.dumps(decontaminated.samples(name))
+                )
 
     sbatch_template = (files("oellm.resources") / "template.sbatch").read_text()
 
@@ -667,6 +759,8 @@ def schedule_evals(
         time_limit=time_limit,  # Dynamic time limit
         slurm_mem=slurm_mem,
         limit=limit if limit else "",  # Sample limit for quick testing
+        samples_dir=str(evals_dir),
+        log_samples="true" if log_samples else "",
         venv_path=venv_path or "",
         lm_eval_include_path=str(
             Path(
@@ -695,9 +789,7 @@ def schedule_evals(
         protocol_root=shlex.quote(str(protocol_root.resolve())),
         calibrated_output_tokens=calibrated_output_tokens or "",
         ifeval_stopping_policy=ifeval_stopping_policy,
-        confirm_run_unsafe_code="--confirm_run_unsafe_code" if confirm_run_unsafe_code else "",
         backend_model_args=shlex.quote(backend_args),
-        log_samples="--log_samples" if log_samples else "",
         judgearena_args=judgearena_args,
         judgearena_data=judgearena_data,
     )
@@ -787,12 +879,62 @@ def schedule_evals(
         raise SystemExit(1) from e
 
 
+def _pair_clean_with_full(df: pd.DataFrame, key_columns: list[str]) -> pd.DataFrame:
+    """Deduplicate the rows of ``collect --exclude_samples``.
+
+    The last full score is kept, as without the flag, and a clean score only if
+    it comes from the same run.
+    """
+    df = df.copy()
+    for column, default in (("subset", "full"), ("n_excluded", 0), ("_source", "")):
+        df[column] = df[column].fillna(default) if column in df else default
+    df["n_excluded"] = df["n_excluded"].astype(int)
+
+    full = df[df["subset"] == "full"].drop_duplicates(subset=key_columns, keep="last")
+    run_of = {
+        tuple(key): source
+        for *key, source in full[[*key_columns, "_source"]].itertuples(index=False)
+    }
+    clean = df[df["subset"] == "clean"]
+    same_run = pd.Series(
+        [
+            run_of.get(tuple(key)) == source
+            for *key, source in clean[[*key_columns, "_source"]].itertuples(index=False)
+        ],
+        index=clean.index,
+        dtype=bool,
+    )
+    dropped = clean[~same_run]
+    clean = clean[same_run].drop_duplicates(subset=key_columns, keep="last")
+    kept = set(clean[key_columns].itertuples(index=False, name=None))
+    missing = sorted(
+        {
+            f"{r.model_name} | {r.task} | n_shot={r.n_shot}"
+            for r in dropped.itertuples()
+            if tuple(getattr(r, c) for c in key_columns) not in kept
+        }
+    )
+    if missing:
+        logging.warning(
+            "No scores without blocklisted samples for "
+            + ", ".join(missing)
+            + ": the full score kept comes from another run of the same task, "
+            "which cannot be filtered."
+        )
+    # Runs that left out decontaminated samples, one score per list.
+    others = df[~df["subset"].isin(["full", "clean"])].drop_duplicates(
+        subset=[*key_columns, "subset"], keep="last"
+    )
+    return pd.concat([full, clean, others]).sort_index().drop(columns="_source")
+
+
 def collect_results(
     results_dir: str,
     output_csv: str = "eval_results.csv",
     *,
     check: bool = False,
     fetch_all_metrics: bool = False,
+    exclude_samples: str | None = None,
     verbose: bool = False,
 ) -> None:
     """
@@ -817,11 +959,31 @@ def collect_results(
             by the ``metric:`` key on its task group in ``task-groups.yaml`` (or
             on the individual task entry, which overrides the group). Tasks that
             declare no primary metric keep all of theirs.
+        exclude_samples: Directory of blocklisted dataset rows, one
+            ``<benchmark>.jsonl`` per benchmark (e.g. contaminated test rows).
+            Tasks holding such rows are also reported without them, recomputed
+            from the samples saved with ``--log_samples``, in rows with
+            ``subset`` ``clean`` and ``n_excluded`` set. See the README.
         verbose: Enable verbose logging
     """
     import json
 
     _setup_logging(verbose)
+
+    if exclude_samples:
+        match_fields = sample_exclusion.load_match_fields()
+        blocklist = sample_exclusion.load_blocklist(exclude_samples, match_fields)
+        exclusion_task_map = sample_exclusion.load_task_map()
+        exclusion_alignments = sample_exclusion.load_alignments()
+        exclusion_normalized = sample_exclusion.load_normalized()
+        exclusion_match_on = set(match_fields)
+        exclusion_targets = {t for tasks in exclusion_task_map.values() for t in tasks}
+        unmapped = sorted(b for b in blocklist if b not in exclusion_task_map)
+        if unmapped:
+            logging.info(
+                "Blocklisted benchmarks with no oellm-eval task, ignored: "
+                + ", ".join(unmapped)
+            )
 
     # ------------------------------------------------------------------
     # Primary metric per task, taken from the task definitions themselves
@@ -870,7 +1032,8 @@ def collect_results(
         seen: set[str] = set()
         metrics: list[tuple[str, float]] = []
         for raw_key, value in result_dict.items():
-            if not isinstance(value, (int, float)):
+            # sample_len is lm-eval's document count, not a metric.
+            if not isinstance(value, (int, float)) or raw_key == "sample_len":
                 continue
             # Strip lm-eval harness ",{filter}" suffix
             metric_name = raw_key.split(",")[0] if "," in raw_key else raw_key
@@ -878,22 +1041,6 @@ def collect_results(
                 continue
             seen.add(metric_name)
             metrics.append((metric_name, float(value)))
-        return metrics
-
-    def _flatten_numeric_metrics(
-        value: object, prefix: str = ""
-    ) -> list[tuple[str, float]]:
-        """Flatten numeric dictionary leaves while leaving large arrays untouched."""
-        if isinstance(value, bool):
-            return []
-        if isinstance(value, (int, float)):
-            return [(prefix, float(value))] if prefix else []
-        if not isinstance(value, dict):
-            return []
-        metrics: list[tuple[str, float]] = []
-        for key, child in value.items():
-            name = f"{prefix}.{key}" if prefix else str(key)
-            metrics.extend(_flatten_numeric_metrics(child, name))
         return metrics
 
     def _split_task_and_nshot(name: str) -> tuple[str, int | None]:
@@ -925,10 +1072,22 @@ def collect_results(
             frame = pd.read_csv(p)
             frame["eval_version"], frame["protocol_variant"] = result_identity(p)
             jobs_frames.append(frame)
-        # Concatenate and let later entries win for duplicate (model_path, task_path, n_shot).
+        # Concatenate and let later entries win for duplicate (model_path, task_path,
+        # n_shot, decontaminated, eval_version, protocol_variant).
         jobs_df = pd.concat(jobs_frames, ignore_index=True)
+        if "decontaminated" in jobs_df.columns:
+            jobs_df["decontaminated"] = jobs_df["decontaminated"].fillna("")
         dup_cols = [
-            c for c in ("model_path", "task_path", "n_shot", "eval_version", "protocol_variant") if c in jobs_df.columns
+            c
+            for c in (
+                "model_path",
+                "task_path",
+                "n_shot",
+                "decontaminated",
+                "eval_version",
+                "protocol_variant",
+            )
+            if c in jobs_df.columns
         ]
         if dup_cols:
             jobs_df = jobs_df.drop_duplicates(subset=dup_cols, keep="last")
@@ -955,7 +1114,10 @@ def collect_results(
 
     # Collect results
     rows = []
-    completed_jobs = set()  # Track (model, task, n_shot) tuples
+    # (model, task, n_shot, decontaminated list or "") of each result
+    completed_jobs = set()
+    # JudgeArena ELO tasks, which get no clean scores.
+    elo_tasks: set[str] = set()
 
     for json_file in json_files:
         if "protocol" in json_file.relative_to(results_path).parts or json_file.name.endswith(".protocol.json"):
@@ -964,28 +1126,77 @@ def collect_results(
         with open(json_file) as f:
             data = json.load(f)
 
-        if data.get("schema_version") == "judgearena-run-metadata/v1":
+        if data.get("schema_version") == sample_exclusion.JUDGEARENA_SCHEMA:
             run_config = data["run"]
             report = data["results"]
             task_name = run_config["task"]
             model_name = run_config["model"]["name"].removeprefix("VLLM/")
 
-            metric_pairs = _flatten_numeric_metrics(report.get("metrics", {}))
-            if metric_pairs:
-                if check:
-                    completed_jobs.add((model_name, task_name, 0, eval_version, protocol_variant))
-                rows.extend(
-                    {
-                        "model_name": model_name,
-                        "task": task_name,
-                        "n_shot": 0,
-                        "metric_name": metric_name,
-                        "performance": performance,
-                        "eval_version": eval_version,
-                        "protocol_variant": protocol_variant,
-                    }
-                    for metric_name, performance in metric_pairs
+            metric_pairs = sample_exclusion.flatten_metrics(report.get("metrics", {}))
+            if metric_pairs and check:
+                completed_jobs.add(
+                    (model_name, task_name, 0, "", eval_version, protocol_variant)
                 )
+            file_rows = [
+                {
+                    "model_name": model_name,
+                    "task": task_name,
+                    "n_shot": 0,
+                    "metric_name": metric_name,
+                    "performance": float(performance),
+                    "eval_version": eval_version,
+                    "protocol_variant": protocol_variant,
+                    # Pairs each clean score with its run's full score.
+                    **({"_source": str(json_file)} if exclude_samples else {}),
+                }
+                for metric_name, performance in metric_pairs
+            ]
+            rows.extend(file_rows)
+            if exclude_samples and file_rows:
+                if sample_exclusion.is_judgearena_elo(data):
+                    elo_tasks.add(task_name)
+                try:
+                    clean = sample_exclusion.clean_judgearena_results(
+                        json_file,
+                        data,
+                        blocklist,
+                        exclusion_task_map,
+                        exclusion_match_on,
+                    )
+                except sample_exclusion.RunNotFilterable as e:
+                    logging.warning(f"No scores without blocklisted samples: {e}")
+                    clean = None
+                if clean:
+                    scores, n_excluded = clean
+                    left_out = sorted(m for m, v in scores.items() if v is None)
+                    if left_out:
+                        logging.warning(
+                            f"{model_name} | {task_name}: no score without "
+                            f"blocklisted samples for {', '.join(left_out)}, which "
+                            "JudgeArena fits or bootstraps over all battles"
+                        )
+                    logging.info(
+                        f"{model_name} | {task_name}: {n_excluded} blocklisted "
+                        "questions excluded"
+                    )
+                    rows.extend(
+                        {
+                            **r,
+                            "performance": float(scores[r["metric_name"]]),
+                            "subset": "clean",
+                            "n_excluded": n_excluded,
+                        }
+                        for r in file_rows
+                        if scores.get(r["metric_name"]) is not None
+                    )
+            continue
+
+        file_rows_start = len(rows)
+        try:
+            # The list of marked documents the run left out, if any.
+            decontaminated_by = decontaminated.run_of(json_file, data)
+        except ValueError as e:
+            logging.warning(f"Skipped {json_file}, a decontaminated run: {e}")
             continue
 
         # Extract model name/path from a few common locations used in different
@@ -1054,7 +1265,9 @@ def collect_results(
                 task_metric_pairs = _resolve_primary_metric(group_name, task_metric_pairs)
             if task_metric_pairs:
                 if check:
-                    completed_jobs.add((model_name, group_name, n_shot, eval_version, protocol_variant))
+                    completed_jobs.add(
+                        (model_name, group_name, n_shot, decontaminated_by or "", eval_version, protocol_variant)
+                    )
                 for metric_name, performance in task_metric_pairs:
                     rows.append(
                         {
@@ -1143,7 +1356,9 @@ def collect_results(
             if task_metric_pairs:
                 # Track completed job for check mode (once per task, not per metric)
                 if check:
-                    completed_jobs.add((model_name, task_name_clean, n_shot, eval_version, protocol_variant))
+                    completed_jobs.add(
+                        (model_name, task_name_clean, n_shot, decontaminated_by or "", eval_version, protocol_variant)
+                    )
 
                 for metric_name, performance in task_metric_pairs:
                     rows.append(
@@ -1164,6 +1379,108 @@ def collect_results(
                         f"No performance metric found for {model_name} | {task_name} | n_shot={n_shot} in {json_file.name}"
                     )
 
+        if decontaminated_by:
+            excluded_by_task = decontaminated.load(decontaminated_by)["tasks"]
+            for r in rows[file_rows_start:]:
+                r["subset"] = f"decontaminated:{decontaminated_by}"
+                r["n_excluded"] = sum(
+                    len(excluded_by_task[leaf]["excluded"])
+                    for leaf in sample_exclusion._leaves(r["task"], group_subtasks_map)
+                    if leaf in excluded_by_task
+                )
+
+        if exclude_samples and not decontaminated_by:
+            # Report each task that loses blocklisted samples again, without them.
+            file_rows = rows[file_rows_start:]
+            for r in file_rows:
+                # Pairs each clean score with its run's full score.
+                r["_source"] = str(json_file)
+            try:
+                clean = sample_exclusion.clean_results(
+                    json_file,
+                    data,
+                    blocklist,
+                    exclusion_task_map,
+                    exclusion_alignments,
+                    exclusion_normalized,
+                    exclusion_match_on,
+                )
+            except sample_exclusion.RunNotFilterable as e:
+                # E.g. an older run without --log_samples: no clean rows.
+                logging.warning(f"No scores without blocklisted samples: {e}")
+                clean = {}
+            for name, (clean_result, n_excluded) in clean.items():
+                full_rows = [r for r in file_rows if r["task"] == name]
+                if not full_rows:
+                    # MMLU subjects are reported through their group; only a
+                    # mapped task without a row is logged.
+                    if name in exclusion_targets:
+                        logging.info(
+                            f"{model_name} | {name}: {n_excluded} blocklisted "
+                            "documents, but the task is only reported as part of "
+                            "a larger group, so it gets no score without them"
+                        )
+                    continue
+                wanted = {r["metric_name"] for r in full_rows}
+                clean_metrics = {
+                    m: v for m, v in _extract_all_metrics(clean_result) if m in wanted
+                }
+                missing = wanted - clean_metrics.keys()
+                # Bootstrapped stderrs (perplexity, corpus BLEU) are left out.
+                bootstrapped = {
+                    m
+                    for m in missing
+                    if m.endswith("_stderr")
+                    and m.removesuffix("_stderr") in clean_metrics
+                }
+                # lighteval's chrF(++) and TER score the first sample alone (None).
+                first_sample_only = {
+                    m
+                    for m in missing
+                    if m.removesuffix("_stderr") in clean_result
+                    and clean_result[m.removesuffix("_stderr")] is None
+                }
+                unrecomputable = missing - bootstrapped - first_sample_only
+                if unrecomputable:
+                    raise sample_exclusion.SampleExclusionError(
+                        f"{name}: {sorted(unrecomputable)} cannot be "
+                        "recomputed without the blocklisted samples; only metrics "
+                        "aggregated from a number saved for every sample (a mean, "
+                        "perplexity, ifeval's instruction-level accuracy) can."
+                    )
+                if bootstrapped:
+                    logging.warning(
+                        f"{model_name} | {name}: no score without blocklisted samples "
+                        f"for {', '.join(sorted(bootstrapped))}, which the harness "
+                        "estimates by bootstrapping"
+                    )
+                if first_sample_only:
+                    logging.warning(
+                        f"{model_name} | {name}: no score without blocklisted samples "
+                        f"for {', '.join(sorted(first_sample_only))}, which lighteval "
+                        "computes from its first sample alone"
+                    )
+                logging.info(
+                    f"{model_name} | {name}: {n_excluded} blocklisted documents excluded"
+                )
+                rows.extend(
+                    {
+                        **r,
+                        "performance": clean_metrics[r["metric_name"]],
+                        "subset": "clean",
+                        "n_excluded": n_excluded,
+                    }
+                    for r in full_rows
+                    if r["metric_name"] in clean_metrics
+                )
+
+    if elo_tasks:
+        logging.info(
+            "No scores without blocklisted samples for JudgeArena's ELO tasks, "
+            "whose ratings are fitted over all battles at once: "
+            + ", ".join(sorted(elo_tasks))
+        )
+
     if not rows and not check:
         logging.warning("No results extracted from JSON files")
         return
@@ -1171,9 +1488,19 @@ def collect_results(
     # Create DataFrame and save to CSV (if we have results)
     if rows:
         df = pd.DataFrame(rows)
-        df = df.drop_duplicates(
-            subset=["model_name", "task", "n_shot", "metric_name", "eval_version", "protocol_variant"], keep="last"
-        )
+        # Results of other eval versions or protocol variants are separate scores.
+        key_columns = ["model_name", "task", "n_shot", "metric_name"] + [
+            c for c in ("eval_version", "protocol_variant") if c in df.columns
+        ]
+        if exclude_samples:
+            df = _pair_clean_with_full(df, key_columns)
+        elif "subset" in df:
+            # Decontaminated runs: one score per subset.
+            df["subset"] = df["subset"].fillna("full")
+            df["n_excluded"] = df["n_excluded"].fillna(0).astype(int)
+            df = df.drop_duplicates(subset=[*key_columns, "subset"], keep="last")
+        else:
+            df = df.drop_duplicates(subset=key_columns, keep="last")
         df.to_csv(output_csv, index=False)
         logging.info(f"Results saved to {output_csv}")
         logging.info(f"Extracted {len(df)} evaluation results")
@@ -1195,7 +1522,17 @@ def collect_results(
         missing_jobs = []
 
         for _, job in jobs_df.iterrows():
-            job_tuple = (job["model_path"], job["task_path"], job["n_shot"], job["eval_version"], job["protocol_variant"])
+            decontaminated_job = job.get("decontaminated")
+            if not isinstance(decontaminated_job, str):  # absent, or NaN
+                decontaminated_job = ""
+            job_tuple = (
+                job["model_path"],
+                job["task_path"],
+                job["n_shot"],
+                decontaminated_job,
+                job["eval_version"],
+                job["protocol_variant"],
+            )
 
             # Check if this job corresponds to one of our completed results
             is_completed = False
@@ -1206,13 +1543,24 @@ def collect_results(
             else:
                 # Try fuzzy matching for model names
                 for completed_job in completed_jobs:
-                    completed_model, completed_task, completed_n_shot, completed_version, completed_variant = completed_job
-                    if (completed_version, completed_variant) != (job["eval_version"], job["protocol_variant"]):
+                    (
+                        completed_model,
+                        completed_task,
+                        completed_n_shot,
+                        completed_decontaminated,
+                        completed_version,
+                        completed_variant,
+                    ) = completed_job
+                    if (completed_version, completed_variant) != (
+                        job["eval_version"],
+                        job["protocol_variant"],
+                    ):
                         continue
 
                     if (
                         job["n_shot"] == completed_n_shot
                         and job["task_path"] == completed_task
+                        and decontaminated_job == completed_decontaminated
                         and (
                             str(job["model_path"]).endswith(completed_model)
                             or completed_model in str(job["model_path"])
@@ -1259,4 +1607,5 @@ def main():
         },
         as_positional=False,
         description="OELLM: Multi-cluster evaluation tool for language models",
+        version=version_info(),
     )

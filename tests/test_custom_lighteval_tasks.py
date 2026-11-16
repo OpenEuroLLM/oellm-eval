@@ -19,14 +19,19 @@ CUSTOM_GROUPS = ["gpqa-diamond"]
 
 
 @pytest.fixture(scope="module")
-def custom_tasks() -> dict:
+def reasoning():
     path = (
         files("oellm.resources") / "custom_lighteval_tasks" / "reasoning" / "reasoning.py"
     )
     spec = importlib.util.spec_from_file_location("reasoning", str(path))
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return {task.name: task for task in module.TASKS_TABLE}
+    return module
+
+
+@pytest.fixture(scope="module")
+def custom_tasks(reasoning) -> dict:
+    return {task.name: task for task in reasoning.TASKS_TABLE}
 
 
 @pytest.mark.parametrize("group", CUSTOM_GROUPS)
@@ -158,3 +163,47 @@ def test_metric_reads_the_answer_line(custom_tasks, name, response, correct):
     scores = metric.compute_sample(doc=doc, model_response=ModelResponse(text=[text]))
 
     assert scores == {"gpqa_pass@k:k=1": 1.0 if correct else 0.0}
+
+
+# --- corpus chrF, chrF++ and TER ---------------------------------------------
+
+# The first sentence is translated perfectly, the second not at all.
+TRANSLATIONS = [
+    ("The cat sat on the mat.", "The cat sat on the mat."),
+    ("A dog ran through the park.", "It rained all day long."),
+]
+
+
+@pytest.mark.parametrize("metric_type", ["chrf", "chrf++", "ter", "bleu"])
+def test_corpus_translation_metrics_score_every_translation(reasoning, metric_type):
+    """Unpatched, chrF and chrF++ give 100 here and TER 0: the first sentence alone."""
+    from lighteval.metrics.metrics_corpus import CorpusLevelTranslationMetric
+    from lighteval.metrics.sample_preparator import GenerativeCorpusMetricInput
+
+    metric = CorpusLevelTranslationMetric(metric_type)
+    items = [
+        GenerativeCorpusMetricInput(golds=[gold], preds=[pred])
+        for gold, pred in TRANSLATIONS
+    ]
+    corpus = metric.get_metric().corpus_score(
+        hypotheses=[pred for _, pred in TRANSLATIONS],
+        references=[[gold for gold, _ in TRANSLATIONS]],
+    )
+
+    assert metric.compute_corpus(items) == pytest.approx(corpus.score)
+
+
+def test_corpus_translation_fix_does_nothing_once_lighteval_is_fixed(
+    reasoning, monkeypatch
+):
+    from lighteval.metrics.metrics_corpus import CorpusLevelTranslationMetric
+
+    def upstream_fix(self, items):
+        golds = [[item.golds[0] for item in items]]
+        preds = [item.preds[0] for item in items]
+        return self.get_metric().corpus_score(hypotheses=preds, references=golds).score
+
+    monkeypatch.setattr(CorpusLevelTranslationMetric, "compute_corpus", upstream_fix)
+    reasoning._fix_corpus_translation_metrics()
+
+    assert CorpusLevelTranslationMetric.compute_corpus is upstream_fix

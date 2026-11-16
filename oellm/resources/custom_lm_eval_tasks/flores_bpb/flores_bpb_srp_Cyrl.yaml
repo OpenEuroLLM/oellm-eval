@@ -1,0 +1,3 @@
+dataset_name: srp_Cyrl
+include: _default_template_yaml
+task: flores_bpb_srp_Cyrl
