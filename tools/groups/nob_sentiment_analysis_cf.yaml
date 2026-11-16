@@ -1,0 +1,7 @@
+group: nob_sentiment_analysis_cf
+task:
+  - norec_sentence_nob_cf
+  - norec_document_nob_cf
+aggregate_metric_list:
+  - metric: f1
+    weight_by_size: True

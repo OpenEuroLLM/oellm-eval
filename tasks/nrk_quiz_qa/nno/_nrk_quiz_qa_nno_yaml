@@ -1,0 +1,9 @@
+include: ../_nrk_quiz_qa_yaml
+dataset_name: nn
+process_results: !function utils.process_results
+metadata:
+  version: 1.2
+  primary_metric: acc
+  random_baseline: 0.27884711779448623
+  category: world_knowledge_and_reasoning
+  language: nno

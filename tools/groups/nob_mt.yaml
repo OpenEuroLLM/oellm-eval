@@ -1,0 +1,7 @@
+group: nob_mt
+task:
+  - translation_eng_nob
+  - translation_nob_eng
+aggregate_metric_list:
+  - metric: bleu
+    weight_by_size: True
