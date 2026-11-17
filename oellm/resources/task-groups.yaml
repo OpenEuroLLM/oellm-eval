@@ -1344,11 +1344,12 @@ super_groups:
 
   # FLAG tiers. Each tier contains the one below it; split per launcher half like flag-evals
   # (super groups cannot nest, and the vLLM backend refuses lighteval tasks), so groups are flat.
-  #   t1 monitor  every checkpoint: cheap log-likelihood evals and a six-language FLORES subset
+  #   t1 monitor  every checkpoint: cheap log-likelihood evals, ARC-MT, a six-language FLORES subset
+  #               and HumanEval/MBPP as continuation (its cot half: the only code signal per checkpoint)
   #   t2 decide   anneal mixes, merges, continuation candidates
   #   t3 report   release; adds the held-out groups (include, gsm8k-cot, mmlu-prox-eu,
   #               global-piqa-eu-prompted, competition math), which never feed a t1/t2 decision
-  #   t4 post-train  SFT/DPO checkpoints: t1 as the short-context regression check plus the
+  #   t4 post-train  SFT/DPO checkpoints: t1 (all three halves) as the short-context regression check plus the
   #               instruct-style evals, among them global-mgsm-eu (a 0-shot instruction prompt that
   #               a base model runs on past). The launcher's views are base-model views
   #               (identity chat template), and JudgeArena runs through its own suite.
@@ -1363,6 +1364,7 @@ super_groups:
       - task: global-mmlu-eu
       - task: multiblimp-eu
       - task: sib200-eu
+      - task: arc-challenge-mt-eu
 
   flag-t1-lighteval:
     description: "FLAG tier 1 (monitor), lighteval part"
@@ -1370,6 +1372,12 @@ super_groups:
     task_groups:
       - task: flores-200-eng-to-eu-t1
       - task: flores-200-eu-to-eng-t1
+
+  flag-t1-cot:
+    description: "FLAG tier 1 (monitor), continuation part"
+    exclude_langs: [kat_Geor]
+    task_groups:
+      - task: flag-cot-code-clean
 
   flag-t2-vllm:
     description: "FLAG tier 2 (decide), vLLM part"
@@ -1460,6 +1468,7 @@ super_groups:
       - task: global-mmlu-eu
       - task: multiblimp-eu
       - task: sib200-eu
+      - task: arc-challenge-mt-eu
       - task: reasoning
       - task: jeebench
       - task: global-mgsm-eu
@@ -1471,3 +1480,9 @@ super_groups:
       - task: flores-200-eng-to-eu-t1
       - task: flores-200-eu-to-eng-t1
       - task: gpqa-diamond
+
+  flag-t4-cot:
+    description: "FLAG tier 4 (post-train), continuation part (tier 1's code check)"
+    exclude_langs: [kat_Geor]
+    task_groups:
+      - task: flag-cot-code-clean

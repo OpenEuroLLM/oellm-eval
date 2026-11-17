@@ -230,20 +230,24 @@ class TestFlagTiers:
     def test_tier_sizes(self):
         sizes = {
             f"{tier}-{half}": len(_evals(f"flag-{tier}-{half}"))
-            for tier, halves in [("t1", "vllm lighteval"), ("t2", "vllm lighteval cot"),
-                                 ("t3", "vllm lighteval cot"), ("t4", "vllm lighteval")]
+            for tier, halves in [("t1", "vllm lighteval cot"), ("t2", "vllm lighteval cot"),
+                                 ("t3", "vllm lighteval cot"), ("t4", "vllm lighteval cot")]
             for half in halves.split()
         }
-        assert sizes == {"t1-vllm": 130, "t1-lighteval": 12, "t2-vllm": 263, "t2-lighteval": 71,
-                         "t2-cot": 14, "t3-vllm": 325, "t3-lighteval": 71, "t3-cot": 32,
-                         "t4-vllm": 152, "t4-lighteval": 14}
+        assert sizes == {"t1-vllm": 152, "t1-lighteval": 12, "t1-cot": 2, "t2-vllm": 263,
+                         "t2-lighteval": 71, "t2-cot": 14, "t3-vllm": 325, "t3-lighteval": 71,
+                         "t3-cot": 32, "t4-vllm": 174, "t4-lighteval": 14, "t4-cot": 2}
 
     def test_each_tier_contains_the_one_below(self):
         for half in ("vllm", "lighteval"):
             assert _evals(f"flag-t1-{half}") <= _evals(f"flag-t2-{half}") <= _evals(f"flag-t3-{half}")
-        assert _evals("flag-t2-cot") <= _evals("flag-t3-cot")
-        assert _evals("flag-t1-vllm") <= _evals("flag-t4-vllm")
-        assert _evals("flag-t1-lighteval") <= _evals("flag-t4-lighteval")
+        assert _evals("flag-t1-cot") <= _evals("flag-t2-cot") <= _evals("flag-t3-cot")
+        for half in ("vllm", "lighteval", "cot"):
+            assert _evals(f"flag-t1-{half}") <= _evals(f"flag-t4-{half}")
+
+    def test_tier_1_has_code_and_arc_mt(self):
+        assert {("humaneval_cont", 0), ("mbpp_cont", 3)} <= _evals("flag-t1-cot")
+        assert _evals("arc-challenge-mt-eu") - _evals("all[kat_Geor]") <= _evals("flag-t1-vllm")
 
     def test_held_out_groups_only_in_tier_3(self):
         held_out = set().union(*(_evals(g) for g in [
@@ -261,7 +265,7 @@ class TestFlagTiers:
 
     def test_no_georgian(self):
         groups = ["flag-evals"] + [f"flag-{t}-{h}" for t in ("t1", "t2", "t3", "t4")
-                                   for h in ("vllm", "lighteval")]
+                                   for h in ("vllm", "lighteval", "cot")]
         tasks = {task for g in groups for task, _ in _evals(g)}
         assert not {t for t in tasks if "kat" in t.lower() or "georgian" in t.lower()}
 
