@@ -234,7 +234,7 @@ class TestFlagTiers:
                                  ("t3", "vllm lighteval cot"), ("t4", "vllm lighteval cot")]
             for half in halves.split()
         }
-        assert sizes == {"t1-vllm": 128, "t1-lighteval": 12, "t2-vllm": 237,
+        assert sizes == {"t1-vllm": 128, "t1-lighteval": 12, "t2-vllm": 257,
                          "t2-lighteval": 71, "t2-cot": 12, "t3-vllm": 298, "t3-lighteval": 71,
                          "t3-cot": 30, "t4-vllm": 174, "t4-lighteval": 14, "t4-cot": 2}
 
@@ -263,12 +263,19 @@ class TestFlagTiers:
 
     def test_held_out_groups_only_in_tier_3(self):
         held_out = set().union(*(_evals(g) for g in [
-            "include", "mmlu-prox-eu", "global-piqa-eu-prompted",
+            "mmlu-prox-eu", "global-piqa-eu-prompted",
             "flag-cot-math", "flag-cot-polymath-high", "flag-cot-polymath-top"]))
         decide = set().union(*(_evals(f"flag-t2-{h}") for h in ("vllm", "lighteval", "cot")))
         report = set().union(*(_evals(f"flag-t3-{h}") for h in ("vllm", "lighteval", "cot")))
         assert held_out - _evals("all[kat_Geor]") <= report  # FLAG leaves out Georgian
         assert held_out.isdisjoint(decide)
+
+    def test_include_five_shot_in_tier_2(self):
+        include = _evals("include-eu-5-shot")
+        assert len(include) == 20 and {n for _, n in include} == {5}
+        assert include <= _evals("flag-t2-vllm") and include <= _evals("flag-t3-vllm")
+        assert not {t for t, _ in _evals("include") - _evals("all[kat_Geor]")} & {
+            t for t, _ in _evals("flag-t3-vllm")}  # the 0-shot variant left the tiers
 
     def test_global_mgsm_only_post_train(self):
         base = set().union(*(_evals(f"flag-t3-{h}") for h in ("vllm", "lighteval", "cot")))

@@ -1,0 +1,9 @@
+include: _template_yaml
+task: include_5shot_estonian
+dataset_name: Estonian
+# the first five distinct validation items; 4 of them are test items and not scored (utils.py)
+fewshot_split: null
+fewshot_config:
+  sampler: first_n
+  samples: !function utils.estonian_shots
+process_docs: !function utils.drop_estonian_shots

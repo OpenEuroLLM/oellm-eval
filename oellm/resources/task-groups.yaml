@@ -282,6 +282,53 @@ task_groups:
       - task: xstorycloze
         dataset: juletxara/xstory_cloze
 
+  include-eu-5-shot:
+    description: "INCLUDE regional knowledge (not translated), 5-shot: the first 5 validation items as fixed examples, the whole test split scored (custom_lm_eval_tasks/include_eu)"
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: CohereForAI/include-base-44
+    tasks:
+      - task: include_5shot_albanian
+        subset: Albanian
+      - task: include_5shot_basque
+        subset: Basque
+      - task: include_5shot_bulgarian
+        subset: Bulgarian
+      - task: include_5shot_croatian
+        subset: Croatian
+      - task: include_5shot_dutch
+        subset: Dutch
+      - task: include_5shot_estonian
+        subset: Estonian
+      - task: include_5shot_finnish
+        subset: Finnish
+      - task: include_5shot_french
+        subset: French
+      - task: include_5shot_german
+        subset: German
+      - task: include_5shot_greek
+        subset: Greek
+      - task: include_5shot_hungarian
+        subset: Hungarian
+      - task: include_5shot_italian
+        subset: Italian
+      - task: include_5shot_lithuanian
+        subset: Lithuanian
+      - task: include_5shot_north_macedonian
+        subset: North Macedonian
+      - task: include_5shot_polish
+        subset: Polish
+      - task: include_5shot_portuguese
+        subset: Portuguese
+      - task: include_5shot_serbian
+        subset: Serbian
+      - task: include_5shot_spanish
+        subset: Spanish
+      - task: include_5shot_turkish
+        subset: Turkish
+      - task: include_5shot_ukrainian
+        subset: Ukrainian
+
   include:
     description: "INCLUDE benchmarks in Aya Expanse"
     suite: lm-eval-harness
@@ -1346,8 +1393,9 @@ super_groups:
   # (super groups cannot nest, and the vLLM backend refuses lighteval tasks), so groups are flat.
   #   t1 monitor  every checkpoint: cheap multilingual log-likelihood evals, ARC-MT and a six-language
   #               FLORES subset; no cot half
-  #   t2 decide   anneal mixes, merges, continuation candidates
-  #   t3 report   release; adds the held-out groups (include, mmlu-prox-eu, global-piqa-eu-prompted,
+  #   t2 decide   anneal mixes, merges, continuation candidates; includes INCLUDE 5-shot (the only
+  #               non-translated knowledge test; 0-shot and held out in t3 until 2026-11-18)
+  #   t3 report   release; adds the held-out groups (mmlu-prox-eu, global-piqa-eu-prompted,
   #               competition math), which never feed a t1/t2 decision
   #   t4 post-train  SFT/DPO checkpoints: t1 plus the English groups and HumanEval/MBPP as the
   #               short-context regression check, plus the instruct-style evals, among them
@@ -1380,6 +1428,7 @@ super_groups:
     description: "FLAG tier 2 (decide), vLLM part"
     exclude_langs: [kat_Geor]
     task_groups:
+      - task: include-eu-5-shot
       - task: belebele-eu-5-shot
       - task: global-mmlu-eu
       - task: multiblimp-eu
@@ -1422,7 +1471,7 @@ super_groups:
       - task: mgsm-eu
       - task: opensubtitles-eu-en-xx
       - task: opensubtitles-eu-xx-en
-      - task: include
+      - task: include-eu-5-shot
       - task: global-piqa-eu-prompted
       - task: mmlu-prox-eu
 
