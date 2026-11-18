@@ -1344,22 +1344,25 @@ super_groups:
 
   # FLAG tiers. Each tier contains the one below it; split per launcher half like flag-evals
   # (super groups cannot nest, and the vLLM backend refuses lighteval tasks), so groups are flat.
-  #   t1 monitor  every checkpoint: cheap log-likelihood evals, ARC-MT, a six-language FLORES subset
-  #               and HumanEval/MBPP as continuation (its cot half: the only code signal per checkpoint)
+  #   t1 monitor  every checkpoint: cheap multilingual log-likelihood evals, ARC-MT and a six-language
+  #               FLORES subset; no cot half
   #   t2 decide   anneal mixes, merges, continuation candidates
-  #   t3 report   release; adds the held-out groups (include, gsm8k-cot, mmlu-prox-eu,
-  #               global-piqa-eu-prompted, competition math), which never feed a t1/t2 decision
-  #   t4 post-train  SFT/DPO checkpoints: t1 (all three halves) as the short-context regression check plus the
-  #               instruct-style evals, among them global-mgsm-eu (a 0-shot instruction prompt that
-  #               a base model runs on past). The launcher's views are base-model views
-  #               (identity chat template), and JudgeArena runs through its own suite.
+  #   t3 report   release; adds the held-out groups (include, mmlu-prox-eu, global-piqa-eu-prompted,
+  #               competition math), which never feed a t1/t2 decision
+  #   t4 post-train  SFT/DPO checkpoints: t1 plus the English groups and HumanEval/MBPP as the
+  #               short-context regression check, plus the instruct-style evals, among them
+  #               global-mgsm-eu (a 0-shot instruction prompt that a base model runs on past). The
+  #               launcher's views are base-model views (identity chat template), and JudgeArena runs
+  #               through its own suite.
+  # English, code and GSM8K are left out of t1-t3 (2026-11-18): ellamind's base-eval (eng_base_main,
+  # deu_base_main) runs them on every 16k base checkpoint, so FLAG covers the other languages. German
+  # stays in the multilingual groups so that every language uses the same format. t4 keeps them,
+  # because base-eval does not cover post-trained models.
   # scripts/jupiter_flag_evals.sh selects a tier with SUITE=t1|t2|t3|t4.
   flag-t1-vllm:
     description: "FLAG tier 1 (monitor), vLLM part"
     exclude_langs: [kat_Geor]
     task_groups:
-      - task: dclm-core-22
-      - task: open-sci-0.01
       - task: belebele-eu-5-shot
       - task: global-mmlu-eu
       - task: multiblimp-eu
@@ -1373,26 +1376,16 @@ super_groups:
       - task: flores-200-eng-to-eu-t1
       - task: flores-200-eu-to-eng-t1
 
-  flag-t1-cot:
-    description: "FLAG tier 1 (monitor), continuation part"
-    exclude_langs: [kat_Geor]
-    task_groups:
-      - task: flag-cot-code-clean
-
   flag-t2-vllm:
     description: "FLAG tier 2 (decide), vLLM part"
     exclude_langs: [kat_Geor]
     task_groups:
-      - task: dclm-core-22
-      - task: open-sci-0.01
       - task: belebele-eu-5-shot
       - task: global-mmlu-eu
       - task: multiblimp-eu
       - task: sib200-eu
-      - task: arc-challenge-25
       - task: arc-challenge-mt-eu
       - task: hellaswag-eu
-      - task: piqa-0
       - task: global-piqa-eu-completions
       - task: xcsqa-eu
       - task: mgsm-eu
@@ -1408,10 +1401,9 @@ super_groups:
       - task: xcopa-eu
 
   flag-t2-cot:
-    description: "FLAG tier 2 (decide), forced-reasoning and continuation part"
+    description: "FLAG tier 2 (decide), forced-reasoning part"
     exclude_langs: [kat_Geor]
     task_groups:
-      - task: flag-cot-code-clean
       - task: flag-cot-polymath-low
       - task: flag-cot-polymath-medium
 
@@ -1419,16 +1411,12 @@ super_groups:
     description: "FLAG tier 3 (report), vLLM part"
     exclude_langs: [kat_Geor]
     task_groups:
-      - task: dclm-core-22
-      - task: open-sci-0.01
       - task: belebele-eu-5-shot
       - task: global-mmlu-eu
       - task: multiblimp-eu
       - task: sib200-eu
-      - task: arc-challenge-25
       - task: arc-challenge-mt-eu
       - task: hellaswag-eu
-      - task: piqa-0
       - task: global-piqa-eu-completions
       - task: xcsqa-eu
       - task: mgsm-eu
@@ -1437,7 +1425,6 @@ super_groups:
       - task: include
       - task: global-piqa-eu-prompted
       - task: mmlu-prox-eu
-      - task: gsm8k-cot
 
   flag-t3-lighteval:
     description: "FLAG tier 3 (report), lighteval part"
@@ -1448,10 +1435,9 @@ super_groups:
       - task: xcopa-eu
 
   flag-t3-cot:
-    description: "FLAG tier 3 (report), forced-reasoning and continuation part"
+    description: "FLAG tier 3 (report), forced-reasoning part"
     exclude_langs: [kat_Geor]
     task_groups:
-      - task: flag-cot-code-clean
       - task: flag-cot-polymath-low
       - task: flag-cot-polymath-medium
       - task: flag-cot-math
@@ -1482,7 +1468,7 @@ super_groups:
       - task: gpqa-diamond
 
   flag-t4-cot:
-    description: "FLAG tier 4 (post-train), continuation part (tier 1's code check)"
+    description: "FLAG tier 4 (post-train), continuation part (code check)"
     exclude_langs: [kat_Geor]
     task_groups:
       - task: flag-cot-code-clean

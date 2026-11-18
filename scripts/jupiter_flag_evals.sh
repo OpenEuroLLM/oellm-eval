@@ -14,7 +14,7 @@
 # for the hardlinks), VLLM_SIF, LIGHTEVAL_SIF (built from containers/lighteval-jupiter.def), CONCURRENCY, TIME,
 # HALVES (render / tasks: "vllm", "lighteval", "cot"; default "vllm lighteval"), HUMANEVAL_PATCH,
 # SUITE (the super groups flag-$SUITE-<half>: "evals", the full suite, by default; "t1".."t4" for the
-# FLAG tiers, see task-groups.yaml; every tier has a cot half, t1/t4 only HumanEval/MBPP continuation),
+# FLAG tiers, see task-groups.yaml; t2-t4 have a cot half, t4 only HumanEval/MBPP continuation),
 # VLLM_TP (GPUs per vLLM replica, default 1: 4 replicas per node; 2 for a 70B, whose bf16 weights do
 # not fit one 96 GB GPU), VLLM_MODEL_ARGS (added to the vLLM model args, e.g. max_model_len=4096 to
 # give a reference model our 32B's context), MAX_ARRAY (array tasks per launcher, default 1000 = one
