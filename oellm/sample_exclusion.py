@@ -3,13 +3,14 @@
 A blocklist is a directory with one ``<benchmark>.jsonl`` per benchmark, one
 original dataset row per line; fields starting with ``_`` are ignored.
 ``resources/sample-exclusion.yaml`` maps each benchmark to the lm-eval,
-lighteval or evalchemy tasks holding its documents, in any language or as
-copies in other benchmarks.
+lighteval, evalchemy or JudgeArena tasks holding its documents, in any language
+or as copies in other benchmarks.
 
 Rows are matched to lm-eval's saved samples by content, to lighteval's by their
 prompt text, or through an alignment table
 (``resources/sample-exclusion-alignments``) giving an item's position in each
-task. MATH500 is re-scored from the answers in evalchemy's results file. The
+task. MATH500 is re-scored from the answers in evalchemy's results file, and
+JudgeArena's win rates from the judge's preference in each battle. The
 recomputation must first reproduce the reported scores; a score that cannot be
 recomputed exactly is an error.
 """
@@ -19,6 +20,8 @@ import json
 import logging
 import math
 import re
+from collections import Counter
+from functools import partial
 from importlib.resources import files
 from numbers import Real
 from pathlib import Path
@@ -1023,3 +1026,246 @@ def clean_results(
                 n_excluded,
             )
     return out
+
+
+# --- JudgeArena ---------------------------------------------------------------
+# A pairwise run saves each battle's question in <name>-annotations.csv and the
+# judge's preference (P(baseline wins); null if unparsed) in results-<name>.json,
+# in the same order. swap_mode "both" judges all questions, then all again in
+# reversed order, with preferences turned back to the model's side.
+
+JUDGEARENA_SCHEMA = "judgearena-run-metadata/v1"
+_JUDGEARENA_PAIRWISE = "judgearena.benchmarks.pairwise.runner.run_pairwise"
+_JUDGEARENA_ELO = "judgearena.benchmarks.elo.runner.run_elo"
+
+
+def flatten_metrics(value, prefix: str = "") -> list[tuple[str, Real]]:
+    """Numeric leaves of JudgeArena's nested metrics, by their dotted keys."""
+    if isinstance(value, bool):
+        return []
+    if isinstance(value, Real):
+        return [(prefix, value)] if prefix else []
+    if not isinstance(value, dict):
+        return []
+    return [
+        pair
+        for key, child in value.items()
+        for pair in flatten_metrics(child, f"{prefix}.{key}" if prefix else str(key))
+    ]
+
+
+def is_judgearena_elo(data: dict) -> bool:
+    return data.get("entrypoint") == _JUDGEARENA_ELO
+
+
+def _judged(battles: list[dict]) -> list[dict]:
+    return [b for b in battles if b["pref"] is not None and not math.isnan(b["pref"])]
+
+
+def _summary(battles: list[dict], kept: list[dict], decisive_weight: int = 1) -> dict:
+    """Counts over *kept* battles and (wins + ties / 2) / judged, a decisive
+    verdict (0 or 1) counting *decisive_weight* times."""
+    prefs = [b["pref"] for b in kept]
+    weights = [decisive_weight if p in (0.0, 1.0) else 1 for p in prefs]
+    outcomes = [1.0 if p < 0.5 else 0.0 if p > 0.5 else 0.5 for p in prefs]
+    return {
+        "num_battles": len(battles),
+        "winrate": (
+            sum(w * o for w, o in zip(weights, outcomes, strict=True)) / sum(weights)
+            if prefs
+            else math.nan
+        ),
+        "num_wins": sum(p < 0.5 for p in prefs),
+        "num_losses": sum(p > 0.5 for p in prefs),
+        "num_ties": sum(p == 0.5 for p in prefs),
+        "num_missing": len(battles) - len(kept),
+    }
+
+
+# Each recomputation takes the battles and the metric's reported fields.
+def _win_rate(battles: list[dict], reported: dict) -> dict:
+    return _summary(battles, _judged(battles))
+
+
+def _alpaca_eval(battles: list[dict], reported: dict) -> dict:
+    judged = _judged(battles)
+    # raw_winrate: the mean P(model wins).
+    raw = _mean([1 - b["pref"] for b in judged]) if judged else math.nan
+    return _summary(battles, judged) | {"raw_winrate": raw}
+
+
+def _arena_hard(battles: list[dict], reported: dict, complete_pairs: bool) -> dict:
+    kept = _judged(battles)
+    if complete_pairs:
+        # v2.0 counts a question judged in both orders only if both parsed.
+        parsed = Counter(b["battle_id"] for b in kept)
+        kept = [
+            b for b in kept if b["orientation"] == "single" or parsed[b["battle_id"]] == 2
+        ]
+    return _summary(battles, kept, reported.get("decisive_weight", 3))
+
+
+# metric -> (recomputation, fields that are settings, not scores)
+_JUDGEARENA_METRICS = {
+    "pairwise_win_rate": (_win_rate, ()),
+    "alpaca_eval_length_controlled": (_alpaca_eval, ()),
+    "arena_hard_v01": (
+        partial(_arena_hard, complete_pairs=False),
+        ("decisive_weight", "bootstrap_rounds", "confidence_level"),
+    ),
+    "arena_hard_v20": (
+        partial(_arena_hard, complete_pairs=True),
+        ("decisive_weight", "bootstrap_rounds", "bootstrap_seed", "confidence_level"),
+    ),
+}
+
+
+def _read_battles(metadata_file: Path, data: dict) -> list[dict]:
+    task = data["run"]["task"]
+    n_instructions = (data["run"].get("generation") or {}).get("n_instructions")
+    if n_instructions is not None:
+        raise RunNotFilterable(
+            f"{task}: {metadata_file} judged the first {n_instructions} questions "
+            "(a --limit run?). Excluding samples needs a run over the whole benchmark."
+        )
+    files = []
+    for pattern in ("results-*.json", "*-annotations.csv"):
+        found = list(metadata_file.parent.glob(pattern))
+        if len(found) != 1:
+            raise RunNotFilterable(
+                f"{task}: expected one {pattern} next to {metadata_file}, found "
+                f"{len(found)}."
+            )
+        files += found
+    results, annotations = files
+    prefs = json.loads(results.read_text(encoding="utf-8")).get("preferences") or []
+
+    import pandas as pd
+
+    try:
+        # As text: an arena-hard uid can look like a number.
+        frame = pd.read_csv(
+            annotations,
+            usecols=["instruction_index", "instruction"],
+            dtype=str,
+            keep_default_na=False,
+        )
+    except ValueError as e:
+        raise RunNotFilterable(f"{task}: cannot read {annotations.name} ({e}).") from e
+    ids = frame["instruction_index"].tolist()
+    if len(prefs) != len(ids):
+        raise RunNotFilterable(
+            f"{task}: {annotations.name} holds {len(ids)} battles, but "
+            f"{results.name} {len(prefs)} preferences."
+        )
+    both = data["run"].get("judge", {}).get("swap_mode") == "both"
+    n = len(ids) // 2 if both else len(ids)
+    if len(set(ids[:n])) != n or (both and ids[:n] != ids[n:]):
+        raise RunNotFilterable(
+            f"{task}: {annotations.name} does not judge each question once"
+            + (" in each order." if both else ".")
+        )
+    orientations = ["direct"] * n + ["reversed"] * n if both else ["single"] * n
+    return [
+        judgearena_question(task, battle_id, instruction)
+        | {"battle_id": battle_id, "pref": pref, "orientation": orientation}
+        for battle_id, instruction, pref, orientation in zip(
+            ids, frame["instruction"], prefs, orientations, strict=True
+        )
+    ]
+
+
+def judgearena_question(task: str, instruction_index: str, instruction: str) -> dict:
+    """A battle's question: its id in every language (doc_id), and the fields
+    blocklist rows are matched on (doc)."""
+    question = instruction_index
+    if task.startswith("m-arena-hard"):
+        # m-ArenaHard's ids are <question_id>-<language>.
+        question = instruction_index.rpartition("-")[0]
+        if not question:
+            raise RunNotFilterable(f"{task}: {instruction_index!r} has no language.")
+    return {
+        "doc_id": question,
+        "doc": {"question_id": question, "instruction": instruction},
+    }
+
+
+def clean_judgearena_results(
+    metadata_file: Path,
+    data: dict,
+    blocklist: dict[str, list[dict]],
+    task_map: dict[str, list[str]],
+    match_on: set[str] | frozenset[str] = frozenset(),
+) -> tuple[dict[str, Real | None], int] | None:
+    """``(scores, n_excluded)`` of a JudgeArena run without its blocklisted
+    questions, or None if it has none.
+
+    Scores are keyed by collect's metric names; None marks one that cannot be
+    recomputed. n_excluded counts questions, each dropped in every language.
+    """
+    task = data["run"]["task"]
+    benchmarks = [
+        b for b, rows in blocklist.items() if rows and task in task_map.get(b, [])
+    ]
+    if not benchmarks:
+        return None
+    if data.get("entrypoint") != _JUDGEARENA_PAIRWISE:
+        raise SampleExclusionError(
+            f"{task}: only JudgeArena's pairwise win rates can be recomputed"
+            + (
+                ", not ELO ratings, fitted over all battles at once."
+                if is_judgearena_elo(data)
+                else "."
+            )
+        )
+    battles = _read_battles(metadata_file, data)
+    excluded: set[str] = set()
+    for benchmark in benchmarks:
+        rows = blocklist[benchmark]
+        found, matched = _excluded_docs(
+            rows, {task: battles}, benchmark, match_on=benchmark in match_on
+        )
+        excluded |= found.get(task, set())
+        # Every mapped task holds all of its benchmark's questions.
+        if not all(matched):
+            logging.warning(
+                f"{benchmark}: {matched.count(False)} of {len(rows)} blocklisted "
+                f"rows match no question of {task} ({metadata_file})."
+            )
+    if not excluded:
+        return None
+
+    metrics = data["results"].get("metrics", {})
+    unsupported = sorted(set(metrics) - _JUDGEARENA_METRICS.keys())
+    if unsupported:
+        raise SampleExclusionError(
+            f"{task}: excluding samples from JudgeArena's {', '.join(unsupported)} "
+            "is not supported."
+        )
+
+    kept = [b for b in battles if b["doc_id"] not in excluded]
+    remaining = len({b["doc_id"] for b in kept})
+    if remaining < 2:
+        raise SampleExclusionError(
+            f"{task}: {remaining} questions remain after exclusion"
+        )
+    scores: dict[str, Real | None] = {}
+    for metric, reported in metrics.items():
+        recompute, settings = _JUDGEARENA_METRICS[metric]
+        full, clean = recompute(battles, reported), recompute(kept, reported)
+        for name, value in flatten_metrics({metric: reported}):
+            field = name.removeprefix(f"{metric}.")
+            if field in settings:
+                continue
+            if field not in full:
+                scores[name] = None
+            elif not _close(full[field], value):
+                raise SampleExclusionError(
+                    f"{task}: the saved preferences give {name} = {full[field]}, "
+                    f"but JudgeArena reported {value}; refusing to recompute it."
+                )
+            elif math.isnan(clean[field]):
+                logging.warning(f"{task}: no judged battle left for {name}.")
+            else:
+                scores[name] = clean[field]
+    return scores, len(excluded)

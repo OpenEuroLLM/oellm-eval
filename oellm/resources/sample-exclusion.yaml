@@ -11,11 +11,12 @@
 # position. A row matching no document is logged and not excluded.
 #
 # Checked against agenttrove-0.0's rows with lm-eval 0.4.13, lighteval
-# 0.13.1.dev0 and evalchemy 54ac976. Not listed: XWinograd's other languages,
-# which keep no field identifying WSC's items, skip some and add their own (a
-# WSC or XWinograd row excludes only English copies); XCOPA, which translates
-# COPA's test split while the rows are its validation split; and evalchemy
-# benchmarks other than MATH500, which keep no per-question results.
+# 0.13.1.dev0, evalchemy 54ac976 and JudgeArena 45e3b80. Not listed: XWinograd's
+# other languages, which keep no field identifying WSC's items, skip some and
+# add their own (a WSC or XWinograd row excludes only English copies); XCOPA,
+# which translates COPA's test split while the rows are its validation split;
+# evalchemy benchmarks other than MATH500, which keep no per-question results;
+# and JudgeArena's ELO tasks, whose ratings are fitted over all battles at once.
 benchmarks:
   # MGSM translates GSM8K's first 250 test questions, and Global-MGSM MGSM's;
   # PolyMath's low level is the first 125 of them. GSM8K-Platinum keeps most
@@ -248,3 +249,34 @@ benchmarks:
   GPQA:
     tasks: ["gpqa_diamond:en", "gpqa_diamond:fi"]
     match_on: [Question, Correct Answer]
+  # JudgeArena numbers AlpacaEval's questions by position, so they are found by
+  # text. arena-hard's uid is m-ArenaHard's question_id. v2 and v2.1 hold the
+  # same rows; JudgeArena runs v2.0.
+  AlpacaEval:
+    tasks: [alpaca-eval]
+    match_on: [instruction]
+  m_ArenaHard:
+    tasks:
+      [arena-hard-v0.1, m-arena-hard-v0.1, m-arena-hard-v0.1-EU,
+       m-arena-hard-v0.1-ar, m-arena-hard-v0.1-cs, m-arena-hard-v0.1-de,
+       m-arena-hard-v0.1-el, m-arena-hard-v0.1-en, m-arena-hard-v0.1-es,
+       m-arena-hard-v0.1-fa, m-arena-hard-v0.1-fr, m-arena-hard-v0.1-he,
+       m-arena-hard-v0.1-hi, m-arena-hard-v0.1-id, m-arena-hard-v0.1-it,
+       m-arena-hard-v0.1-ja, m-arena-hard-v0.1-ko, m-arena-hard-v0.1-nl,
+       m-arena-hard-v0.1-pl, m-arena-hard-v0.1-pt, m-arena-hard-v0.1-ro,
+       m-arena-hard-v0.1-ru, m-arena-hard-v0.1-tr, m-arena-hard-v0.1-uk,
+       m-arena-hard-v0.1-vi, m-arena-hard-v0.1-zh]
+    match_on: [question_id]
+  mArenaHard_v2: &m_arena_hard_v2
+    tasks:
+      [arena-hard-v2.0, m-arena-hard-v2.0, m-arena-hard-v2.0-EU,
+       m-arena-hard-v2.0-ar, m-arena-hard-v2.0-cs, m-arena-hard-v2.0-de,
+       m-arena-hard-v2.0-el, m-arena-hard-v2.0-en, m-arena-hard-v2.0-es,
+       m-arena-hard-v2.0-fa, m-arena-hard-v2.0-fr, m-arena-hard-v2.0-he,
+       m-arena-hard-v2.0-hi, m-arena-hard-v2.0-id, m-arena-hard-v2.0-it,
+       m-arena-hard-v2.0-ja, m-arena-hard-v2.0-ko, m-arena-hard-v2.0-nl,
+       m-arena-hard-v2.0-pl, m-arena-hard-v2.0-pt, m-arena-hard-v2.0-ro,
+       m-arena-hard-v2.0-ru, m-arena-hard-v2.0-tr, m-arena-hard-v2.0-uk,
+       m-arena-hard-v2.0-vi, m-arena-hard-v2.0-zh]
+    match_on: [question_id]
+  mArenaHard_v21: *m_arena_hard_v2

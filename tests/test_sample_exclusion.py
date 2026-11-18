@@ -1667,6 +1667,451 @@ def test_collect_reports_full_and_clean_math500_scores(tmp_path, monkeypatch):
     assert set(df.loc["clean", "n_excluded"]) == {1}
 
 
+# --- JudgeArena's win rates --------------------------------------------------
+
+PAIRWISE = "judgearena.benchmarks.pairwise.runner.run_pairwise"
+ELO = "judgearena.benchmarks.elo.runner.run_elo"
+
+
+def _write_judgearena_run(
+    run_dir,
+    task,
+    metrics,
+    ids,
+    prefs,
+    swap_mode="fixed",
+    instructions=None,
+    entrypoint=PAIRWISE,
+    n_instructions=None,
+):
+    """A JudgeArena run's metadata, preferences and annotations; with swap_mode
+    "both", *ids* and *prefs* list the direct battles, then the reversed ones."""
+    name = f"{task}-m-baseline-judge-{swap_mode}"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    instructions = instructions or [f"Question {i}?" for i in ids]
+    pd.DataFrame(
+        {
+            "instruction": instructions,
+            "instruction_index": ids,
+        }
+    ).to_csv(run_dir / f"{name}-annotations.csv", index=False)
+    (run_dir / f"results-{name}.json").write_text(
+        json.dumps({"task": task, "metrics": metrics, "preferences": prefs})
+    )
+    metadata = run_dir / "run-metadata.v1.json"
+    metadata.write_text(
+        json.dumps(
+            {
+                "schema_version": "judgearena-run-metadata/v1",
+                "entrypoint": entrypoint,
+                "run": {
+                    "task": task,
+                    "model": {"name": "VLLM/m"},
+                    "judge": {"model": "judge", "swap_mode": swap_mode},
+                    "generation": {"n_instructions": n_instructions},
+                },
+                "results": {"task": task, "metrics": metrics},
+            }
+        )
+    )
+    return metadata
+
+
+def _clean_judgearena(metadata, blocklist, task_map):
+    data = json.loads(metadata.read_text())
+    return sample_exclusion.clean_judgearena_results(
+        metadata, data, blocklist, task_map, match_on=set(blocklist)
+    )
+
+
+def _win_rate(winrate, wins, losses, ties, missing=0):
+    return {
+        "num_battles": wins + losses + ties + missing,
+        "winrate": winrate,
+        "num_wins": wins,
+        "num_losses": losses,
+        "num_ties": ties,
+        "num_missing": missing,
+    }
+
+
+M_ARENA_HARD = {"m_ArenaHard": ["m-arena-hard-v0.1-de", "m-arena-hard-v0.1-EU"]}
+
+
+def test_a_win_rate_judged_in_one_order_is_recomputed(tmp_path):
+    # Wins below 0.5, a tie at 0.5: (2 + 1/2) / 4.
+    metrics = {"pairwise_win_rate": _win_rate(0.625, wins=2, losses=1, ties=1)}
+    run = _write_judgearena_run(
+        tmp_path,
+        "m-arena-hard-v0.1-de",
+        metrics,
+        ids=["q0-de", "q1-de", "q2-de", "q3-de"],
+        prefs=[0.0, 1.0, 0.5, 0.2],
+    )
+    scores, n_excluded = _clean_judgearena(
+        run, {"m_ArenaHard": [{"question_id": "q0"}]}, M_ARENA_HARD
+    )
+    assert n_excluded == 1
+    assert scores == {
+        f"pairwise_win_rate.{k}": v
+        for k, v in _win_rate(0.5, wins=1, losses=1, ties=1).items()
+    }
+
+
+def test_a_battle_the_judge_left_undecided_is_counted_missing(tmp_path):
+    metrics = {"pairwise_win_rate": _win_rate(2 / 3, wins=2, losses=1, ties=0, missing=1)}
+    run = _write_judgearena_run(
+        tmp_path,
+        "m-arena-hard-v0.1-de",
+        metrics,
+        ids=["q0-de", "q1-de", "q2-de", "q3-de"],
+        prefs=[0.0, 1.0, None, 0.2],
+    )
+    scores, _ = _clean_judgearena(
+        run, {"m_ArenaHard": [{"question_id": "q0"}]}, M_ARENA_HARD
+    )
+    assert scores["pairwise_win_rate.winrate"] == 0.5
+    assert scores["pairwise_win_rate.num_missing"] == 1
+    assert scores["pairwise_win_rate.num_battles"] == 3
+
+
+def test_a_question_is_excluded_in_every_language_of_a_run(tmp_path):
+    metrics = {"pairwise_win_rate": _win_rate(0.5, wins=3, losses=3, ties=0)}
+    ids = [f"q{i}-{lang}" for i in range(3) for lang in ("de", "fr")]
+    run = _write_judgearena_run(
+        tmp_path,
+        "m-arena-hard-v0.1-EU",
+        metrics,
+        ids=ids,
+        prefs=[0.0, 0.0, 1.0, 1.0, 0.0, 1.0],
+    )
+    scores, n_excluded = _clean_judgearena(
+        run, {"m_ArenaHard": [{"question_id": "q0"}]}, M_ARENA_HARD
+    )
+    assert n_excluded == 1
+    assert scores["pairwise_win_rate.num_battles"] == 4
+    assert scores["pairwise_win_rate.winrate"] == 0.25
+
+
+def test_alpaca_eval_s_win_rates_are_recomputed_and_its_length_control_is_not(
+    tmp_path,
+):
+    metrics = {
+        "alpaca_eval_length_controlled": _win_rate(0.625, wins=2, losses=1, ties=1)
+        | {
+            "raw_winrate": 0.5,
+            "length_controlled_winrate": 0.55,
+            "lc_standard_error": 0.02,
+        }
+    }
+    instructions = ["Write a poem.", "Add 2 and 2.", "Name a colour.", "Say hi."]
+    run = _write_judgearena_run(
+        tmp_path,
+        "alpaca-eval",
+        metrics,
+        ids=["0", "1", "2", "3"],
+        prefs=[0.2, 0.9, 0.5, 0.4],
+        swap_mode="random",
+        instructions=instructions,
+    )
+    scores, n_excluded = _clean_judgearena(
+        run,
+        {"AlpacaEval": [{"instruction": "Write a poem."}]},
+        {"AlpacaEval": ["alpaca-eval"]},
+    )
+    assert n_excluded == 1
+    assert scores["alpaca_eval_length_controlled.winrate"] == 0.5
+    assert scores["alpaca_eval_length_controlled.raw_winrate"] == pytest.approx(0.4)
+    assert scores["alpaca_eval_length_controlled.length_controlled_winrate"] is None
+    assert scores["alpaca_eval_length_controlled.lc_standard_error"] is None
+
+
+# Ids that look like numbers.
+ARENA_HARD_IDS = ["0001", "1e3", "12"]
+ARENA_HARD_PREFS = [0.0, 0.75, 0.5] + [0.25, 1.0, None]
+ARENA_HARD_SETTINGS = {"decisive_weight": 3, "bootstrap_rounds": 100}
+
+
+def test_arena_hard_drops_both_orders_of_a_question(tmp_path):
+    # Decisive verdicts count 3 times: (3 + 1 + 1/2) / 9.
+    metrics = {
+        "arena_hard_v01": _win_rate(0.5, wins=2, losses=2, ties=1, missing=1)
+        | {"score_ci_low": 0.3, "score_ci_high": 0.7, "confidence_level": 0.95}
+        | ARENA_HARD_SETTINGS
+    }
+    run = _write_judgearena_run(
+        tmp_path,
+        "arena-hard-v0.1",
+        metrics,
+        ids=ARENA_HARD_IDS * 2,
+        prefs=ARENA_HARD_PREFS,
+        swap_mode="both",
+    )
+    scores, n_excluded = _clean_judgearena(
+        run,
+        {"m_ArenaHard": [{"question_id": "0001"}]},
+        {"m_ArenaHard": ["arena-hard-v0.1"]},
+    )
+    assert n_excluded == 1
+    # 0.75, 0.5, 1.0 remain: (1/2) / 5.
+    assert scores == {
+        **{
+            f"arena_hard_v01.{k}": v
+            for k, v in _win_rate(0.1, wins=0, losses=2, ties=1, missing=1).items()
+        },
+        "arena_hard_v01.score_ci_low": None,
+        "arena_hard_v01.score_ci_high": None,
+    }
+
+
+def test_arena_hard_v2_counts_a_question_only_if_both_orders_were_judged(tmp_path):
+    # 12 has an unparsed battle, so neither of its battles counts: (3 + 1) / 8.
+    metrics = {
+        "arena_hard_v20": _win_rate(0.5, wins=2, losses=2, ties=0, missing=2)
+        | ARENA_HARD_SETTINGS
+    }
+    run = _write_judgearena_run(
+        tmp_path,
+        "arena-hard-v2.0",
+        metrics,
+        ids=ARENA_HARD_IDS * 2,
+        prefs=ARENA_HARD_PREFS,
+        swap_mode="both",
+    )
+    scores, _ = _clean_judgearena(
+        run,
+        {"mArenaHard_v2": [{"question_id": "1e3"}]},
+        {"mArenaHard_v2": ["arena-hard-v2.0"]},
+    )
+    assert scores == {
+        f"arena_hard_v20.{k}": v
+        for k, v in _win_rate(1.0, wins=2, losses=0, ties=0, missing=2).items()
+    }
+
+
+def test_arena_hard_weighs_decisive_verdicts_as_the_run_reports(tmp_path):
+    metrics = {
+        "arena_hard_v01": _win_rate(0.5, wins=2, losses=2, ties=1, missing=1)
+        | {"decisive_weight": 2}
+    }
+    run = _write_judgearena_run(
+        tmp_path,
+        "arena-hard-v0.1",
+        metrics,
+        ids=ARENA_HARD_IDS * 2,
+        prefs=ARENA_HARD_PREFS,
+        swap_mode="both",
+    )
+    scores, _ = _clean_judgearena(
+        run,
+        {"m_ArenaHard": [{"question_id": "0001"}]},
+        {"m_ArenaHard": ["arena-hard-v0.1"]},
+    )
+    # 0.75, 0.5, 1.0 remain: (1/2) / 4.
+    assert scores["arena_hard_v01.winrate"] == 0.125
+
+
+def test_a_win_rate_with_no_judged_battle_left_is_left_out(tmp_path):
+    metrics = {"pairwise_win_rate": _win_rate(1.0, wins=1, losses=0, ties=0, missing=2)}
+    run = _write_judgearena_run(
+        tmp_path,
+        "m-arena-hard-v0.1-de",
+        metrics,
+        ids=["q0-de", "q1-de", "q2-de"],
+        prefs=[0.0, None, None],
+    )
+    scores, _ = _clean_judgearena(
+        run, {"m_ArenaHard": [{"question_id": "q0"}]}, M_ARENA_HARD
+    )
+    assert "pairwise_win_rate.winrate" not in scores
+    assert scores["pairwise_win_rate.num_missing"] == 2
+
+
+def test_an_unsupported_metric_is_refused_only_if_questions_are_excluded(tmp_path):
+    metrics = {"other_metric": {"score": 0.5}}
+    run = _write_judgearena_run(
+        tmp_path,
+        "m-arena-hard-v0.1-de",
+        metrics,
+        ids=["q0-de", "q1-de"],
+        prefs=[0.0, 1.0],
+    )
+    blocklist = {"m_ArenaHard": [{"question_id": "q9"}]}
+    assert _clean_judgearena(run, blocklist, M_ARENA_HARD) is None
+    with pytest.raises(SampleExclusionError, match="other_metric is not supported"):
+        _clean_judgearena(run, {"m_ArenaHard": [{"question_id": "q0"}]}, M_ARENA_HARD)
+
+
+def test_preferences_that_do_not_reproduce_the_win_rate_are_refused(tmp_path):
+    metrics = {"pairwise_win_rate": _win_rate(0.7, wins=2, losses=1, ties=1)}
+    run = _write_judgearena_run(
+        tmp_path,
+        "m-arena-hard-v0.1-de",
+        metrics,
+        ids=["q0-de", "q1-de", "q2-de", "q3-de"],
+        prefs=[0.0, 1.0, 0.5, 0.2],
+    )
+    with pytest.raises(
+        SampleExclusionError,
+        match="give pairwise_win_rate.winrate = 0.625, but JudgeArena reported 0.7",
+    ):
+        _clean_judgearena(run, {"m_ArenaHard": [{"question_id": "q0"}]}, M_ARENA_HARD)
+
+
+def test_an_elo_task_is_refused(tmp_path):
+    metrics = {
+        "pairwise_win_rate": _win_rate(0.5, wins=1, losses=1, ties=0),
+        "bradley_terry": {"ratings": {"m": 1000.0, "other": 1000.0}},
+    }
+    run = _write_judgearena_run(
+        tmp_path, "elo-lmarena", metrics, ids=["0", "1"], prefs=[0.0, 1.0], entrypoint=ELO
+    )
+    with pytest.raises(SampleExclusionError, match="not ELO ratings"):
+        _clean_judgearena(
+            run, {"Arena": [{"question_id": "0"}]}, {"Arena": ["elo-lmarena"]}
+        )
+
+
+def test_a_judgearena_task_without_blocklisted_questions_is_left_alone(tmp_path):
+    metrics = {"pairwise_win_rate": _win_rate(0.5, wins=1, losses=1, ties=0)}
+    run = _write_judgearena_run(
+        tmp_path,
+        "m-arena-hard-v0.1-de",
+        metrics,
+        ids=["q0-de", "q1-de"],
+        prefs=[0.0, 1.0],
+    )
+    assert (
+        _clean_judgearena(run, {"m_ArenaHard": [{"question_id": "q9"}]}, M_ARENA_HARD)
+        is None
+    )
+    assert _clean_judgearena(run, {"Other": [{"question_id": "q0"}]}, {}) is None
+
+
+def test_a_judgearena_limit_run_is_refused(tmp_path):
+    metrics = {"pairwise_win_rate": _win_rate(0.5, wins=1, losses=1, ties=0)}
+    run = _write_judgearena_run(
+        tmp_path,
+        "m-arena-hard-v0.1-de",
+        metrics,
+        ids=["q0-de", "q1-de"],
+        prefs=[0.0, 1.0],
+        n_instructions=2,
+    )
+    with pytest.raises(RunNotFilterable, match="judged the first 2 questions"):
+        _clean_judgearena(run, {"m_ArenaHard": [{"question_id": "q0"}]}, M_ARENA_HARD)
+
+
+def test_a_judgearena_run_without_its_annotations_is_refused(tmp_path):
+    metrics = {"pairwise_win_rate": _win_rate(0.5, wins=1, losses=1, ties=0)}
+    run = _write_judgearena_run(
+        tmp_path,
+        "m-arena-hard-v0.1-de",
+        metrics,
+        ids=["q0-de", "q1-de"],
+        prefs=[0.0, 1.0],
+    )
+    next(tmp_path.glob("*-annotations.csv")).unlink()
+    with pytest.raises(RunNotFilterable, match="expected one \\*-annotations.csv"):
+        _clean_judgearena(run, {"m_ArenaHard": [{"question_id": "q0"}]}, M_ARENA_HARD)
+
+
+def test_annotations_without_a_question_column_are_refused(tmp_path):
+    metrics = {"pairwise_win_rate": _win_rate(0.5, wins=1, losses=1, ties=0)}
+    run = _write_judgearena_run(
+        tmp_path,
+        "m-arena-hard-v0.1-de",
+        metrics,
+        ids=["q0-de", "q1-de"],
+        prefs=[0.0, 1.0],
+    )
+    annotations = next(tmp_path.glob("*-annotations.csv"))
+    pd.read_csv(annotations).drop(columns="instruction_index").to_csv(
+        annotations, index=False
+    )
+    with pytest.raises(RunNotFilterable, match="cannot read"):
+        _clean_judgearena(run, {"m_ArenaHard": [{"question_id": "q0"}]}, M_ARENA_HARD)
+
+
+def test_battles_in_both_orders_that_do_not_pair_up_are_refused(tmp_path):
+    metrics = {"arena_hard_v01": _win_rate(0.5, wins=2, losses=2, ties=0)}
+    run = _write_judgearena_run(
+        tmp_path,
+        "arena-hard-v0.1",
+        metrics,
+        ids=["a", "b", "b", "a"],
+        prefs=[0.0, 1.0, 0.0, 1.0],
+        swap_mode="both",
+    )
+    with pytest.raises(RunNotFilterable, match="once in each order"):
+        _clean_judgearena(
+            run,
+            {"m_ArenaHard": [{"question_id": "a"}]},
+            {"m_ArenaHard": ["arena-hard-v0.1"]},
+        )
+
+
+def test_collect_reports_clean_judgearena_win_rates_and_says_what_it_leaves_out(
+    tmp_path, monkeypatch, capfd
+):
+    metrics = {
+        "alpaca_eval_length_controlled": _win_rate(0.625, wins=2, losses=1, ties=1)
+        | {
+            "raw_winrate": 0.5,
+            "length_controlled_winrate": 0.55,
+            "lc_standard_error": 0.02,
+        }
+    }
+    _write_judgearena_run(
+        tmp_path / "runs" / "alpaca",
+        "alpaca-eval",
+        metrics,
+        ids=["0", "1", "2", "3"],
+        prefs=[0.2, 0.9, 0.5, 0.4],
+        swap_mode="random",
+        instructions=["Write a poem.", "Add 2 and 2.", "Name a colour.", "Say hi."],
+    )
+    _write_judgearena_run(
+        tmp_path / "runs" / "elo",
+        "elo-lmarena",
+        {"pairwise_win_rate": _win_rate(0.5, wins=1, losses=1, ties=0)},
+        ids=["0", "1"],
+        prefs=[0.0, 1.0],
+        entrypoint=ELO,
+    )
+    blocklist = tmp_path / "blocklist"
+    blocklist.mkdir()
+    row = {
+        "instruction": "Write a poem.",
+        "dataset": "alpaca-eval",
+        "_matched_ngrams": [],
+    }
+    (blocklist / "AlpacaEval.jsonl").write_text(json.dumps(row) + "\n")
+    monkeypatch.setattr(
+        sample_exclusion,
+        "_load_benchmarks",
+        lambda: {"AlpacaEval": {"tasks": ["alpaca-eval"], "match_on": ["instruction"]}},
+    )
+    out = tmp_path / "out.csv"
+    collect_results(str(tmp_path / "runs"), str(out), exclude_samples=str(blocklist))
+    df = pd.read_csv(out)
+    alpaca = df[df.task == "alpaca-eval"].set_index(["subset", "metric_name"])
+    prefix = "alpaca_eval_length_controlled"
+    assert alpaca.loc[("full", f"{prefix}.winrate"), "performance"] == 0.625
+    assert alpaca.loc[("clean", f"{prefix}.winrate"), "performance"] == 0.5
+    assert alpaca.loc[("clean", f"{prefix}.num_battles"), "performance"] == 3
+    assert ("clean", f"{prefix}.length_controlled_winrate") not in alpaca.index
+    assert set(alpaca.loc["clean", "n_excluded"]) == {1}
+    assert set(df[df.task == "elo-lmarena"].subset) == {"full"}
+    # collect logs through rich, which wraps lines.
+    logged = " ".join(capfd.readouterr().out.split())
+    assert f"{prefix}.lc_standard_error, {prefix}.length_controlled_winrate" in logged
+    assert (
+        "ELO tasks, whose ratings are fitted over all battles at once: elo-lmarena"
+        in logged
+    )
+
+
 # --- the task map ------------------------------------------------------------
 
 
@@ -1690,6 +2135,23 @@ def test_every_mapped_evalchemy_task_can_be_rescored():
     mapped = {t for ts in sample_exclusion.load_task_map().values() for t in ts}
     assert mapped & evalchemy <= sample_exclusion._EVALCHEMY_BENCHMARKS.keys()
     assert EVALCHEMY_QUESTIONS.keys() == sample_exclusion._EVALCHEMY_BENCHMARKS.keys()
+
+
+def _judgearena_tasks():
+    groups = _load_task_groups_data()["task_groups"]
+    return {
+        t["task"]
+        for g in groups.values()
+        for t in g.get("tasks") or []
+        if t.get("suite", g.get("suite")) == "judgearena"
+    }
+
+
+def test_no_judgearena_elo_task_is_mapped():
+    mapped = {t for ts in sample_exclusion.load_task_map().values() for t in ts}
+    judgearena = mapped & _judgearena_tasks()
+    assert judgearena
+    assert not {t for t in judgearena if t.startswith("elo-")}
 
 
 # --- alignment tables --------------------------------------------------------
@@ -2052,3 +2514,35 @@ def test_every_mapped_row_matches_one_evalchemy_question():
             )
             assert all(matched), benchmark
             assert len(excluded[task]) == len(blocklist[benchmark]), benchmark
+
+
+@pytest.mark.skipif(not BLOCKLIST_DIR.is_dir(), reason="set OELLM_BLOCKLIST_DIR")
+def test_every_mapped_row_matches_one_judgearena_question():
+    """Each blocklisted row is one question of each mapped JudgeArena task, in
+    every language, and each task has metrics collect recomputes. Needs
+    JudgeArena and its data in JUDGEARENA_DATA (or network access)."""
+    pytest.importorskip("judgearena")
+    from judgearena.datasets.pairwise import load_pairwise_task_data
+    from judgearena.tasks.registry import get_packaged_task
+
+    match_fields = sample_exclusion.load_match_fields()
+    blocklist = sample_exclusion.load_blocklist(BLOCKLIST_DIR, match_fields)
+    judgearena = _judgearena_tasks()
+    for benchmark, mapped in sample_exclusion.load_task_map().items():
+        rows = blocklist.get(benchmark)
+        for task in set(mapped) & judgearena if rows else ():
+            resolved = get_packaged_task(task)
+            metrics = {m.metric for m in resolved.spec.protocol.scoring.metrics}
+            assert metrics <= sample_exclusion._JUDGEARENA_METRICS.keys(), task
+            questions = load_pairwise_task_data(resolved).instructions["instruction"]
+            samples = {
+                task: [
+                    sample_exclusion.judgearena_question(task, str(index), text)
+                    for index, text in questions.items()
+                ]
+            }
+            excluded, matched = sample_exclusion._excluded_docs(
+                rows, samples, benchmark, match_on=benchmark in match_fields
+            )
+            assert all(matched), (benchmark, task)
+            assert len(excluded[task]) == len(rows), (benchmark, task)

@@ -955,22 +955,6 @@ def collect_results(
             metrics.append((metric_name, float(value)))
         return metrics
 
-    def _flatten_numeric_metrics(
-        value: object, prefix: str = ""
-    ) -> list[tuple[str, float]]:
-        """Flatten numeric dictionary leaves while leaving large arrays untouched."""
-        if isinstance(value, bool):
-            return []
-        if isinstance(value, (int, float)):
-            return [(prefix, float(value))] if prefix else []
-        if not isinstance(value, dict):
-            return []
-        metrics: list[tuple[str, float]] = []
-        for key, child in value.items():
-            name = f"{prefix}.{key}" if prefix else str(key)
-            metrics.extend(_flatten_numeric_metrics(child, name))
-        return metrics
-
     def _split_task_and_nshot(name: str) -> tuple[str, int | None]:
         """Split task names of the form 'task|N' returning (task, N) or (task, None)."""
         if not isinstance(name, str):
@@ -1033,31 +1017,72 @@ def collect_results(
     rows = []
     # (model, task, n_shot, decontaminated list or "") of each result
     completed_jobs = set()
+    # JudgeArena ELO tasks, which get no clean scores.
+    elo_tasks: set[str] = set()
 
     for json_file in json_files:
         with open(json_file) as f:
             data = json.load(f)
 
-        if data.get("schema_version") == "judgearena-run-metadata/v1":
+        if data.get("schema_version") == sample_exclusion.JUDGEARENA_SCHEMA:
             run_config = data["run"]
             report = data["results"]
             task_name = run_config["task"]
             model_name = run_config["model"]["name"].removeprefix("VLLM/")
 
-            metric_pairs = _flatten_numeric_metrics(report.get("metrics", {}))
-            if metric_pairs:
-                if check:
-                    completed_jobs.add((model_name, task_name, 0, ""))
-                rows.extend(
-                    {
-                        "model_name": model_name,
-                        "task": task_name,
-                        "n_shot": 0,
-                        "metric_name": metric_name,
-                        "performance": performance,
-                    }
-                    for metric_name, performance in metric_pairs
-                )
+            metric_pairs = sample_exclusion.flatten_metrics(report.get("metrics", {}))
+            if metric_pairs and check:
+                completed_jobs.add((model_name, task_name, 0, ""))
+            file_rows = [
+                {
+                    "model_name": model_name,
+                    "task": task_name,
+                    "n_shot": 0,
+                    "metric_name": metric_name,
+                    "performance": float(performance),
+                    # Pairs each clean score with its run's full score.
+                    **({"_source": str(json_file)} if exclude_samples else {}),
+                }
+                for metric_name, performance in metric_pairs
+            ]
+            rows.extend(file_rows)
+            if exclude_samples and file_rows:
+                if sample_exclusion.is_judgearena_elo(data):
+                    elo_tasks.add(task_name)
+                try:
+                    clean = sample_exclusion.clean_judgearena_results(
+                        json_file,
+                        data,
+                        blocklist,
+                        exclusion_task_map,
+                        exclusion_match_on,
+                    )
+                except sample_exclusion.RunNotFilterable as e:
+                    logging.warning(f"No scores without blocklisted samples: {e}")
+                    clean = None
+                if clean:
+                    scores, n_excluded = clean
+                    left_out = sorted(m for m, v in scores.items() if v is None)
+                    if left_out:
+                        logging.warning(
+                            f"{model_name} | {task_name}: no score without "
+                            f"blocklisted samples for {', '.join(left_out)}, which "
+                            "JudgeArena fits or bootstraps over all battles"
+                        )
+                    logging.info(
+                        f"{model_name} | {task_name}: {n_excluded} blocklisted "
+                        "questions excluded"
+                    )
+                    rows.extend(
+                        {
+                            **r,
+                            "performance": float(scores[r["metric_name"]]),
+                            "subset": "clean",
+                            "n_excluded": n_excluded,
+                        }
+                        for r in file_rows
+                        if scores.get(r["metric_name"]) is not None
+                    )
             continue
 
         file_rows_start = len(rows)
@@ -1333,6 +1358,13 @@ def collect_results(
                     for r in full_rows
                     if r["metric_name"] in clean_metrics
                 )
+
+    if elo_tasks:
+        logging.info(
+            "No scores without blocklisted samples for JudgeArena's ELO tasks, "
+            "whose ratings are fitted over all battles at once: "
+            + ", ".join(sorted(elo_tasks))
+        )
 
     if not rows and not check:
         logging.warning("No results extracted from JSON files")
