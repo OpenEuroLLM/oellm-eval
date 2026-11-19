@@ -259,7 +259,9 @@ def test_a_decontaminated_row_never_caches_requests() -> None:
     assert _lm_eval_setup(["agenttrove-0.0"], {})[0][0] == ""
     # The lm_eval call takes the flag from CACHE_ARGS alone.
     script = Template(_render()).safe_substitute({})
-    (call,) = re.findall(r"run_python -m lm_eval .*?EVAL_STATUS", script, re.S)
+    (call,) = re.findall(
+        r"run_in_eval_env python -m lm_eval .*?EVAL_STATUS", script, re.S
+    )
     assert "$CACHE_ARGS" in call
     assert "--cache_requests" not in call
 

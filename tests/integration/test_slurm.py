@@ -317,7 +317,15 @@ class TestFullEvaluationPipeline:
         )
 
         json_files = list(results_dir.glob("**/*.json"))
-        assert len(json_files) > 0, f"No result JSON files for {group_name}"
+        inspect_files = list(results_dir.glob("**/*.eval"))
+        if suite == "inspect":
+            assert inspect_files, f"No Inspect .eval files for {group_name}"
+            print(
+                f"{group_name}: PASSED ({task_name}, {len(inspect_files)} result files)"
+            )
+            return
+
+        assert json_files, f"No result JSON files for {group_name}"
 
         for json_file in json_files:
             with open(json_file) as f:
