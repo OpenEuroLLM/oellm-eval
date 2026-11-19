@@ -4,6 +4,26 @@
 
 Tasks are defined in `oellm/resources/task-groups.yaml`. Only tasks in this file are tested and guaranteed to work. The CLI parses this via `task_groups.py` and expands groups into `(task, n_shot, suite)` tuples for scheduling.
 
+## ToxiGen
+
+The `toxigen` task group runs the built-in [lm-eval-harness ToxiGen task](https://github.com/EleutherAI/lm-evaluation-harness/tree/main/lm_eval/tasks/toxigen) in English with zero-shot prompting. It scores the choices `No` and `Yes` for whether a statement is hateful, using the `annotated` subset of [`skg/toxigen-data`](https://huggingface.co/datasets/skg/toxigen-data). Evaluation uses the full test split (940 examples). The dataset is pre-downloaded automatically, as with `crows-pairs`.
+
+```bash
+oellm-eval schedule --models "model-name" --task_groups "toxigen"
+```
+
+The harness reports `acc` and `acc_norm`; this project's results collector selects `acc` (higher is better).
+
+For a full local pipeline check with a tiny model, activate an environment containing this project and the [evaluation dependencies](VENV.md), then run without `--limit`:
+
+```bash
+source .venv/bin/activate
+oellm-eval schedule --models "sshleifer/tiny-gpt2" \
+    --task_groups "toxigen" --venv_path "$PWD/.venv" --local true
+```
+
+This model is useful for checking the evaluation pipeline; its score is not a meaningful model-quality benchmark.
+
 ## YAML Structure
 
 ```yaml
