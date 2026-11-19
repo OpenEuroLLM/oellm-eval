@@ -1,0 +1,3 @@
+dataset_name: nld_Latn
+include: _default_template_yaml
+task: flores_bpb_nld_Latn

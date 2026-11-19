@@ -1,0 +1,7 @@
+tag:
+  - bpb_mc
+task: arc_easy_bpb
+class: !function bpb_task.BPBTask
+base_task: arc_easy
+metadata:
+  version: 0.0

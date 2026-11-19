@@ -1,0 +1,7 @@
+tag:
+  - bpb_mc
+task: openbookqa_bpb
+class: !function bpb_task.BPBTask
+base_task: openbookqa
+metadata:
+  version: 0.0
