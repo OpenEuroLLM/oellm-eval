@@ -1,0 +1,3 @@
+dataset_name: ces_Latn
+include: _default_template_yaml
+task: flores_bpb_ces_Latn

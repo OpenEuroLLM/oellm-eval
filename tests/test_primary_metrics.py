@@ -102,3 +102,43 @@ def test_unknown_metric_does_not_drop_the_task(tmp_path):
     collect_results(str(run), str(out), fetch_all_metrics=False)
     df = pd.read_csv(out)
     assert set(df["metric_name"]) == {"acc"}
+
+
+def test_bpb_corpus_reports_bits_per_byte(tmp_path):
+    """wikitext reports three perplexity metrics. Only bits_per_byte is kept, and
+    lm-eval's "N/A" stderr for it is not numeric, so it is skipped."""
+    run = _write_result(
+        tmp_path,
+        "wikitext",
+        {
+            "word_perplexity,none": 40.0,
+            "word_perplexity_stderr,none": "N/A",
+            "byte_perplexity,none": 1.8,
+            "byte_perplexity_stderr,none": "N/A",
+            "bits_per_byte,none": 0.85,
+            "bits_per_byte_stderr,none": "N/A",
+        },
+    )
+    out = tmp_path / "out.csv"
+    collect_results(str(run), str(out), fetch_all_metrics=False)
+    df = pd.read_csv(out)
+    assert list(df["metric_name"]) == ["bits_per_byte"]
+    assert list(df["performance"]) == [0.85]
+
+
+def test_task_outside_the_registry_reports_metrics_not_sample_len(tmp_path):
+    """A task with no declared primary metric, such as a user's own BPB corpus,
+    keeps every metric, but not lm-eval's document count."""
+    run = _write_result(
+        tmp_path,
+        "bpb_my_corpus",
+        {
+            "sample_len": 281,
+            "bits_per_byte,none": 1.74,
+            "bits_per_byte_stderr,none": "N/A",
+        },
+    )
+    out = tmp_path / "out.csv"
+    collect_results(str(run), str(out), fetch_all_metrics=False)
+    df = pd.read_csv(out)
+    assert list(df["metric_name"]) == ["bits_per_byte"]

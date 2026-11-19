@@ -1,0 +1,16 @@
+tag:
+  - flores_bpb
+dataset_path: facebook/flores
+output_type: loglikelihood_rolling
+test_split: devtest
+process_docs: !function utils.process_docs
+doc_to_text: ""
+doc_to_target: "{{text}}"
+should_decontaminate: true
+doc_to_decontamination_query: "{{text}}"
+metric_list:
+  - metric: bits_per_byte
+    aggregation: bits_per_byte
+    higher_is_better: false
+metadata:
+  version: 0.0

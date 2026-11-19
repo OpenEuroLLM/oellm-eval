@@ -1,5 +1,5 @@
 "dataset_name": "hun_Latn"
-"fewshot_split": "test"
+"fewshot_split": "train"
 "include": "_default_template_yaml"
 "task": "sib200_hun_Latn"
 "test_split": "test"
