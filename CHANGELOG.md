@@ -34,6 +34,7 @@ it before comparing runs made with different versions.
 - Task group `decontaminated-agenttrove-0.0` runs the lm-eval tasks holding rows the decontamination pipeline marked, without those rows (`--samples`); `collect` reports them with `subset` `decontaminated:agenttrove-0.0`.
 - `collect --exclude_samples` covers GSM8K-Platinum, MATH, MathQA, MMLU-Redux, MMLU-Pro, TriviaQA, MBPP+, HumanEval and HumanEval+ (lm-eval), and excludes a row from both of HumanEval/HumanEval+, MBPP/MBPP+, GSM8K/GSM8K-Platinum, MMLU/MMLU-Redux and MATH-500/MATH.
 - `collect --exclude_samples` covers JudgeArena's AlpacaEval, arena-hard and m-ArenaHard: their win rates are recomputed from the judge's preference in each battle, without the blocklisted questions in every language. AlpacaEval's length-controlled win rate, arena-hard's bootstrapped intervals and the ELO tasks are not recomputed.
+- NorEval 1.2 (`custom_lm_eval_tasks/noreval`): 35 `noreval-*` task groups, one per NorEval tag at 5 shots, and a `noreval` super group running all of them (303 tasks).
 
 ### Changed
 
