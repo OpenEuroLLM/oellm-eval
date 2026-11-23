@@ -1051,6 +1051,293 @@ task_groups:
         n_shots: [0]
         dataset: evalplus/humanevalplus
 
+  noreval-norec-sentence-nob:
+    description: "NorEval NoReC Bokmal sentence-level sentiment (5-shot, f1)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: ltg/norec_sentence
+    tasks:
+      - task: norec_sentence_nob
+
+  noreval-norec-document-nob:
+    description: "NorEval NoReC Bokmal document-level sentiment (5-shot, f1)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: ltg/norec_document
+    tasks:
+      - task: norec_document_nob
+
+  noreval-norbelebele-nob:
+    description: "NorEval NorBelebele Bokmal reading comprehension (5-shot, acc)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: ltg/norbelebele
+    tasks:
+      - task: norbelebele_nob
+
+  noreval-norquad-nob:
+    description: "NorEval NorQuAD Bokmal extractive question answering (5-shot, f1)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: ltg/norquad
+    tasks:
+      - task: norquad_nob
+
+  noreval-noropenbookqa-nob:
+    description: "NorEval NorOpenBookQA Bokmal with supporting facts (5-shot, acc)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: ltg/noropenbookqa
+    tasks:
+      - task: noropenbookqa_nob
+
+  noreval-noropenbookqa-nno:
+    description: "NorEval NorOpenBookQA Nynorsk with supporting facts (5-shot, acc)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: ltg/noropenbookqa
+    tasks:
+      - task: noropenbookqa_nno
+
+  noreval-noropenbookqa-no-fact-nob:
+    description: "NorEval NorOpenBookQA Bokmal without supporting facts (5-shot, acc)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: ltg/noropenbookqa
+    tasks:
+      - task: noropenbookqa_no_fact_nob
+
+  noreval-noropenbookqa-no-fact-nno:
+    description: "NorEval NorOpenBookQA Nynorsk without supporting facts (5-shot, acc)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: ltg/noropenbookqa
+    tasks:
+      - task: noropenbookqa_no_fact_nno
+
+  noreval-ncb-nob:
+    description: "NorEval NCB Bokmal linguistic acceptability (5-shot, acc)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: hcfa/ncb
+    tasks:
+      - task: ncb_nob
+
+  noreval-nocola-nob:
+    description: "NorEval NoCoLA Bokmal linguistic acceptability (5-shot, acc)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: ltg/nocola
+    tasks:
+      - task: nocola_nob
+
+  noreval-noridiom-nob:
+    description: "NorEval NorIdiom Bokmal idiom completion (5-shot, em_first)."
+    suite: lm-eval-harness
+    metric: em_first
+    n_shots: [5]
+    dataset: Sprakbanken/Norwegian_idioms
+    tasks:
+      - task: noridiom_nob
+
+  noreval-noridiom-nno:
+    description: "NorEval NorIdiom Nynorsk idiom completion (5-shot, em_first)."
+    suite: lm-eval-harness
+    metric: em_first
+    n_shots: [5]
+    dataset: Sprakbanken/Norwegian_idioms
+    tasks:
+      - task: noridiom_nno
+
+  noreval-ask-gec-nob:
+    description: "NorEval ASK-GEC Bokmal grammatical error correction (5-shot, errant_f05)."
+    suite: lm-eval-harness
+    metric: errant_f05
+    n_shots: [5]
+    dataset: ltg/ask-gec
+    tasks:
+      - task: ask_gec_nob
+
+  noreval-slide:
+    description: "NorEval SLIDE Bokmal/Nynorsk/Swedish/Danish language identification (5-shot, acc)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: ltg/slide
+    tasks:
+      - task: slide_nob_nno_swe_dan
+
+  noreval-multiblimp-sme:
+    description: "NorEval MultiBLiMP Northern Sami minimal pairs, 13 phenomena (5-shot, acc)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: jumelet/multiblimp
+    tasks:
+      - task: multiblimp_ltg_sme
+
+  noreval-nrk-quiz-qa-nob:
+    description: "NorEval NRK-Quiz-QA Bokmal Norwegian world knowledge (5-shot, acc)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: ltg/nrk_quiz_qa
+    tasks:
+      - task: nrk_quiz_qa_nob
+
+  noreval-nrk-quiz-qa-nno:
+    description: "NorEval NRK-Quiz-QA Nynorsk Norwegian world knowledge (5-shot, acc)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: ltg/nrk_quiz_qa
+    tasks:
+      - task: nrk_quiz_qa_nno
+
+  noreval-norcommonsenseqa-nob:
+    description: "NorEval NorCommonsenseQA Bokmal commonsense reasoning (5-shot, acc)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: ltg/norcommonsenseqa
+    tasks:
+      - task: norcommonsenseqa_nob
+
+  noreval-norcommonsenseqa-nno:
+    description: "NorEval NorCommonsenseQA Nynorsk commonsense reasoning (5-shot, acc)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: ltg/norcommonsenseqa
+    tasks:
+      - task: norcommonsenseqa_nno
+
+  noreval-nortruthfulqa-mc-nob:
+    description: "NorEval NorTruthfulQA Bokmal multiple choice (5-shot, acc)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: ltg/nortruthfulqa_mc
+    tasks:
+      - task: nortruthfulqa_mc_nob
+
+  noreval-nortruthfulqa-mc-nno:
+    description: "NorEval NorTruthfulQA Nynorsk multiple choice (5-shot, acc)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: ltg/nortruthfulqa_mc
+    tasks:
+      - task: nortruthfulqa_mc_nno
+
+  noreval-nortruthfulqa-gen-nob:
+    description: "NorEval NorTruthfulQA Bokmal generation (5-shot, rougeL_max)."
+    suite: lm-eval-harness
+    metric: rougeL_max
+    n_shots: [5]
+    dataset: ltg/nortruthfulqa_gen
+    tasks:
+      - task: nortruthfulqa_gen_nob
+
+  noreval-nortruthfulqa-gen-nno:
+    description: "NorEval NorTruthfulQA Nynorsk generation (5-shot, rougeL_max)."
+    suite: lm-eval-harness
+    metric: rougeL_max
+    n_shots: [5]
+    dataset: ltg/nortruthfulqa_gen
+    tasks:
+      - task: nortruthfulqa_gen_nno
+
+  noreval-norsumm-nob:
+    description: "NorEval NorSumm Bokmal summarization (5-shot, rougeL_max)."
+    suite: lm-eval-harness
+    metric: rougeL_max
+    n_shots: [5]
+    dataset: SamiaT/NorSumm
+    tasks:
+      - task: norsumm_nob
+
+  noreval-norsumm-nno:
+    description: "NorEval NorSumm Nynorsk summarization (5-shot, rougeL_max)."
+    suite: lm-eval-harness
+    metric: rougeL_max
+    n_shots: [5]
+    dataset: SamiaT/NorSumm
+    tasks:
+      - task: norsumm_nno
+
+  noreval-norrewrite-instruct-nob:
+    description: "NorEval NorRewrite-Instruct Bokmal instruction following (5-shot, bleu)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: ltg/norrewrite-instruct
+    tasks:
+      - task: norrewrite_instruct_nob
+
+  noreval-norsummarize-instruct-nob:
+    description: "NorEval NorSummarize-Instruct Bokmal instruction following (5-shot, bleu)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: ltg/norsummarize-instruct
+    tasks:
+      - task: norsummarize_instruct_nob
+
+  noreval-translation-eng-nob:
+    description: "NorEval Tatoeba English->Bokmal translation (5-shot, bleu)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: Helsinki-NLP/tatoeba_mt
+    tasks:
+      - task: translation_eng_nob
+
+  noreval-translation-nob-eng:
+    description: "NorEval Tatoeba Bokmal->English translation (5-shot, bleu)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: Helsinki-NLP/tatoeba_mt
+    tasks:
+      - task: translation_nob_eng
+
+  noreval-translation-eng-nno:
+    description: "NorEval Tatoeba English->Nynorsk translation (5-shot, bleu)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: Helsinki-NLP/tatoeba_mt
+    tasks:
+      - task: translation_eng_nno
+
+  noreval-translation-nno-eng:
+    description: "NorEval Tatoeba Nynorsk->English translation (5-shot, bleu)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: Helsinki-NLP/tatoeba_mt
+    tasks:
+      - task: translation_nno_eng
+
+  noreval-translation-nob-nno:
+    description: "NorEval NorSumm Bokmal->Nynorsk translation (5-shot, bleu)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: ltg/norsumm-nob-nno-translation
+    tasks:
+      - task: translation_nob_nno
+
+  noreval-translation-nno-nob:
+    description: "NorEval NorSumm Nynorsk->Bokmal translation (5-shot, bleu)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: ltg/norsumm-nob-nno-translation
+    tasks:
+      - task: translation_nno_nob
+
+  noreval-translation-nob-sme:
+    description: "NorEval Sami Tatoeba Bokmal->Northern Sami translation (5-shot, bleu)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: ltg/saami-tatoeba
+    tasks:
+      - task: translation_nob_sme
+
+  noreval-translation-sme-nob:
+    description: "NorEval Sami Tatoeba Northern Sami->Bokmal translation (5-shot, bleu)."
+    suite: lm-eval-harness
+    n_shots: [5]
+    dataset: ltg/saami-tatoeba
+    tasks:
+      - task: translation_sme_nob
+
 super_groups:
   judgearena:
     description: "JudgeArena base tasks."
@@ -1062,6 +1349,45 @@ super_groups:
     task_groups:
       - task: judgearena-comparia
       - task: judgearena-lmarena
+
+  noreval:
+    description: "Full NorEval 1.2 suite: 35 task groups, 303 tasks"
+    task_groups:
+      - task: noreval-norec-sentence-nob
+      - task: noreval-norec-document-nob
+      - task: noreval-norbelebele-nob
+      - task: noreval-norquad-nob
+      - task: noreval-noropenbookqa-nob
+      - task: noreval-noropenbookqa-nno
+      - task: noreval-noropenbookqa-no-fact-nob
+      - task: noreval-noropenbookqa-no-fact-nno
+      - task: noreval-ncb-nob
+      - task: noreval-nocola-nob
+      - task: noreval-noridiom-nob
+      - task: noreval-noridiom-nno
+      - task: noreval-ask-gec-nob
+      - task: noreval-slide
+      - task: noreval-multiblimp-sme
+      - task: noreval-nrk-quiz-qa-nob
+      - task: noreval-nrk-quiz-qa-nno
+      - task: noreval-norcommonsenseqa-nob
+      - task: noreval-norcommonsenseqa-nno
+      - task: noreval-nortruthfulqa-mc-nob
+      - task: noreval-nortruthfulqa-mc-nno
+      - task: noreval-nortruthfulqa-gen-nob
+      - task: noreval-nortruthfulqa-gen-nno
+      - task: noreval-norsumm-nob
+      - task: noreval-norsumm-nno
+      - task: noreval-norrewrite-instruct-nob
+      - task: noreval-norsummarize-instruct-nob
+      - task: noreval-translation-eng-nob
+      - task: noreval-translation-nob-eng
+      - task: noreval-translation-eng-nno
+      - task: noreval-translation-nno-eng
+      - task: noreval-translation-nob-nno
+      - task: noreval-translation-nno-nob
+      - task: noreval-translation-nob-sme
+      - task: noreval-translation-sme-nob
 
   oellm-multilingual:
     description: "Combined Belebele EU set plus multilingual benchmarks"
