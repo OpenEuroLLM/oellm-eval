@@ -78,10 +78,21 @@ ci: # lambda labs
 roihu-gpu: # trying out new container
   hostname_pattern:
     - "*roihu-gpu-login*"
-    - "[0-9]*-[0-9]*-[0-9]*-[0-9]*"
   EVAL_BASE_DIR: <YOUR_OUT_DIR> # we don't have common OELLM project
   PARTITION: "gpumedium"
   ACCOUNT: <YOUR_PROJECT_NUMBER> # there is no single OELLM project
   QUEUE_LIMIT: 1
   EVAL_CONTAINER_IMAGE: "eval_env-roihu.sif"
+  SINGULARITY_ARGS: "--nv"
+
+marenostrum5:
+  hostname_pattern:
+    - "*alogin[0-9]*"
+    - "*glogin[0-9]*"
+  EVAL_BASE_DIR: "/gpfs/projects/ehpc533/oellm_shared_evals"
+  PARTITION: "acc"
+  QOS: "acc_ehpc"
+  ACCOUNT: "ehpc533"
+  QUEUE_LIMIT: 100 #debug: 100
+  EVAL_CONTAINER_IMAGE: "MN5_v2.sif"
   SINGULARITY_ARGS: "--nv"
