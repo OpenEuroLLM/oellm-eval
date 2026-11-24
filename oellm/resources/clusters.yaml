@@ -94,5 +94,5 @@ marenostrum5:
   QOS: "acc_ehpc"
   ACCOUNT: "ehpc533"
   QUEUE_LIMIT: 100 #debug: 100
-  EVAL_CONTAINER_IMAGE: "MN5_v2.sif"
+  EVAL_CONTAINER_IMAGE: "MN5.sif"
   SINGULARITY_ARGS: "--nv"
