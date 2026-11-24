@@ -1,0 +1,140 @@
+Bootstrap: docker
+From: nvcr.io/nvidia/pytorch:25.10-py3
+
+%arguments
+    JUDGEARENA_GIT_REF=45e3b80705f54463f7b67bdeecd8245413eb7457
+
+%labels
+    Author      oellm-cli
+    Description Apptainer image for Leonardo cluster
+    JudgeArenaRef {{ JUDGEARENA_GIT_REF }}
+
+%post
+    # Install uv
+    curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
+    export UV_TOOL_BIN_DIR=/usr/local/bin
+    export UV_TOOL_DIR=/opt/uv-tools
+
+    # lm-eval and dependencies (system Python)
+    uv pip install --system --break-system-packages \
+        lm-eval \
+        "transformers<5.20" \
+        "datasets==4.4.1" \
+        "pyarrow==21.0.0" \
+        "numpy==1.26.4" \
+        wandb \
+        sentencepiece \
+        tiktoken \
+        accelerate \
+        nltk
+
+    # Patch two lm-eval bugs that break dclm-core-22 at n_shot>0:
+    # - agieval_lsat_ar: "Answer is not a string! : [4]"
+    # - squadv2: doc_to_text() takes 2 positional arguments but 3 were given.
+    #
+    # Exact-string replacements. Fail the build if the expected source
+    # code is not found exactly once.
+
+    python - <<'PY'
+import os
+import lm_eval
+
+root = os.path.dirname(lm_eval.__file__)
+
+patches = {
+    "api/task.py": [(
+        "                c[a]\n"
+        "                if (c and isinstance(a, int))\n"
+        "                # TODO: for multiple targets a is a list[str]. Fix this hack\n",
+        "                c[a]\n"
+        "                if (c and isinstance(a, int))\n"
+        "                # Gold given as a list of choice indices (AGIEval: [4]) -> map through choices.\n"
+        "                else c[a[0]]\n"
+        "                if (c and isinstance(a, list) and len(a) and isinstance(a[0], int))\n"
+        "                # TODO: for multiple targets a is a list[str]. Fix this hack\n",
+    )],
+    "tasks/squadv2/task.py": [
+        (
+            "    def doc_to_text(self, doc):\n",
+            "    def doc_to_text(self, doc, doc_to_text=None):\n",
+        ),
+        (
+            "    def doc_to_target(self, doc):\n",
+            "    def doc_to_target(self, doc, doc_to_target=None):\n",
+        ),
+    ],
+}
+
+for rel, replacements in patches.items():
+    path = os.path.join(root, rel)
+
+    if not os.path.isfile(path):
+        raise SystemExit(f"Expected lm-eval source file does not exist: {path}")
+
+    with open(path, encoding="utf-8") as f:
+        source = f.read()
+
+    for old, new in replacements:
+        if new in source:
+            continue
+
+        count = source.count(old)
+        if count != 1:
+            raise SystemExit(
+                f"Expected exactly one patch target in {rel}, found {count}"
+            )
+
+        source = source.replace(old, new)
+
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(source)
+
+    print("Patched:", rel)
+
+print("lm-eval patches completed successfully.")
+PY
+
+    # Verify patched imports.
+    python - <<'PY'
+import lm_eval
+from lm_eval.tasks import get_task_dict
+
+print("lm-eval:", lm_eval.__file__)
+print("lm-eval patch verification passed.")
+PY
+
+      
+    # JudgeArena needs a separate CUDA 13 PyTorch/VLLM runtime.
+    uv venv --python 3.12 /opt/judgearena
+    uv pip install --python /opt/judgearena/bin/python \
+        --torch-backend cu130 \
+        "torch==2.10.0" \
+        "vllm @ https://github.com/vllm-project/vllm/releases/download/v0.19.1/vllm-0.19.1+cu130-cp38-abi3-manylinux_2_35_x86_64.whl" \
+        "transformers==5.5.4" \
+        "huggingface-hub>=1.5,<2" \
+        "datasets>=4" \
+        "judgearena @ git+https://github.com/OpenEuroLLM/JudgeArena.git@{{ JUDGEARENA_GIT_REF }}"
+    ln -s /opt/judgearena/bin/judgearena /usr/local/bin/judgearena
+
+    # lighteval as isolated tool (avoids dependency conflicts)
+    uv tool install --python 3.12 \
+        --with "langcodes[data]" \
+        --with "pillow" \
+        --with "huggingface-hub<2" \
+        "lighteval[multilingual] @ git+https://github.com/huggingface/lighteval.git"
+
+    # Pre-load lighteval registry to trigger tinyBenchmarks data download at build time
+    /opt/uv-tools/lighteval/bin/python -c "from lighteval.tasks.registry import Registry; Registry.load_all_task_configs(load_multilingual=True)"
+
+    # NLTK data
+    mkdir -p /opt/nltk_data
+    python -c "import nltk; nltk.download('punkt', download_dir='/opt/nltk_data'); nltk.download('punkt_tab', download_dir='/opt/nltk_data')"
+
+%environment
+    export PATH=/usr/local/bin:$PATH
+    export UV_TOOL_BIN_DIR=/usr/local/bin
+    export UV_TOOL_DIR=/opt/uv-tools
+    export NLTK_DATA=/opt/nltk_data
+
+%runscript
+    exec bash "$@"

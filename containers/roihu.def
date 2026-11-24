@@ -1,0 +1,220 @@
+Bootstrap: docker
+From: nvcr.io/nvidia/pytorch:25.06-py3
+
+%labels
+    Author      me
+    Description Apptainer image for Roihu (ARM64 / NVIDIA GH200)
+
+%post
+    set -e
+    umask 022
+
+    # 1. Install uv
+    # ---------------------------------------------------------
+
+    curl -LsSf https://astral.sh/uv/install.sh | \
+        env UV_INSTALL_DIR=/usr/local/bin sh
+
+    export PATH=/usr/local/bin:$PATH
+    export UV_TOOL_BIN_DIR=/usr/local/bin
+    export UV_TOOL_DIR=/opt/uv-tools
+
+    uv --version
+
+    # 2. Install core deps + pinned versions first
+    # ---------------------------------------------------------
+    uv pip install --system --break-system-packages \
+        "lm-eval[api,tasks]" \
+        "transformers<5.20" \
+        "datasets==4.4.1" \
+        "pyarrow==21.0.0" \
+        "numpy==1.26.4" \
+        word2number \
+        wandb \
+        sentencepiece \
+        tiktoken \
+        accelerate \
+        nltk
+
+    # Build causal-conv1d against matching CUDA toolkit for GH200 (sm_90)
+    export TORCH_CUDA_ARCH_LIST="9.0"
+    export MAX_JOBS=8
+    if [ -d /usr/local/cuda-13.2 ]; then
+        export CUDA_HOME=/usr/local/cuda-13.2
+        export PATH="$CUDA_HOME/bin:$PATH"
+        export LD_LIBRARY_PATH="$CUDA_HOME/lib64:${LD_LIBRARY_PATH:-}"
+    fi
+
+    uv pip install --system --break-system-packages --no-build-isolation \
+        causal-conv1d \
+        flash-linear-attention
+
+    # perhaps I can keep ComplexKDA as external package...
+    #uv pip install --system --break-system-packages --no-deps \
+    #    "complex-kda @ git+https://github.com/OpenEuroLLM/ComplexKDA.git"
+
+    # 3. Patch known lm-eval compatibility problems (like in Lumi)
+    # ---------------------------------------------------------
+
+    python - <<'PY'
+import os
+import lm_eval
+
+root = os.path.dirname(lm_eval.__file__)
+
+patches = {
+    "api/task.py": [(
+        "                c[a]\n"
+        "                if (c and isinstance(a, int))\n"
+        "                # TODO: for multiple targets a is a list[str]. Fix this hack\n",
+        "                c[a]\n"
+        "                if (c and isinstance(a, int))\n"
+        "                # Gold given as a list of choice indices (AGIEval: [4]) -> map through choices.\n"
+        "                else c[a[0]]\n"
+        "                if (c and isinstance(a, list) and len(a) and isinstance(a[0], int))\n"
+        "                # TODO: for multiple targets a is a list[str]. Fix this hack\n",
+    )],
+    "tasks/squadv2/task.py": [
+        (
+            "    def doc_to_text(self, doc):\n",
+            "    def doc_to_text(self, doc, doc_to_text=None):\n",
+        ),
+        (
+            "    def doc_to_target(self, doc):\n",
+            "    def doc_to_target(self, doc, doc_to_target=None):\n",
+        ),
+    ],
+}
+
+for rel, replacements in patches.items():
+    path = os.path.join(root, rel)
+
+    if not os.path.isfile(path):
+        raise SystemExit(f"Expected lm-eval source file does not exist: {path}")
+
+    with open(path, encoding="utf-8") as f:
+        source = f.read()
+
+    for old, new in replacements:
+        if new in source:
+            continue
+
+        count = source.count(old)
+        if count != 1:
+            raise SystemExit(
+                f"Expected exactly one patch target in {rel}, found {count}"
+            )
+
+        source = source.replace(old, new)
+
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(source)
+
+    print("Patched:", rel)
+PY
+
+    # 4. Verify lm-eval dependencies and patched imports
+    # ---------------------------------------------------------
+
+    python - <<'PY'
+import numpy
+import pyarrow
+import datasets
+import torch
+import transformers
+
+print("PyTorch:", torch.__version__)
+print("CUDA:", torch.version.cuda)
+print("NumPy:", numpy.__version__)
+print("PyArrow:", pyarrow.__version__)
+print("Datasets:", datasets.__version__)
+print("Transformers:", transformers.__version__)
+
+assert numpy.__version__ == "1.26.4"
+assert pyarrow.__version__ == "21.0.0"
+assert datasets.__version__ == "4.4.1"
+
+# Test the List feature representation that failed with Datasets 3.6.
+from datasets.features.features import Features
+
+features = Features.from_dict({
+    "choices": {
+        "feature": {"dtype": "string", "_type": "Value"},
+        "_type": "List",
+    }
+})
+print("List feature compatibility:", features)
+
+# Test imports used by task implementations.
+import transformers.data.metrics.squad_metrics
+import lm_eval.tasks.coqa.utils
+
+print("lm-eval dependency checks passed.")
+PY
+
+    # 5. Install lighteval with multilingual support
+    # ---------------------------------------------------------
+
+    uv tool install --python 3.12 \
+        --with "pillow" \
+        --with "torch<2.9" \
+        --with "langcodes[data]" \
+        --with "xxhash<4" \
+        --with "huggingface-hub<2" \
+        "lighteval[multilingual] @ git+https://github.com/huggingface/lighteval.git"
+
+    # Pre-load multilingual registry.
+    /opt/uv-tools/lighteval/bin/python -c \
+        "from lighteval.tasks.registry import Registry; Registry.load_all_task_configs(load_multilingual=True)"
+
+    # Verify multilingual imports and registry.
+    /opt/uv-tools/lighteval/bin/python - <<'PY'
+from lighteval.metrics.dynamic_metrics import (
+    MultilingualQuasiExactMatchMetric,
+)
+from lighteval.tasks.registry import Registry
+
+Registry.load_all_task_configs(load_multilingual=True)
+
+print("Multilingual metrics imported successfully.")
+print("Multilingual task registry loaded successfully.")
+PY
+
+    # 6. NLTK data
+    # ---------------------------------------------------------
+
+    mkdir -p /opt/nltk_data
+    chmod 755 /opt/nltk_data
+
+    python - <<'PY'
+import nltk
+
+nltk.download("punkt", download_dir="/opt/nltk_data")
+nltk.download("punkt_tab", download_dir="/opt/nltk_data")
+PY
+
+    # 7. Final build checks
+    # ---------------------------------------------------------
+
+    python - <<'PY'
+import lm_eval
+import torch
+
+print("lm-eval location:", lm_eval.__file__)
+print("PyTorch location:", torch.__file__)
+print("Container Python environment looks OK.")
+PY
+
+%environment
+    export PATH=/usr/local/bin:$PATH
+    export UV_TOOL_BIN_DIR=/usr/local/bin
+    export UV_TOOL_DIR=/opt/uv-tools
+
+    export NLTK_DATA=/opt/nltk_data
+    export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+
+    # Avoid requiring the optional hf_transfer package.
+    export HF_HUB_ENABLE_HF_TRANSFER=0
+
+%runscript
+    exec bash "$@"
