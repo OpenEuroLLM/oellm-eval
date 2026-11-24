@@ -1,0 +1,30 @@
+tag: cs_sqad32
+dataset_path: CZLC/sqad_3.2_filtered
+test_split: test
+fewshot_split: test
+fewshot_config:
+  sampler: first_n
+output_type: generate_until
+doc_to_target: "{{answers}}"
+process_results: !function utils.process_results
+generation_kwargs:
+  until:
+    - "\n\n"
+    - "</s>"
+    - "Otázka:"
+    - "Dotaz:"
+    - "<|im_end|>"
+    - "Kontext:"
+    - "<eos>"
+  do_sample: false
+  temperature: 0.0
+  max_new_tokens: 32
+metric_list:
+  - metric: exact_match
+    aggregation: mean
+    higher_is_better: true
+  - metric: f1
+    aggregation: mean
+    higher_is_better: true
+metadata:
+  version: 1.0

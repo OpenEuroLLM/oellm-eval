@@ -1,0 +1,5 @@
+dataset_name: biology
+tag: umimeto_biology
+task: umimeto_biology_p3
+include: ../../_umimeto.yaml
+description: "Biologická Olympiáda.\n\nInstrukce: Vyberte správnou odpověď A-B pro zadanou otázku. Pro každou otázku existuje právě jedna správná odpověď.\nZadání:\n\n"

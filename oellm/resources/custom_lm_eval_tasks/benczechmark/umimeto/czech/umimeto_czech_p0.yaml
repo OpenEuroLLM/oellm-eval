@@ -1,0 +1,5 @@
+dataset_name: czech
+tag: umimeto_czech
+task: umimeto_czech_p0
+include: ../../_umimeto.yaml
+description: "Jsi odborník na český jazyk. Předložím ti několik otázek a možné odpovědi A-B a tvůj úkol bude vybrat správnou odpověď.\n\n"

@@ -1,0 +1,4 @@
+task: cs_sqad32_p2
+description: "Kvíz. Zodpovězte následující otázky podle textu. Použijte symbol '\n\n' pro ukončení odpovědi.\n\n"
+doc_to_text: "Kontext: {{title}}-{{context}} Otázka: {{question}}\nOdpověď:"
+include: ../_cs_sqad32.yaml

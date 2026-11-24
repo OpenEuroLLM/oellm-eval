@@ -1,0 +1,4 @@
+task: cermat_math_open_p0
+include: ../_cermat_math_open.yaml
+description: "Jsi expert v matematice. Předložím ti několik otázek a tvůj úkol bude odpovídat. V případě vícero odpovědí je oddělte pomocí ', '.  Ukončete odpověď symbolem '\n\n'.\n\n"
+doc_to_text: "{{('Kontext: '+ context+' ') if context else ''}}Dotaz: {{query}}\nOdpověď:"
