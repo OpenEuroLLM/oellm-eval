@@ -18,8 +18,10 @@ From: nvcr.io/nvidia/pytorch:25.10-py3
     # lm-eval and dependencies (system Python)
     uv pip install --system --break-system-packages \
         lm-eval \
-        transformers \
-        "datasets<4.0.0" \
+        "transformers<5.20" \
+        "datasets==4.4.1" \
+        "pyarrow==21.0.0" \
+        "numpy==1.26.4" \
         wandb \
         sentencepiece \
         tiktoken \
