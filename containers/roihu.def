@@ -21,9 +21,8 @@ From: nvcr.io/nvidia/pytorch:25.06-py3
 
     uv --version
 
-    # 2. Install lm-eval in the NVIDIA PyTorch environment
-     # ---------------------------------------------------------
-
+    # 2. Install core deps + pinned versions first
+    # ---------------------------------------------------------
     uv pip install --system --break-system-packages \
         "lm-eval[api,tasks]" \
         "transformers<5.20" \
@@ -36,6 +35,23 @@ From: nvcr.io/nvidia/pytorch:25.06-py3
         tiktoken \
         accelerate \
         nltk
+
+    # Build causal-conv1d against matching CUDA toolkit for GH200 (sm_90)
+    export TORCH_CUDA_ARCH_LIST="9.0"
+    export MAX_JOBS=8
+    if [ -d /usr/local/cuda-13.2 ]; then
+        export CUDA_HOME=/usr/local/cuda-13.2
+        export PATH="$CUDA_HOME/bin:$PATH"
+        export LD_LIBRARY_PATH="$CUDA_HOME/lib64:${LD_LIBRARY_PATH:-}"
+    fi
+
+    uv pip install --system --break-system-packages --no-build-isolation \
+        causal-conv1d \
+        flash-linear-attention
+
+    # perhaps I can keep ComplexKDA as external package...
+    #uv pip install --system --break-system-packages --no-deps \
+    #    "complex-kda @ git+https://github.com/OpenEuroLLM/ComplexKDA.git"
 
     # 3. Patch known lm-eval compatibility problems (like in Lumi)
     # ---------------------------------------------------------
@@ -136,7 +152,7 @@ import lm_eval.tasks.coqa.utils
 print("lm-eval dependency checks passed.")
 PY
 
-    # 5. Install lighteval
+    # 5. Install lighteval with multilingual support
     # ---------------------------------------------------------
 
     uv tool install --python 3.12 \
@@ -145,15 +161,24 @@ PY
         --with "langcodes[data]" \
         --with "xxhash<4" \
         --with "huggingface-hub<2" \
-        --with "spacy>=3.0.0,<4.0.0" \
-        --with "jieba" \
-        --with "underthesea>=6.0.0" \
-        --with "nltk" \
-        "lighteval @ git+https://github.com/huggingface/lighteval.git"
+        "lighteval[multilingual] @ git+https://github.com/huggingface/lighteval.git"
 
-    # Pre-load lighteval registry.
+    # Pre-load multilingual registry.
     /opt/uv-tools/lighteval/bin/python -c \
-        "from lighteval.tasks.registry import Registry; Registry.load_all_task_configs(load_multilingual=False)"
+        "from lighteval.tasks.registry import Registry; Registry.load_all_task_configs(load_multilingual=True)"
+
+    # Verify multilingual imports and registry.
+    /opt/uv-tools/lighteval/bin/python - <<'PY'
+from lighteval.metrics.dynamic_metrics import (
+    MultilingualQuasiExactMatchMetric,
+)
+from lighteval.tasks.registry import Registry
+
+Registry.load_all_task_configs(load_multilingual=True)
+
+print("Multilingual metrics imported successfully.")
+print("Multilingual task registry loaded successfully.")
+PY
 
     # 6. NLTK data
     # ---------------------------------------------------------
