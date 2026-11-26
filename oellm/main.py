@@ -15,6 +15,7 @@ import pandas as pd
 from jsonargparse import auto_cli
 
 from oellm import decontaminated, sample_exclusion
+from oellm.results import read_result
 from oellm.task_groups import (
     _build_task_suite_map,
     _collect_dataset_specs,
@@ -231,11 +232,10 @@ def schedule_evals(
             fails the whole invocation if one task raises, so this caps how many tasks
             a single failure takes down; 1 restores one invocation per task.
         limit: If set, limit the number of samples per task (useful for quick testing).
-            Passes --limit to lm_eval, --max_samples to lighteval, and
+            Passes --limit to lm_eval and Inspect, --max_samples to lighteval, and
             --generation.n_instructions to JudgeArena. evalchemy's own benchmarks
             ignore the value: they get --debug, which runs a fixed subset (the first
             2 questions, 10 for LiveCodeBench).
-            --generation.n_instructions to JudgeArena.
         log_samples: If True, save every sample (prompt, model output, and
             per-sample metrics) instead of only the aggregated scores. Passes
             --log_samples to lm-eval-harness and --save-details to lighteval,
@@ -758,6 +758,7 @@ def schedule_evals(
             logging.info("Local evaluation completed.")
         except subprocess.CalledProcessError as e:
             logging.error(f"Evaluation failed with exit code {e.returncode}")
+            raise
         return
 
     try:
@@ -850,12 +851,12 @@ def collect_results(
     verbose: bool = False,
 ) -> None:
     """
-    Collect evaluation results from JSON files and export to CSV.
+    Collect evaluation results from JSON and Inspect .eval files and export to CSV.
 
     Recursively searches ``results_dir`` for every sub-directory that contains
     a ``jobs.csv`` file, merges all those CSV files into one (later directories
-    override duplicate rows), then recursively finds every ``.json`` result
-    file under ``results_dir``.
+    override duplicate rows), then recursively finds every ``.json`` and
+    Inspect ``.eval`` result file under ``results_dir``.
 
     With ``--check`` the merged jobs are compared against the extracted results
     and any missing evaluations are written to a ``*_missing.csv`` file.
@@ -863,7 +864,7 @@ def collect_results(
     ``output_csv``.
 
     Args:
-        results_dir: Root directory to search for jobs.csv files and JSON results
+        results_dir: Root directory to search for jobs.csv and result files
         output_csv: Output CSV filename (default: eval_results.csv)
         check: Check for missing evaluations and create a missing jobs CSV
         fetch_all_metrics: If True, include every computed metric for each task.
@@ -878,8 +879,6 @@ def collect_results(
             ``subset`` ``clean`` and ``n_excluded`` set. See the README.
         verbose: Enable verbose logging
     """
-    import json
-
     _setup_logging(verbose)
 
     if exclude_samples:
@@ -1002,16 +1001,19 @@ def collect_results(
             check = False
 
     # ------------------------------------------------------------------
-    # 2. Recursively find all JSON result files.
+    # 2. Recursively find JSON and native Inspect result files.
     # ------------------------------------------------------------------
-    json_files = sorted(results_path.rglob("*.json"))
+    result_files = sorted(results_path.rglob("*.json"))
+    inspect_files = sorted(results_path.rglob("*.eval"))
 
-    if not json_files:
-        logging.warning(f"No JSON files found under {results_dir}")
+    if not result_files and not inspect_files:
+        logging.warning(f"No result files found under {results_dir}")
         if not check:
             return
 
-    logging.info(f"Found {len(json_files)} result file(s)")
+    logging.info(
+        f"Found {len(result_files)} JSON and {len(inspect_files)} Inspect result file(s)"
+    )
 
     # Collect results
     rows = []
@@ -1020,9 +1022,10 @@ def collect_results(
     # JudgeArena ELO tasks, which get no clean scores.
     elo_tasks: set[str] = set()
 
-    for json_file in json_files:
-        with open(json_file) as f:
-            data = json.load(f)
+    for result_file in inspect_files + result_files:
+        data = read_result(result_file)
+        if data is None:
+            continue
 
         if data.get("schema_version") == sample_exclusion.JUDGEARENA_SCHEMA:
             run_config = data["run"]
@@ -1041,7 +1044,7 @@ def collect_results(
                     "metric_name": metric_name,
                     "performance": float(performance),
                     # Pairs each clean score with its run's full score.
-                    **({"_source": str(json_file)} if exclude_samples else {}),
+                    **({"_source": str(result_file)} if exclude_samples else {}),
                 }
                 for metric_name, performance in metric_pairs
             ]
@@ -1051,7 +1054,7 @@ def collect_results(
                     elo_tasks.add(task_name)
                 try:
                     clean = sample_exclusion.clean_judgearena_results(
-                        json_file,
+                        result_file,
                         data,
                         blocklist,
                         exclusion_task_map,
@@ -1088,9 +1091,9 @@ def collect_results(
         file_rows_start = len(rows)
         try:
             # The list of marked documents the run left out, if any.
-            decontaminated_by = decontaminated.run_of(json_file, data)
+            decontaminated_by = decontaminated.run_of(result_file, data)
         except ValueError as e:
-            logging.warning(f"Skipped {json_file}, a decontaminated run: {e}")
+            logging.warning(f"Skipped {result_file}, a decontaminated run: {e}")
             continue
 
         # Extract model name/path from a few common locations used in different
@@ -1233,12 +1236,19 @@ def collect_results(
                 if n_shot == "unknown" and global_n_shot is not None:
                     n_shot = global_n_shot
 
-            # Extract all available metrics for this task
-            task_metric_pairs = _extract_all_metrics(task_results)
-            if not fetch_all_metrics:
-                task_metric_pairs = _resolve_primary_metric(
-                    task_name_clean, task_metric_pairs
-                )
+            if data.get("report_all_metrics"):
+                # BBQ needs all fairness metrics, including undefined (None) values.
+                task_metric_pairs = [
+                    (name, value)
+                    for name, value in task_results.items()
+                    if value is None or isinstance(value, (int, float))
+                ]
+            else:
+                task_metric_pairs = _extract_all_metrics(task_results)
+                if not fetch_all_metrics:
+                    task_metric_pairs = _resolve_primary_metric(
+                        task_name_clean, task_metric_pairs
+                    )
 
             if task_metric_pairs:
                 # Track completed job for check mode (once per task, not per metric)
@@ -1261,7 +1271,7 @@ def collect_results(
                 # Debug: log cases where we have a task but no performance metric
                 if verbose:
                     logging.debug(
-                        f"No performance metric found for {model_name} | {task_name} | n_shot={n_shot} in {json_file.name}"
+                        f"No performance metric found for {model_name} | {task_name} | n_shot={n_shot} in {result_file.name}"
                     )
 
         if decontaminated_by:
@@ -1279,10 +1289,10 @@ def collect_results(
             file_rows = rows[file_rows_start:]
             for r in file_rows:
                 # Pairs each clean score with its run's full score.
-                r["_source"] = str(json_file)
+                r["_source"] = str(result_file)
             try:
                 clean = sample_exclusion.clean_results(
-                    json_file,
+                    result_file,
                     data,
                     blocklist,
                     exclusion_task_map,
@@ -1367,7 +1377,7 @@ def collect_results(
         )
 
     if not rows and not check:
-        logging.warning("No results extracted from JSON files")
+        logging.warning("No results extracted from result files")
         return
 
     # Create DataFrame and save to CSV (if we have results)

@@ -88,6 +88,30 @@ oellm-eval schedule \
     --skip_checks true
 ```
 
+## Inspect AI
+
+Install Inspect AI in a separate environment to avoid dependency conflicts with lm-eval and lighteval:
+
+```bash
+uv venv --python 3.12 inspect-venv
+uv pip install --python inspect-venv/bin/python -r requirements-venv-inspect.txt
+```
+
+Run with `--venv_path` pointing to the venv:
+
+```bash
+oellm-eval schedule \
+    --models HuggingFaceTB/SmolLM2-135M-Instruct \
+    --eval_csv_path inspect-tasks.csv \
+    --venv_path inspect-venv
+```
+
+Results are written as `.eval` logs. View them with:
+
+```bash
+inspect-venv/bin/inspect view --log-dir <run>/results
+```
+
 ## Evalchemy (reasoning)
 
 The `reasoning` task group includes 10 benchmarks: GSM8k, IFEval, and MBPP run via lm-eval-harness, while GPQADiamond, MATH500, LiveCodeBench, HumanEval, AIME24, AIME25, and AMC23 run via evalchemy.
