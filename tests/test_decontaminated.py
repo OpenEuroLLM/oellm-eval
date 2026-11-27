@@ -549,8 +549,20 @@ def test_the_bundled_tasks_leave_lm_eval_s_groups_and_tags_as_they_were():
         if entry.kind in (Kind.GROUP, Kind.TAG)
         and (ours[name].tags, ours[name].yaml_path) != (entry.tags, entry.yaml_path)
     }
-    # oellm's ARC languages (arc_mt/) and bigbench generate_until tasks (#112).
-    assert changed == {"arc_challenge_mt", "bigbench_generate_until"}
+    # oellm's ARC languages (arc_mt/) and bigbench generate_until tasks (#112),
+    # and NorEval 1.2 (noreval/) replacing lm-eval's NorEval 1.0 tags.
+    assert changed == {
+        "arc_challenge_mt",
+        "bigbench_generate_until",
+        "norcommonsenseqa_nno",
+        "norcommonsenseqa_nob",
+        "noropenbookqa_nno",
+        "noropenbookqa_nob",
+        "nortruthfulqa_mc_nno",
+        "nortruthfulqa_mc_nob",
+        "nrk_quiz_qa_nno",
+        "nrk_quiz_qa_nob",
+    }
     for path in (bundled / "mmmlu_decontaminated").glob("mmmlu_*.yaml"):
         lang = path.stem.removeprefix("mmmlu_").removesuffix("_high_school_mathematics")
         assert Path(ours[path.stem].yaml_path).resolve() == path.resolve()
