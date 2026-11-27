@@ -36,6 +36,8 @@ export LMMS_EVAL_DATASETS_CACHE="$HF_DATASETS_CACHE"
 # lm-eval's code tasks (mbpp, humaneval) run the generated code, which needs
 # --confirm_run_unsafe_code and, for HF's code_eval metric, this variable.
 export HF_ALLOW_CODE_EVAL=1
+export HF_XET_CACHE="$HF_HOME/xet_cache"
+export TRITON_CACHE_DIR="$HF_HOME/triton_cache"
 
 # Neither harness caches under HF_HOME on its own. lighteval hardcodes
 # ~/.cache/huggingface/lighteval and never reads HF_HOME, which fills the user's

@@ -146,4 +146,47 @@ Optional environment variables:
 - `LMMS_MODEL_ARGS`: extra model arguments, e.g. `device_map=cuda:0`
 - `MAX_NUM_FRAMES`: frames per video for Qwen VL models (default 8)
 
-> **Note:** Datasets are pre-downloaded only for task groups, and there are no lmms-eval task groups yet. Until they are added, download the datasets yourself before submitting the job.
+### Image understanding task group
+
+The `img-understanding` task group (VQAv2, GQA, TextVQA, ScienceQA-img, MMMU, MMMU-Pro standard, all 0-shot) runs on lmms-eval and has its datasets pre-downloaded by `schedule`.
+
+It needs **lmms-eval 0.7.3 or newer**. The group pre-downloads the `lmms-lab-encoder/*` dataset repos that 0.7.3 loads. 0.7.2 loads `lmms-lab/*` instead, so a run on the 0.7.2 install above would fail offline on a compute node. Install from the requirements file rather than the clone above:
+
+1. Create a venv and install dependencies:
+   ```bash
+   uv venv --python 3.12 lmms-eval-venv
+   uv pip install --python lmms-eval-venv/bin/python -r requirements-venv-lmms-eval.txt
+   ```
+
+2. On linux-aarch64 only: `decord` has no wheel there, but `llava_hf` and the Qwen VL model files import it unconditionally, even for image-only tasks. Stub it out; nothing in this task group calls it:
+   ```bash
+   lmms-eval-venv/bin/python - <<'PY'
+   import pathlib, sysconfig
+   site = pathlib.Path(sysconfig.get_paths()["purelib"]) / "decord"
+   site.mkdir(exist_ok=True)
+   (site / "__init__.py").write_text('''def cpu(*args, **kwargs):
+       raise NotImplementedError("decord is not available on this platform")
+
+
+   class VideoReader:
+       def __init__(self, *args, **kwargs):
+           raise NotImplementedError("decord is not available on this platform")
+   ''')
+   print("stubbed decord at:", site)
+   PY
+   ```
+
+3. VQAv2, GQA, and ScienceQA-img pass `token=True` in their dataset loading code, even though all three repos are public. Without a token this fails before the request ever reaches the network. Any token works, including an expired one, but it must be a real cached token: an empty `HF_TOKEN` is the same as unsetting it, so run `huggingface-cli login` first if you don't already have one, then:
+   ```bash
+   export HF_TOKEN=$(cat ~/.cache/huggingface/token)
+   ```
+
+```bash
+oellm-eval schedule \
+    --models llava-hf/llava-1.5-7b-hf \
+    --task_groups img-understanding \
+    --venv_path lmms-eval-venv \
+    --skip_checks true
+```
+
+`--skip_checks true` also skips the dataset pre-download. Run the command once with `--download_only true` instead of `--skip_checks true` on a node with internet access to fetch the datasets first.
