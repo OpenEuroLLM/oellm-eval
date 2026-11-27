@@ -562,6 +562,7 @@ def schedule_evals(
     slurm_logs_dir = evals_dir / "slurm_logs"
     slurm_logs_dir.mkdir(parents=True, exist_ok=True)
     csv_path = evals_dir / "jobs.csv"
+    tsv_path = evals_dir / "jobs.tsv"
 
     # Shuffle to distribute fast/slow evaluations evenly across array jobs, but
     # shuffle *groups* of evaluations that share a model, shot count and suite
@@ -591,6 +592,9 @@ def schedule_evals(
     )
 
     df.to_csv(csv_path, index=False)
+    # Slurm's awk reader needs a delimiter that cannot occur in model options
+    # (e.g. "repo/model,revision=checkpoint"). Keep jobs.csv for reporting.
+    df.to_csv(tsv_path, index=False, sep="\t")
     if "decontaminated" in df.columns:
         for name in df["decontaminated"].unique():
             if name:
@@ -666,7 +670,7 @@ def schedule_evals(
     logging.info(f"   Requested host memory: {slurm_mem}")
 
     sbatch_script = sbatch_template.format(
-        csv_path=csv_path,
+        csv_path=tsv_path,
         max_array_len=max_array_len,
         tasks_per_job=max(1, tasks_per_job),
         array_limit=actual_array_size - 1,  # Array is 0-indexed
