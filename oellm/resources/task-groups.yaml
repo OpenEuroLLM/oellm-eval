@@ -515,6 +515,16 @@ task_groups:
     tasks:
       - task: crows_pairs_english
 
+  toxigen:
+    description: "ToxiGen hate speech detection benchmark (English, 0-shot)."
+    suite: lm-eval-harness
+    metric: acc
+    n_shots: [0]
+    dataset: skg/toxigen-data
+    subset: annotated
+    tasks:
+      - task: toxigen
+
   # Bits-per-byte (BPB) on held-out text: the summed negative log-likelihood of
   # the documents divided by ln(2) times their UTF-8 byte count. It is
   # tokenizer-agnostic and still separates very small models whose accuracy on
