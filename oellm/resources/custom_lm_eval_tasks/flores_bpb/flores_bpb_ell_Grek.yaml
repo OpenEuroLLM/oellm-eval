@@ -1,0 +1,3 @@
+dataset_name: ell_Grek
+include: _default_template_yaml
+task: flores_bpb_ell_Grek

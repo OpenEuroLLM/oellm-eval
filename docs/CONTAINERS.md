@@ -40,3 +40,24 @@ Images are compressed with zstd (level 3) via mksquashfs for a good balance of s
    ```
 
 4. Push to `main` to trigger the build.
+
+## JudgeArena on LUMI
+
+`containers/lumi.def` includes lm-eval, lighteval, JudgeArena, and VLLM.
+Use the combined image with `SINGULARITY_ARGS=""`:
+
+```bash
+export SINGULARITY_ARGS=""
+
+oellm-eval schedule \
+  --models <model> \
+  --task_groups judgearena \
+  --download_only
+
+oellm-eval schedule \
+  --models <model> \
+  --tasks arena-hard-v0.1 \
+  --n_shot 0 \
+  --limit 1 \
+  --judgearena_kwargs '{"judge.model":"VLLM/<judge>"}'
+```

@@ -16,15 +16,26 @@ CSV_PATH="{csv_path}"
 NUM_JOBS={num_jobs}
 TOTAL_EVALS={total_evals}
 LIMIT="{limit}"
+# Non-empty only when every sample should be saved. Full sample dumps are
+# large, so this stays off unless explicitly requested.
+LOG_SAMPLES="{log_samples}"
 VENV_PATH="{venv_path}"
 LM_EVAL_INCLUDE_PATH="{lm_eval_include_path}"
+LIGHTEVAL_CUSTOM_TASKS="{lighteval_custom_tasks}"
 TASKS_PER_JOB={tasks_per_job}
+JUDGEARENA_ARGS=({judgearena_args})
+export JUDGEARENA_DATA={judgearena_data}
 
 # avoiding crashes due to compute nodes not having access to the internet
 export HF_HOME=$HF_HOME
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export HF_HUB_OFFLINE={hf_hub_offline}
-export LMMS_EVAL_DATASETS_CACHE="$HF_HOME/datasets"
+# keep lmms-eval on the shared datasets cache (by default it uses node-local /tmp)
+export LMMS_EVAL_DATASETS_CACHE="$HF_DATASETS_CACHE"
+
+# lm-eval's code tasks (mbpp, humaneval) run the generated code, which needs
+# --confirm_run_unsafe_code and, for HF's code_eval metric, this variable.
+export HF_ALLOW_CODE_EVAL=1
 export HF_XET_CACHE="$HF_HOME/xet_cache"
 export TRITON_CACHE_DIR="$HF_HOME/triton_cache"
 
@@ -93,19 +104,20 @@ FAILED_EVALS=0
 # loads with one. TASKS_PER_JOB caps how many tasks share a call: lm_eval aborts
 # the whole invocation if one task raises, so the cap bounds what a single
 # failure takes down. Suites other than lm_eval pass through one row at a time.
-# The output is tab-separated because a joined task list contains commas.
+# The output is tab-separated because a joined task list contains commas. The
+# optional fifth column names a decontaminated list; such rows get their own calls.
 BATCH_ROWS_AWK='
-    function flush() {{ if (tasks != "") print model, tasks, shots, suite }}
+    function flush() {{ if (tasks != "") print model, tasks, shots, suite, decon }}
     {{
         gsub(/\r/, "")
         if ($1 == "") next
         row_suite = ($4 == "" ? "lm_eval" : $4)
         lowered = tolower(row_suite)
         batchable = (lowered == "lm_eval" || lowered == "lm-eval" || lowered == "lm-eval-harness")
-        row_key = batchable ? ($1 SUBSEP $3 SUBSEP lowered) : ("unbatched" SUBSEP NR)
+        row_key = batchable ? ($1 SUBSEP $3 SUBSEP lowered SUBSEP $5) : ("unbatched" SUBSEP NR)
         if (row_key != key || count >= max_tasks) {{
             flush()
-            key = row_key; model = $1; shots = $3; suite = row_suite; tasks = $2; count = 1
+            key = row_key; model = $1; shots = $3; suite = row_suite; decon = $5; tasks = $2; count = 1
         }} else {{
             tasks = tasks "," $2; count++
         }}
@@ -115,13 +127,14 @@ BATCH_ROWS_AWK='
 
 # Redirected rather than piped into the loop: a pipeline runs the loop body in a
 # subshell, and FAILED_EVALS would be discarded when it exits.
-while IFS=$'\t' read -r model_path task_path n_shot eval_suite
+while IFS=$'\t' read -r model_path task_path n_shot eval_suite decontaminated
 do
     # Remove trailing carriage returns if script is edited on Windows
     model_path=$(echo "$model_path" | tr -d '\r')
     task_path=$(echo "$task_path" | tr -d '\r')
     n_shot=$(echo "$n_shot" | tr -d '\r')
     eval_suite=$(echo "${{eval_suite:-lm_eval}}" | tr -d '\r')
+    decontaminated=$(echo "$decontaminated" | tr -d '\r')
 
     # Skip empty lines
     if [ -z "$model_path" ]; then
@@ -134,11 +147,14 @@ do
     echo "  Task: $task_path"
     echo "  N-shot: $n_shot"
     echo "  Suite: $eval_suite"
+    if [ -n "$decontaminated" ]; then
+        echo "  Leaving out the documents marked in: $decontaminated"
+    fi
     echo "----------------------------------------------------"
 
     # Build bind paths: always mount the shared eval directory, and additionally
     # bind the directory that contains the model checkpoint when the path exists
-    BIND_PATHS="$EVAL_BASE_DIR:$EVAL_BASE_DIR,$HF_HOME:$HF_HOME,$HF_DATASETS_CACHE:$HF_DATASETS_CACHE${{LM_EVAL_INCLUDE_PATH:+,$$LM_EVAL_INCLUDE_PATH:$$LM_EVAL_INCLUDE_PATH}}"
+    BIND_PATHS="$EVAL_BASE_DIR:$EVAL_BASE_DIR,$HF_HOME:$HF_HOME,$HF_DATASETS_CACHE:$HF_DATASETS_CACHE${{LM_EVAL_INCLUDE_PATH:+,$$LM_EVAL_INCLUDE_PATH:$$LM_EVAL_INCLUDE_PATH}}${{LIGHTEVAL_CUSTOM_TASKS:+,$$LIGHTEVAL_CUSTOM_TASKS:$$LIGHTEVAL_CUSTOM_TASKS}}"
 
     if [ -e "$model_path" ]; then
         # If the model_path is a file, bind its parent directory; otherwise bind the dir itself
@@ -159,7 +175,7 @@ do
         JOB_HOME="$EVAL_BASE_DIR/$USER/container_home/$SLURM_JOB_ID"
         mkdir -p "$JOB_HOME"
         SINGULARITY_HOME_ARG="--home $JOB_HOME"
-        SINGULARITY_ENV_ARGS="--env HF_HOME=$HF_HOME --env HF_DATASETS_CACHE=$HF_DATASETS_CACHE --env HF_HUB_OFFLINE=$HF_HUB_OFFLINE --env TRANSFORMERS_OFFLINE=$TRANSFORMERS_OFFLINE --env NLTK_DATA=$NLTK_DATA --env LM_HARNESS_CACHE_PATH=$LM_HARNESS_CACHE_PATH"
+        SINGULARITY_ENV_ARGS="--env HF_HOME=$HF_HOME --env HF_DATASETS_CACHE=$HF_DATASETS_CACHE --env HF_HUB_OFFLINE=$HF_HUB_OFFLINE --env TRANSFORMERS_OFFLINE=$TRANSFORMERS_OFFLINE --env NLTK_DATA=$NLTK_DATA --env LM_HARNESS_CACHE_PATH=$LM_HARNESS_CACHE_PATH --env HF_ALLOW_CODE_EVAL=1"
     fi
 
     GPU_DEVICES=$(seq -s, 0 $(($GPUS_PER_NODE - 1)))
@@ -180,7 +196,7 @@ do
             singularity exec $SINGULARITY_ARGS \
                 $SINGULARITY_ENV_ARGS \
                 $SINGULARITY_HOME_ARG \
-                --bind $BIND_PATHS \
+                --bind "$BIND_PATHS" \
                 $EVAL_SIF_PATH \
                 env CUDA_VISIBLE_DEVICES=$GPU_DEVICES \
                 python "$@"
@@ -202,17 +218,37 @@ do
             RUN_ID=$(openssl rand -hex 5)
             EVAL_OUT_DIR="{evals_dir}"
             EVAL_OUT_PAT="$RUN_ID*.json"
+            # lm-eval does not record --samples, so the file name tells collect
+            # which documents the run left out.
+            RUN_NAME="$RUN_ID${{decontaminated:+--decontaminated--$decontaminated}}"
+            # lm-eval's request cache ignores --samples.
+            CACHE_ARGS="${{CACHE_REQUESTS:+--cache_requests $CACHE_REQUESTS}}"
+            if [ -n "$decontaminated" ]; then
+                # For the few-shot examples of oellm's MMMLU high_school_mathematics
+                # tasks; SINGULARITYENV_ for a container with a clean env.
+                export OELLM_DECONTAMINATED_SAMPLES="{samples_dir}/samples-$decontaminated.json"
+                export SINGULARITYENV_OELLM_DECONTAMINATED_SAMPLES="$$OELLM_DECONTAMINATED_SAMPLES"
+                if [ -n "$$CACHE_ARGS" ]; then
+                    echo "Not caching requests: the run leaves out documents ($decontaminated)"
+                    CACHE_ARGS=""
+                fi
+            else
+                unset OELLM_DECONTAMINATED_SAMPLES SINGULARITYENV_OELLM_DECONTAMINATED_SAMPLES
+            fi
             run_python -m lm_eval --model hf \
                 --model_args pretrained="$model_path",trust_remote_code=True \
                 --tasks "$task_path" \
                 --num_fewshot "$n_shot" \
-                --output_path "$EVAL_OUT_DIR/$RUN_ID.json" \
+                --output_path "$EVAL_OUT_DIR/$RUN_NAME.json" \
                 --trust_remote_code \
                 --confirm_run_unsafe_code \
                 ${{LM_EVAL_INCLUDE_PATH:+--include_path $$LM_EVAL_INCLUDE_PATH}} \
                 --batch_size auto \
-                ${{CACHE_REQUESTS:+--cache_requests $CACHE_REQUESTS}} \
-                ${{LIMIT:+--limit $LIMIT}}
+                --write_out \
+                $$CACHE_ARGS \
+                ${{LIMIT:+--limit $LIMIT}} \
+                ${{decontaminated:+--samples "{samples_dir}/samples-$decontaminated.json"}} \
+                ${{LOG_SAMPLES:+--log_samples}}
             EVAL_STATUS=$?
             echo "----------------------------------------------------"
             ;;
@@ -245,22 +281,26 @@ do
                     "model_name=$model_path,trust_remote_code=True,cache_dir=$LIGHTEVAL_CACHE_DIR,{additional_model_args}" \
                     "$LIGHT_TASK_ARG" \
                     --load-tasks-multilingual \
+                    --custom-tasks "$$LIGHTEVAL_CUSTOM_TASKS" \
                     --output-dir "$RESULTS_SUBDIR" \
-                    ${{LIMIT:+--max-samples $LIMIT}}
+                    ${{LIMIT:+--max-samples $LIMIT}} \
+                    ${{LOG_SAMPLES:+--save-details}}
                 EVAL_STATUS=$?
             else
                 singularity exec $SINGULARITY_ARGS \
                     $SINGULARITY_ENV_ARGS \
                     $SINGULARITY_HOME_ARG \
-                    --bind $BIND_PATHS \
+                    --bind "$BIND_PATHS" \
                     $EVAL_SIF_PATH \
                     env CUDA_VISIBLE_DEVICES=$GPU_DEVICES \
                     lighteval accelerate \
                         "model_name=$model_path,cache_dir=$LIGHTEVAL_CACHE_DIR,{additional_model_args}" \
                         "$LIGHT_TASK_ARG" \
                         --load-tasks-multilingual \
+                        --custom-tasks "$$LIGHTEVAL_CUSTOM_TASKS" \
                         --output-dir "$RESULTS_SUBDIR" \
-                        ${{LIMIT:+--max-samples $LIMIT}}
+                        ${{LIMIT:+--max-samples $LIMIT}} \
+                        ${{LOG_SAMPLES:+--save-details}}
                 EVAL_STATUS=$?
             fi
             ;;
@@ -275,6 +315,9 @@ do
                 # otherwise leak into the next evaluation in this job
                 (
                 cd "$EVALCHEMY_WORK_DIR"
+                # evalchemy passes --limit only to lm-eval tasks; its own benchmarks
+                # (MATH500, AIME24, ...) ignore it and shrink only under --debug
+                # No sample logging: evalchemy's benchmarks crash on it.
                 accelerate launch --num-processes "$GPUS_PER_NODE" --num-machines 1 \
                     $MULTI_GPU_FLAG -m eval.eval \
                     --model hf \
@@ -282,7 +325,7 @@ do
                     --model_args "trust_remote_code=True,pretrained=$model_path" \
                     --batch_size auto \
                     --output_path "$RESULTS_SUBDIR" \
-                    ${{LIMIT:+--limit $LIMIT}}
+                    ${{LIMIT:+--limit $LIMIT --debug}}
                 )
                 EVAL_STATUS=$?
             else
@@ -290,68 +333,128 @@ do
                 exit 1
             fi
             ;;
-        lmms_eval|lmms-eval)
+        judgearena)
+            mkdir -p "$JUDGEARENA_DATA"
             RESULTS_SUBDIR="{evals_dir}/$(openssl rand -hex 5)"
+            mkdir -p "$RESULTS_SUBDIR"
             EVAL_OUT_DIR="$RESULTS_SUBDIR"
-            EVAL_OUT_PAT="*"
+            EVAL_OUT_PAT="run-metadata.v1.json"
+
+            JUDGEARENA_BIND_PATHS="$BIND_PATHS,$JUDGEARENA_DATA:$JUDGEARENA_DATA"
+
             if [ -n "$VENV_PATH" ]; then
                 source "$VENV_PATH/bin/activate"
-                LMMS_MODEL_TYPE=$(python -c "
-import sys
-from transformers import AutoConfig, AutoTokenizer
-path = sys.argv[1]
-result = ''
-try:
-    tok = AutoTokenizer.from_pretrained(path, trust_remote_code=True)
-    seed2_id = tok.convert_tokens_to_ids('<seed2_0>')
-    if seed2_id is not None and seed2_id != tok.unk_token_id:
-        result = 'seed2_omni'
-except Exception:
-    pass
-if not result:
-    try:
-        result = AutoConfig.from_pretrained(path, trust_remote_code=True).model_type
-    except Exception:
-        result = ''
-print(result)
-" "$model_path" 2>/dev/null)
-                case "$LMMS_MODEL_TYPE" in
-                    llava|llava_next) LMMS_EVAL_MODEL="llava_hf" ;;
-                    qwen2_5_vl) LMMS_EVAL_MODEL="qwen2_5_vl" ;;
-                    qwen2_vl) LMMS_EVAL_MODEL="qwen2_vl" ;;
-                    seed2_omni) LMMS_EVAL_MODEL="seed2_omni" ;;
+                judgearena \
+                    "${{JUDGEARENA_ARGS[@]}}" \
+                    --task "$task_path" \
+                    --model.name "VLLM/$model_path" \
+                    --run.result_folder "$RESULTS_SUBDIR" \
+                    ${{LIMIT:+--generation.n_instructions $LIMIT}}
+                EVAL_STATUS=$?
+            else
+                singularity exec $SINGULARITY_ARGS \
+                    $SINGULARITY_ENV_ARGS \
+                    $SINGULARITY_HOME_ARG \
+                    --bind "$JUDGEARENA_BIND_PATHS" \
+                    "$EVAL_SIF_PATH" \
+                    env CUDA_VISIBLE_DEVICES=$GPU_DEVICES \
+                        JUDGEARENA_DATA="$JUDGEARENA_DATA" \
+                        HF_HOME="$HF_HOME" \
+                        HF_DATASETS_CACHE="$HF_DATASETS_CACHE" \
+                    judgearena \
+                        "${{JUDGEARENA_ARGS[@]}}" \
+                        --task "$task_path" \
+                        --model.name "VLLM/$model_path" \
+                        --run.result_folder "$RESULTS_SUBDIR" \
+                        ${{LIMIT:+--generation.n_instructions $LIMIT}}
+                EVAL_STATUS=$?
+            fi
+            ;;
+        lmms_eval|lmms-eval|lmms_eval:*|lmms-eval:*)
+            # lmms-eval needs a model class per model family: take it from the
+            # suite ("lmms-eval:<class>") or pick it from the model name
+            RESULTS_SUBDIR="{evals_dir}/$(openssl rand -hex 5)"
+            EVAL_OUT_DIR="$RESULTS_SUBDIR"
+            EVAL_OUT_PAT="*_results.json"
+            LMMS_EVAL_MODEL=""
+            case "$suite_normalized" in
+                *:*) LMMS_EVAL_MODEL="${{suite_normalized#*:}}" ;;
+            esac
+            # lm-eval and lighteval load any HF model through one generic class
+            # (--model hf), but lmms-eval has no such class for VLMs: you have to
+            # pass the family's class, like qwen2_5_vl or llava_hf. This block
+            # picks it from the model name when the suite doesn't set it
+            # (lmms-eval:<class>).
+            if [ -z "$LMMS_EVAL_MODEL" ]; then
+                # first match wins, so specific names come first
+                case "$(echo "$model_path" | tr '[:upper:]' '[:lower:]')" in
+                    *qwen2-audio*|*qwen2_audio*) LMMS_EVAL_MODEL="qwen2_audio" ;;
+                    *qwen2.5-omni*|*qwen2_5_omni*) LMMS_EVAL_MODEL="qwen2_5_omni" ;;
+                    *video-salmonn*|*video_salmonn*) LMMS_EVAL_MODEL="video_salmonn_2" ;;
+                    *audio-flamingo-3*|*audio_flamingo_3*) LMMS_EVAL_MODEL="audio_flamingo_3" ;;
+                    *kimi-audio*|*kimi_audio*) LMMS_EVAL_MODEL="kimi_audio" ;;
+                    *whisper*) LMMS_EVAL_MODEL="whisper" ;;
+                    *phi-4-multimodal*|*phi_4_multimodal*|*phi4-multimodal*) LMMS_EVAL_MODEL="phi4_multimodal" ;;
+                    *qwen2.5-vl*|*qwen2_5_vl*|*qwen2.5vl*) LMMS_EVAL_MODEL="qwen2_5_vl" ;;
+                    *qwen2-vl*|*qwen2_vl*) LMMS_EVAL_MODEL="qwen2_vl" ;;
+                    *llava-hf*) LMMS_EVAL_MODEL="llava_hf" ;;
+                    *llava-onevision*|*llava_onevision*) LMMS_EVAL_MODEL="llava_onevision" ;;
+                    *llava-vid*|*llava_vid*|*llava-video*) LMMS_EVAL_MODEL="llava_vid" ;;
+                    *video-llava*|*video_llava*) LMMS_EVAL_MODEL="video_llava" ;;
+                    *llava*) LMMS_EVAL_MODEL="llava_hf" ;;
+                    *internvideo*) LMMS_EVAL_MODEL="internvideo2" ;;
+                    *internvl*) LMMS_EVAL_MODEL="internvl2" ;;
+                    *idefics2*) LMMS_EVAL_MODEL="idefics2" ;;
+                    *minicpm*) LMMS_EVAL_MODEL="minicpm_v" ;;
+                    *longva*) LMMS_EVAL_MODEL="longva" ;;
+                    *videochat2*) LMMS_EVAL_MODEL="videochat2" ;;
+                    *qwen-vl*|*qwen_vl*) LMMS_EVAL_MODEL="qwen_vl" ;;
+                esac
+            fi
+            if [ -z "$LMMS_EVAL_MODEL" ]; then
+                echo "[error] lmms-eval suite: no known model class for '$model_path'. Extend the case in template.sbatch, or name the class in the suite as lmms-eval:<class>."
+                EVAL_STATUS=1
+            else
+                LMMS_ARGS="pretrained=$model_path"
+                # default device: all GPUs of the node (MPS on macOS), unless
+                # LMMS_MODEL_ARGS sets device_map
+                case ",${{LMMS_MODEL_ARGS:-}}," in
+                    *,device_map=*) ;;
                     *)
-                        echo "[error] lmms-eval suite: no known model class for config.json model_type '$LMMS_MODEL_TYPE' ($model_path). Extend the case in template.sbatch."
-                        EVAL_STATUS=1
-                        LMMS_EVAL_MODEL=""
+                        case "$LMMS_EVAL_MODEL" in
+                            kimi_audio|minicpm_v|qwen_vl) ;;  # no device_map argument
+                            *)
+                                if [ "$(uname -s)" = "Darwin" ]; then
+                                    LMMS_ARGS="$LMMS_ARGS,device=mps,device_map=mps"
+                                else
+                                    LMMS_ARGS="$LMMS_ARGS,device_map=auto"
+                                fi
+                                ;;
+                        esac
                         ;;
                 esac
-                if [ -n "$LMMS_EVAL_MODEL" ]; then
-                    LMMS_MODEL_ARGS="pretrained=$model_path"
-                    if [ "$LMMS_EVAL_MODEL" = "llava_hf" ]; then
-                        LMMS_MODEL_ARGS="$LMMS_MODEL_ARGS,trust_remote_code=True"
-                        if [ "$GPUS_PER_NODE" -eq 1 ]; then
-                            LMMS_MODEL_ARGS="$LMMS_MODEL_ARGS,device_map=cuda:0"
-                        fi
-                    fi
-                    if [ "$LMMS_EVAL_MODEL" = "seed2_omni" ]; then
-                        export LMMS_EVAL_PLUGINS=mv2_lmms_plugin
-                    fi
-                    accelerate launch --num-processes "$GPUS_PER_NODE" --num-machines 1 \
-                        $MULTI_GPU_FLAG -m lmms_eval eval \
-                        --model "$LMMS_EVAL_MODEL" \
-                        --model_args "$LMMS_MODEL_ARGS" \
-                        --tasks "$task_path" \
-                        --num_fewshot "$n_shot" \
-                        --batch_size 1 \
-                        --output_path "$RESULTS_SUBDIR" \
-                        --log_samples \
-                        ${{LIMIT:+--limit $LIMIT}}
-                    EVAL_STATUS=$?
+                case "$LMMS_EVAL_MODEL" in
+                    # cap frames per video (the default of 32 runs out of memory)
+                    qwen2_vl|qwen2_5_vl)
+                        LMMS_ARGS="$LMMS_ARGS,max_num_frames=${{MAX_NUM_FRAMES:-8}}"
+                        ;;
+                    # llava_onevision needs the model name
+                    llava_onevision)
+                        LMMS_ARGS="$LMMS_ARGS,model_name=$(basename "$model_path")"
+                        ;;
+                esac
+                # extra model arguments, comma-separated key=value
+                if [ -n "${{LMMS_MODEL_ARGS:-}}" ]; then
+                    LMMS_ARGS="$LMMS_ARGS,${{LMMS_MODEL_ARGS:-}}"
                 fi
-            else
-                echo "[error] lmms-eval suite requires --venv_path (not supported in container mode)."
-                exit 1
+                run_python -m lmms_eval \
+                    --model "$LMMS_EVAL_MODEL" \
+                    --model_args "$LMMS_ARGS" \
+                    --tasks "$task_path" \
+                    --num_fewshot "$n_shot" \
+                    --output_path "$RESULTS_SUBDIR" \
+                    ${{LIMIT:+--limit $LIMIT}}
+                EVAL_STATUS=$?
             fi
             ;;
         *)

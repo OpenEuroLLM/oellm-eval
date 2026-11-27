@@ -120,9 +120,37 @@ We use [Ali's fork](https://github.com/Ali-Elganzory/evalchemy) which includes a
 
 > **Note:** `HF_ALLOW_CODE_EVAL=1` is required because MBPP (run via lm-eval-harness) uses HuggingFace's `code_eval` metric which executes model-generated code. The evalchemy benchmarks (GPQADiamond, MATH500, LiveCodeBench) do not require this variable as they handle code execution safely through internal guards.
 
-## LMMs-Eval (image understanding)
+## lmms-eval (image, video, audio)
 
-The `img-understanding` task group (VQAv2, GQA, TextVQA, ScienceQA-img, MMMU, MMMU-Pro standard) runs via [lmms-eval](https://github.com/EvolvingLMMs-Lab/lmms-eval), since lm-eval-harness and evalchemy don't handle image inputs. lmms-eval has no single model wrapper the way those suites do; each VLM family needs its own registered model class. The `lmms_eval` case in `template.sbatch` resolves the right one (`llava_hf`, `qwen2_5_vl`, `qwen2_vl`, `seed2_omni`) from the checkpoint's `config.json` or tokenizer. Extend that case if you add a model family it doesn't recognize.
+Image, video and audio models run via [lmms-eval](https://github.com/EvolvingLMMs-Lab/lmms-eval). It is supported in venv mode only.
+
+1. Install lmms-eval from a clone at the pinned commit:
+   ```bash
+   git clone https://github.com/EvolvingLMMs-Lab/lmms-eval.git
+   git -C lmms-eval checkout 45c766f60b6f8c153e4c72d06ca636e2db0ebcdb  # v0.7.2
+   uv pip install --python /path/to/.venv/bin/python -e lmms-eval
+   ```
+
+2. Run with a jobs CSV that sets `eval_suite` to `lmms-eval`:
+   ```csv
+   model_path,task_path,n_shot,eval_suite
+   llava-hf/llava-interleave-qwen-0.5b-hf,realworldqa,0,lmms-eval
+   ```
+   ```bash
+   oellm-eval schedule --eval_csv_path jobs.csv --venv_path /path/to/.venv
+   ```
+
+The lmms-eval model class is picked from the model name (see the `lmms_eval` case in `template.sbatch`). To set it yourself, use `lmms-eval:<class>` as the suite, e.g. `lmms-eval:internvl2`.
+
+Optional environment variables:
+- `LMMS_MODEL_ARGS`: extra model arguments, e.g. `device_map=cuda:0`
+- `MAX_NUM_FRAMES`: frames per video for Qwen VL models (default 8)
+
+### Image understanding task group
+
+The `img-understanding` task group (VQAv2, GQA, TextVQA, ScienceQA-img, MMMU, MMMU-Pro standard, all 0-shot) runs on lmms-eval and has its datasets pre-downloaded by `schedule`.
+
+It needs **lmms-eval 0.7.3 or newer**. The group pre-downloads the `lmms-lab-encoder/*` dataset repos that 0.7.3 loads. 0.7.2 loads `lmms-lab/*` instead, so a run on the 0.7.2 install above would fail offline on a compute node. Install from the requirements file rather than the clone above:
 
 1. Create a venv and install dependencies:
    ```bash
@@ -130,7 +158,7 @@ The `img-understanding` task group (VQAv2, GQA, TextVQA, ScienceQA-img, MMMU, MM
    uv pip install --python lmms-eval-venv/bin/python -r requirements-venv-lmms-eval.txt
    ```
 
-2. `decord` has no Linux-aarch64 wheel, but `llava_hf` and the Qwen VL model files import it unconditionally, even for image-only tasks. Stub it out; nothing in this task group calls it:
+2. On linux-aarch64 only: `decord` has no wheel there, but `llava_hf` and the Qwen VL model files import it unconditionally, even for image-only tasks. Stub it out; nothing in this task group calls it:
    ```bash
    lmms-eval-venv/bin/python - <<'PY'
    import pathlib, sysconfig
@@ -153,14 +181,6 @@ The `img-understanding` task group (VQAv2, GQA, TextVQA, ScienceQA-img, MMMU, MM
    export HF_TOKEN=$(cat ~/.cache/huggingface/token)
    ```
 
-`llava_hf` has no real batching support, so the `lmms_eval` case always runs with `--batch_size 1`. Unlike lighteval and evalchemy, this isn't exposed as a CLI option.
-
-4. `seed2_omni` (mixturevitae2's own omni checkpoints, detected via the `<seed2_0>` token in the tokenizer rather than `config.json`, since those checkpoints report `model_type: qwen3` like any plain text model) is registered through lmms-eval's plugin mechanism rather than shipped inside lmms-eval itself. Copy it into the venv:
-   ```bash
-   cp -r oellm/resources/mv2_lmms_plugin lmms-eval-venv/lib/python3.12/site-packages/
-   ```
-   It imports `multimodal_processing.model_backends.seed2` from a `mixturevitae2` checkout at runtime, found via `MV2_MULTIMODAL_DIR` (defaults to `/e/project1/jureap59/raj3/mixturevitae2`).
-
 ```bash
 oellm-eval schedule \
     --models llava-hf/llava-1.5-7b-hf \
@@ -168,3 +188,5 @@ oellm-eval schedule \
     --venv_path lmms-eval-venv \
     --skip_checks true
 ```
+
+`--skip_checks true` also skips the dataset pre-download. Run the command once with `--download_only true` instead of `--skip_checks true` on a node with internet access to fetch the datasets first.

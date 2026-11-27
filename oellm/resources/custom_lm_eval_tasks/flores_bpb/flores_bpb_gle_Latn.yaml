@@ -1,0 +1,3 @@
+dataset_name: gle_Latn
+include: _default_template_yaml
+task: flores_bpb_gle_Latn

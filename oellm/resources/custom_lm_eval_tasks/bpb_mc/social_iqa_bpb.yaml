@@ -1,0 +1,11 @@
+tag:
+  - bpb_mc
+task: social_iqa_bpb
+class: !function bpb_task.BPBTask
+base_task: social_iqa
+# lm-eval before 0.4.13 reads allenai/social_i_qa, a loading-script dataset that
+# datasets>=4 cannot load. Pin the parquet copy every version can read, which is
+# also the one the task group pre-downloads.
+dataset_path: lighteval/siqa
+metadata:
+  version: 0.0
