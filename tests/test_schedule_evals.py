@@ -296,3 +296,35 @@ def test_schedule_rejects_task_override(schedule_env):
             venv_path=sys.prefix,
             dry_run=True,
         )
+
+
+@pytest.mark.parametrize("backend", ["hf", "vllm"])
+def test_schedule_evals_lm_eval_backend(tmp_path, backend):
+    """--lm_eval_backend selects the lm_eval --model backend."""
+    with (
+        patch("oellm.main._load_cluster_env"),
+        patch("oellm.main._num_jobs_in_queue", return_value=0),
+        patch.dict(os.environ, {"EVAL_OUTPUT_DIR": str(tmp_path)}),
+    ):
+        schedule_evals(
+            models="EleutherAI/pythia-70m",
+            tasks="hellaswag",
+            n_shot=0,
+            skip_checks=True,
+            venv_path=str(Path(sys.prefix)),
+            dry_run=True,
+            lm_eval_backend=backend,
+        )
+
+    sbatch_content = next(tmp_path.glob("**/submit_evals.sbatch")).read_text()
+    assert f"-m lm_eval --model {backend} " in sbatch_content
+
+
+def test_schedule_evals_rejects_unknown_lm_eval_backend(tmp_path):
+    with pytest.raises(ValueError, match="lm_eval_backend"):
+        schedule_evals(
+            models="EleutherAI/pythia-70m",
+            tasks="hellaswag",
+            n_shot=0,
+            lm_eval_backend="sglang",
+        )

@@ -193,6 +193,7 @@ def schedule_evals(
     local: bool = False,
     slurm_template_var: str | None = None,
     nodelist: str | None = None,
+    lm_eval_backend: str = "hf",
 ) -> None:
     """
     Schedule evaluation jobs for a given set of models, tasks, and number of shots.
@@ -264,8 +265,17 @@ def schedule_evals(
         nodelist: Optional SLURM nodelist to constrain the job to specific node(s),
             e.g. "tdll-3gpu4". Passed through as #SBATCH --nodelist. If unset, no
             node constraint is added.
+        lm_eval_backend: Model backend for lm-eval-harness, passed as `--model`:
+            "hf" (default, transformers) or "vllm". vLLM is often faster for long
+            generative tasks but loads the model more slowly; it must be installed
+            in the evaluation environment.
     """
     _setup_logging(verbose)
+
+    if lm_eval_backend not in ("hf", "vllm"):
+        raise ValueError(
+            f"lm_eval_backend must be 'hf' or 'vllm', got {lm_eval_backend!r}"
+        )
 
     if local:
         if not venv_path:
@@ -704,6 +714,7 @@ def schedule_evals(
         evalchemy_dir=os.environ.get("EVALCHEMY_DIR", "/opt/evalchemy"),
         judgearena_args=judgearena_args,
         judgearena_data=judgearena_data,
+        lm_eval_backend=lm_eval_backend,
     )
 
     if not os.environ.get("ACCOUNT"):

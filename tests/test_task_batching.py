@@ -60,6 +60,7 @@ TEMPLATE_FIELDS = {
     "tasks_per_job": 8,
     "judgearena_args": "",
     "judgearena_data": "/tmp/judgearena-data",
+    "lm_eval_backend": "hf",
     "samples_dir": "/tmp",
 }
 
