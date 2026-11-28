@@ -1,0 +1,7 @@
+group: nob_generation
+task:
+  - norsumm_nob
+  - nortruthfulqa_gen_nob
+aggregate_metric_list:
+  - metric: rougeL_max
+    weight_by_size: True

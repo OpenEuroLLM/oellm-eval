@@ -1,0 +1,6 @@
+group: nob_orthography
+task:
+  - ncb_nob
+aggregate_metric_list:
+  - metric: acc
+    weight_by_size: True

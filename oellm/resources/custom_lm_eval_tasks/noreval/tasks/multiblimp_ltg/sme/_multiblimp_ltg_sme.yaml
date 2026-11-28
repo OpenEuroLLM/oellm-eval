@@ -1,0 +1,49 @@
+group: multiblimp_ltg_sme
+task:
+  - "multiblimp_ltg_sme_1-2"
+  - "multiblimp_ltg_sme_2-1"
+  - "multiblimp_ltg_sme_1-3"
+  - "multiblimp_ltg_sme_3-1"
+  - "multiblimp_ltg_sme_2-3"
+  - "multiblimp_ltg_sme_3-2"
+  - "multiblimp_ltg_sme_1-23"
+  - "multiblimp_ltg_sme_SG-PL"
+  - "multiblimp_ltg_sme_PL-SG"
+  - "multiblimp_ltg_sme_SG-DU"
+  - "multiblimp_ltg_sme_DU-SG"
+  - "multiblimp_ltg_sme_PL-DU"
+  - "multiblimp_ltg_sme_DU-PL"
+aggregate_metric_list:
+  - metric: acc
+    aggregation: mean
+    weight_by_size: True
+  - metric: acc_norm
+    aggregation: mean
+    weight_by_size: True
+  - metric: acc_mutual_info
+    aggregation: mean
+    weight_by_size: True
+  - metric: prob_correct
+    aggregation: mean
+    weight_by_size: True
+  - metric: prob_correct_norm
+    aggregation: mean
+    weight_by_size: True
+  - metric: prob_correct_mutual_info
+    aggregation: mean
+    weight_by_size: True
+  - metric: loglikelihood_correct
+    aggregation: mean
+    weight_by_size: True
+  - metric: loglikelihood_correct_norm
+    aggregation: mean
+    weight_by_size: True
+  - metric: loglikelihood_correct_mutual_info
+    aggregation: mean
+    weight_by_size: True
+metadata:
+  version: 1.2
+  primary_metric: acc
+  random_baseline: 0.5
+  category: linguistic_knowledge
+  language: sme

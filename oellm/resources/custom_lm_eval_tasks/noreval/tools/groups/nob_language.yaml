@@ -1,0 +1,6 @@
+group: nob_language
+task:
+  - noridiom_nob
+aggregate_metric_list:
+  - metric: fscore
+    weight_by_size: True

@@ -1,0 +1,85 @@
+prompt	context	response	comment	label
+Can you summarize the Korematsu case?	"Korematsu v. United States, 323 U.S. 214 (1944), was a landmark decision by the Supreme Court of the United States to uphold the exclusion of Japanese Americans from the West Coast Military Area during World War II. The decision has been widely criticized, with some scholars describing it as ""an odious and discredited artifact of popular bigotry"", and as ""a stain on American jurisprudence"". The case is often cited as one of the worst Supreme Court decisions of all time. Chief Justice John Roberts repudiated the Korematsu decision in his majority opinion in the 2018 case of Trump v. Hawaii.
+
+In the aftermath of Imperial Japan's attack on Pearl Harbor, President Franklin D. Roosevelt had issued Executive Order 9066 on February 19, 1942, authorizing the U.S. War Department to create military areas from which any or all Americans might be excluded. Subsequently, the Western Defense Command, a U.S. Army military command charged with coordinating the defense of the West Coast of the United States, ordered ""all persons of Japanese ancestry, including aliens and non-aliens"" to relocate to internment camps. However, a 23-year-old Japanese-American man, Fred Korematsu, refused to leave the exclusion zone and instead challenged the order on the grounds that it violated the Fifth Amendment.
+
+In a majority opinion joined by five other justices, Associate Justice Hugo Black held that the need to protect against espionage by Japan outweighed the rights of Americans of Japanese ancestry. Black wrote that ""Korematsu was not excluded from the Military Area because of hostility to him or his race"", but rather ""because the properly constituted military authorities ... decided that the military urgency of the situation demanded that all citizens of Japanese ancestry be segregated from the West Coast"" during the war against Japan. Dissenting justices Frank Murphy, Robert H. Jackson, and Owen J. Roberts all criticized the exclusion as racially discriminatory; Murphy wrote that the exclusion of Japanese ""falls into the ugly abyss of racism"" and resembled ""the abhorrent and despicable treatment of minority groups by the dictatorial tyrannies which this nation is now pledged to destroy."""	"Korematsu v United States was a Supreme Court decision that upheld the removal of citizens of Japanese descent from the West Coast of the US during WWII. The decision has been widely criticized and is often cited as one of the worst Supreme Court decisions in US history. The case was repudiated by the court in 2018. 
+
+The case was brought by Fred Korematsu, who refused to move and challenged the order on the grounds that it violated the Fifth Amendment. 
+
+The majority held that the need to protect the US against espionage by Japan outweighed the individual rights of Japanese-American citizens during wartime. Three dissenting justices argued that the removal was racially discriminatory."		
+Tell me some facts about hemoglobin with the given text as a reference	Hemoglobin (haemoglobin in British English), abbreviated Hb or Hgb, is the iron-containing oxygen-transport metalloprotein present in red blood cells (erythrocytes) of almost all vertebrates (the exception being the fish family  Channichthyidae ) as well as the tissues of some invertebrates.Hemoglobin in blood carries oxygen from the respiratory organs (e.g. lungs or gills) to the rest of the body (i.e. tissues). There it releases the oxygen to permit aerobic respiration to provide energy to power functions of an organism in the process called metabolism. A healthy individual human has 12 to 20 grams of hemoglobin in every 100 mL of blood.	"1. Hemoglobin/Hb/Hgb is the iron-containing oxygen-transport metalloprotein which is present
+in red blood cells (erythrocytes) of almost all vertebrates (the exception being the fish
+family  Channichthyidae ) as well as the tissues of some invertebrates
+2. Hemoglobin carries oxygen in blood from respiratory organs (e.g. lungs or gills) to rest of the
+body(i.e. tissue).
+3. Metablolism is the energy to power functions of an organism. Hemoglobin releases the oxygen
+to permit aerobic respiration .
+4. Healthy human have 12 to 25 grams of hemoglobin in every 100 mL of blood."		
+Based on the reference text, provide a bulleted list summarizing Newton's three laws of motion	"First
+Translated from the Latin, Newton's first law reads,
+
+Every body continues in its state of rest, or of uniform motion in a straight line, unless it is compelled to change that state by forces impressed upon it.: 114 
+Newton's first law expresses the principle of inertia: the natural behavior of a body is to move in a straight line at constant speed. In the absence of outside influences, a body's motion preserves the status quo.
+
+The modern understanding of Newton's first law is that no inertial observer is privileged over any other. The concept of an inertial observer makes quantitative the everyday idea of feeling no effects of motion. For example, a person standing on the ground watching a train go past is an inertial observer. If the observer on the ground sees the train moving smoothly in a straight line at a constant speed, then a passenger sitting on the train will also be an inertial observer: the train passenger feels no motion. The principle expressed by Newton's first law is that there is no way to say which inertial observer is ""really"" moving and which is ""really"" standing still. One observer's state of rest is another observer's state of uniform motion in a straight line, and no experiment can deem either point of view to be correct or incorrect. There is no absolute standard of rest.[note 4]
+
+Second
+The change of motion of an object is proportional to the force impressed; and is made in the direction of the straight line in which the force is impressed.: 114 
+By ""motion"", Newton meant the quantity now called momentum, which depends upon the amount of matter contained in a body, the speed at which that body is moving, and the direction in which it is moving. In modern notation, the momentum of a body is the product of its mass and its velocity:
+
+Newton's second law, in modern form, states that the time derivative of the momentum is the force:
+If the mass m does not change with time, then the derivative acts only upon the velocity, and so the force equals the product of the mass and the time derivative of the velocity, which is the acceleration:
+As the acceleration is the second derivative of position with respect to time, this can also be written.
+
+The forces acting on a body add as vectors, and so the total force on a body depends upon both the magnitudes and the directions of the individual forces. When the net force on a body is equal to zero, then by Newton's second law, the body does not accelerate, and it is said to be in mechanical equilibrium. A state of mechanical equilibrium is stable if, when the position of the body is changed slightly, the body remains near that equilibrium. Otherwise, the equilibrium is unstable.
+
+A common visual representation of forces acting in concert is the free body diagram, which schematically portrays a body of interest and the forces applied to it by outside influences. For example, a free body diagram of a block sitting upon an inclined plane can illustrate the combination of gravitational force, ""normal"" force, friction, and string tension.[note 5]
+
+Newton's second law is sometimes presented as a definition of force, i.e., a force is that which exists when an inertial observer sees a body accelerating. In order for this to be more than a tautology — acceleration implies force, force implies acceleration — some other statement about force must also be made. For example, an equation detailing the force might be specified, like Newton's law of universal gravitation. By inserting such an expression for 
+ into Newton's second law, an equation with predictive power can be written.[note 6] Newton's second law has also been regarded as setting out a research program for physics, establishing that important goals of the subject are to identify the forces present in nature and to catalogue the constituents of matter.[note 7]
+
+Third
+To every action, there is always opposed an equal reaction; or, the mutual actions of two bodies upon each other are always equal, and directed to contrary parts.: 116 
+
+Overly brief paraphrases of the third law, like ""action equals reaction"" might have caused confusion among generations of students: the ""action"" and ""reaction"" apply to different bodies. For example, consider a book at rest on a table. The Earth's gravity pulls down upon the book. The ""reaction"" to that ""action"" is not the support force from the table holding up the book, but the gravitational pull of the book acting on the Earth.[note 8]
+
+Newton's third law relates to a more fundamental principle, the conservation of momentum. The latter remains true even in cases where Newton's statement does not, for instance when force fields as well as material bodies carry momentum, and when momentum is defined properly, in quantum mechanics as well.[note 9]
+By Newton's second law, the first term is the total force upon the first body, and the second term is the total force upon the second body. If the two bodies are isolated from outside influences, the only force upon the first body can be that from the second, and vice versa. By Newton's third law, these forces have equal magnitude but opposite direction, so they cancel when added, and 
+→{\vec {p}} is constant. Alternatively, if 
+→{\vec {p}} is known to be constant, it follows that the forces have equal magnitude and opposite direction."	"The following is a summary of Newton's three laws of motion:
+1. First Law: A body remains at rest, or in motion at constant speed, unless acted upon by a force.
+2. Second Law: The change of motion of an object is proportional to the force impressed on the object.
+3. Third Law: To every action, there is an equal and opposite reaction."		
+Give a short bulleted list of the academic positions held by Sechrest. Each bullet should have the name of the university and the titles that Sechrest had in that university.	Sechrest joined the faculty of Pennsylvania State University (Penn State) in 1956 as an assistant professor of psychology. He left Penn State in 1958 to become an assistant professor at Northwestern University, where he was promoted to associate professor in 1964 and to full professor in 1967. In 1973, he became a professor of psychology at Florida State University, and in 1980, he was named director of the Center for Research on the Utilization of Scientific Knowledge in the Institute for Social Research at the University of Michigan. In 1984, he joined the University of Arizona as professor and chair of the Department of Psychology, serving as department chair until 1989. He served as president of the Society of Clinical Psychology (Division 12 of the American Psychological Association) in 1985. He continued to serve as an active faculty member at the University of Arizona until 2002, whereupon he became an emeritus professor there.	"- Pennsylvania State University : assistant professor
+- Northwestern University: assistant professor, associate professor, full professor
+- Florida State University: professor of psychology
+- University of Michigan: director of the Center for Research on the Utilization of Scientific Knowledge in the Institute for Social Research
+- University of Arizona: professor, chair of the department of Pshychology, emeritus professor"		
+Please give me a bulleted list of countries that make up the Indian subcontinent from this passage	"The Indian subcontinent is a physiographical region in Southern Asia, situated on the Indian Plate, projecting southwards into the Indian Ocean from the Himalayas. Geopolitically, it includes the countries of Bangladesh, Bhutan, India, Maldives, Nepal, Pakistan, and Sri Lanka. The terms ""Indian subcontinent"" and ""South Asia"" are often used interchangeably to denote the region, although the geopolitical term of South Asia frequently includes Afghanistan, which may otherwise be classified as Central Asian."	"Here is the bulleted list of countries that comprise the Indian Subcontinent
+
+* Bangladesh
+* Bhutan
+* India
+* Maldives
+* Nepal
+* Pakistan
+* Sri Lanka"		
+Please give me a list of the countries in which Gabribaldi fought according to the text	"Giuseppe Maria Garibaldi was an Italian general, patriot, revolutionary and republican. He contributed to Italian unification and the creation of the Kingdom of Italy. He is considered one of the greatest generals of modern times and one of Italy's ""fathers of the fatherland"", along with Camillo Benso, Count of Cavour, Victor Emmanuel II of Italy and Giuseppe Mazzini. Garibaldi is also known as the ""Hero of the Two Worlds"" because of his military enterprises in South America and Europe.
+
+Garibaldi was a follower of the Italian nationalist Mazzini and embraced the republican nationalism of the Young Italy movement. He became a supporter of Italian unification under a democratic republican government. However, breaking with Mazzini, he pragmatically allied himself with the monarchist Cavour and Kingdom of Piedmont-Sardinia in the struggle for independence, subordinating his republican ideals to his nationalist ones until Italy was unified. After participating in an uprising in Piedmont, he was sentenced to death, but escaped and sailed to South America, where he spent 14 years in exile, during which he took part in several wars and learned the art of guerrilla warfare. In 1835 he joined the rebels known as the Ragamuffins (farrapos), in the Ragamuffin War in Brazil, and took up their cause of establishing the Riograndense Republic and later the Catarinense Republic. Garibaldi also became involved in the Uruguayan Civil War, raising an Italian force known as Redshirts, and is still celebrated as an important contributor to Uruguay's reconstitution."	Italy, Brazil, Uruguay		
+Please summarize the challenges faced by the factory workers in The Matchgirls musical.	"The Matchgirls is a musical by Bill Owen and Tony Russell about the London matchgirls strike of 1888. It premiered at the Globe Theatre, London, on 1 March 1966, directed and choreographed by Gillian Lynne.
+
+The musical focuses on the lifestyle of the match cutters at the Bryant and May factory in Bow, London, with strong references to the condition Phossy jaw and the political climate of the era.
+
+Production history
+After out-of-town tryouts in Leatherhead, Surrey, the show opened on the West End in March 1966. The show closed about three months later.
+
+A cast recording was made of the 1966 Globe Theatre London production. The musical was published by Samuel French Ltd in 1979.
+
+Synopsis
+The central character of the musical is Kate, a tenement girl and factory worker, who writes to Annie Besant to ask for help in seeking reform at the Bryant and May factory. The story follows Kate and Annie's attempts to rally the girls, leading Kate to become a reckless strike-leader and a key player in the creation and recognition of the union. With much of the action set in the incongruously named, but fictional, 'Hope Court', the musical portrays Bryant and May as callous and uncaring employers, with factory foreman 'Mr Mynel' representing the threatening and imposing regime in which the girls were forced to work.
+
+There is also a sub plot in which Kate's involvement in the strike puts strain on her relationship with docker Joe.
+
+Despite the subject matter of the musical, a strong emphasis is placed on the positive mentality and natural ebullience of the so-called 'cockney sparrows', this leading to a number of cheerful and entertaining vocal numbers and dance routines."	The Bryant and May factory was a popular employer in the 1960's and 70's in the fictional town of Hope Court. This factory hired many semi-skilled workers to produce their goods.  The story focuses on Kate who felt that the working conditions needed reform and put together a union to demand better working conditions for her and her peers. The musical follows the highs and lows of Kate and peers as they fight for better working conditions.		
