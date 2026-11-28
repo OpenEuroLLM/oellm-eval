@@ -51,6 +51,7 @@ Available task groups:
 - `bpb-mc-en` - Gold-answer bits-per-byte on English multiple-choice tasks (ARC-Easy/Challenge, HellaSwag, OpenBookQA, PIQA, Social IQa, Winogrande; 5-shot, `bits_per_byte`, lower is better).
 - `open-sci-0.01` - Standard benchmarks (COPA, MMLU, HellaSwag, ARC, etc.)
 - `belebele-eu-5-shot` - Belebele European language tasks
+- `xquad-eu` - XQuAD short-answer reading comprehension in German, Greek, English, Spanish, Romanian and Turkish (2-shot, `f1`)
 - `flores-200-eu-to-eng` / `flores-200-eng-to-eu` - Translation tasks
 - `global-mmlu-eu` - Global MMLU in EU languages
 - `mgsm-eu` - Multilingual GSM benchmarks

@@ -206,6 +206,15 @@ class TestExpandTaskGroupsWithTemplates:
         results = _expand_task_groups(["global-piqa-eu-completions"])
         assert len(results) == 32
 
+    def test_xquad_expands_to_six_languages_at_two_shots(self):
+        results = _expand_task_groups(["xquad-eu"])
+        assert sorted(r.task for r in results) == [
+            f"xquad_{lang}" for lang in ["de", "el", "en", "es", "ro", "tr"]
+        ]
+        assert {r.n_shot for r in results} == {2}
+        greek = _expand_task_groups(["xquad-eu[ell_Grek]"])
+        assert [r.task for r in greek] == ["xquad_el"]
+
 
 def test_judgearena_does_not_register_standalone_ja_variants():
     assert {"alpaca-eval-ja", "arena-hard-v0.1-ja", "arena-hard-v2.0-ja"}.isdisjoint(

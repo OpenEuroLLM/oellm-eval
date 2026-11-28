@@ -122,6 +122,13 @@ _LANG_ALIAS = {
     "x-csqa-nl": "nld_Latn",
     "x-csqa-pl": "pol_Latn",
     "x-csqa-pt": "por_Latn",
+    # xquad: the `subset` is the HF config (`xquad.<iso1>`).
+    "xquad.de": "deu_Latn",
+    "xquad.el": "ell_Grek",
+    "xquad.en": "eng_Latn",
+    "xquad.es": "spa_Latn",
+    "xquad.ro": "ron_Latn",
+    "xquad.tr": "tur_Latn",
     # ISO 639-3 three-letter codes (multiblimp HF configs / subsets)
     "bul": "bul_Cyrl",
     "ces": "ces_Latn",
